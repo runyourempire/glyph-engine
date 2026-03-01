@@ -1,0 +1,3 @@
+project dome(segments: 8) {
+  source: main
+}
