@@ -3,10 +3,17 @@
 //! Generates WGSL and/or GLSL shaders from GAME AST, then hands off to
 //! the runtime module to wrap them in Web Components or standalone HTML.
 
+pub mod breed;
 pub mod cast;
 pub mod glsl;
+pub mod gravity;
+pub mod listen;
 pub mod memory;
+pub mod project;
+pub mod score;
 pub mod stages;
+pub mod temporal;
+pub mod voice;
 pub mod wgsl;
 
 use crate::ast::{Cinematic, Expr, LayerBody};
@@ -128,6 +135,7 @@ mod tests {
             }],
             arcs: vec![],
             resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
         }
     }
 
@@ -183,11 +191,13 @@ mod tests {
                         name: "intensity".into(),
                         value: Expr::Number(0.5),
                         modulation: None,
+                        temporal_ops: vec![],
                     },
                 ]),
             }],
             arcs: vec![],
             resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
         };
         let uniforms = extract_uniforms(&cin);
         assert_eq!(uniforms.len(), 1);
@@ -210,6 +220,7 @@ mod tests {
             }],
             arcs: vec![],
             resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
         };
         assert!(generate(&cin).is_ok());
     }
@@ -230,6 +241,7 @@ mod tests {
             }],
             arcs: vec![],
             resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
         };
         let err = generate(&cin).unwrap_err();
         assert!(err.to_string().contains("cast as 'sdf'"));

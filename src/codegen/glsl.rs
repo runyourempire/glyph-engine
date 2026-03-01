@@ -285,6 +285,7 @@ mod tests {
             }],
             arcs: vec![],
             resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
         }
     }
 
@@ -404,6 +405,7 @@ mod tests {
             ],
             arcs: vec![],
             resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
         };
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("vec4 final_color"));

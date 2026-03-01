@@ -279,6 +279,7 @@ mod tests {
             }],
             arcs: vec![],
             resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
         }
     }
 

@@ -161,6 +161,7 @@ mod tests {
             ],
             arcs: vec![],
             resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
         };
         let err = validate_casts(&cin).unwrap_err();
         assert!(err.to_string().contains("layer 'b'"));
