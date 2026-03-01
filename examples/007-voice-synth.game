@@ -1,0 +1,11 @@
+cinematic "synesthesia" {
+  voice {
+    tone: sine(freq: 440)
+    filter: lowpass(cutoff: 2000, q: 2.0)
+    output: gain(level: 0.3)
+  }
+
+  layer viz {
+    circle(0.3) | glow(1.5) | tint(0.2, 0.8, 1.0)
+  }
+}
