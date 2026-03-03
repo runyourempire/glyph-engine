@@ -1,0 +1,30 @@
+// Ambient Intelligence — 11-param reactive state indicator.
+// Replaces VoidHeartbeat's hand-written shader with GAME compiler scaffold.
+
+cinematic "ambient-intelligence" {
+  layer config {
+    pulse: 0.0
+    heat: 0.0
+    burst: 0.0
+    morph: 0.0
+    error_val: 0.0
+    staleness: 0.0
+    opacity_val: 0.9
+    signal_intensity: 0.0
+    color_shift: 0.0
+    critical_count: 0.0
+    metabolism: 0.0
+  }
+
+  layer core memory: 0.95 {
+    circle(0.35) | glow(2.0) | tint(0.55, 0.28, 0.06)
+  }
+
+  layer noise_field {
+    fbm(3.0, 4, 0.5, 2.0) | glow(1.5) | tint(1.0, 0.82, 0.3)
+  }
+
+  layer outer_ring {
+    ring(0.38, 0.02) | glow(1.0) | tint(0.83, 0.69, 0.22)
+  }
+}

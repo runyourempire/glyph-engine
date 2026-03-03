@@ -1,0 +1,17 @@
+// Decision Countdown — arc-driven urgency ring for decision windows.
+// progress (1→0) controls arc sweep, urgency drives color intensity.
+
+cinematic "decision-countdown" {
+  layer config {
+    progress: 1.0
+    urgency: 0.0
+  }
+
+  layer bg {
+    ring(0.4, 0.01) | glow(0.5) | tint(0.3, 0.3, 0.3)
+  }
+
+  layer countdown {
+    ring(0.4, 0.03) | mask_arc(progress) | glow(1.5) | tint(0.83, 0.69, 0.22)
+  }
+}
