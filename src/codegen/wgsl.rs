@@ -276,13 +276,13 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
     match stage.name.as_str() {
         "circle" => {
             let r = get_arg(args, "radius", 0, "circle");
-            s.push_str(&format!("{indent}let sdf_result = sdf_circle(p, {r});\n"));
+            s.push_str(&format!("{indent}var sdf_result = sdf_circle(p, {r});\n"));
         }
         "ring" => {
             let r = get_arg(args, "radius", 0, "ring");
             let w = get_arg(args, "width", 1, "ring");
             s.push_str(&format!(
-                "{indent}let sdf_result = abs(length(p) - {r}) - {w};\n"
+                "{indent}var sdf_result = abs(length(p) - {r}) - {w};\n"
             ));
         }
         "star" => {
@@ -290,22 +290,25 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let r = get_arg(args, "radius", 1, "star");
             let ir = get_arg(args, "inner", 2, "star");
             s.push_str(&format!(
-                "{indent}let sdf_result = sdf_star(p, {n}, {r}, {ir});\n"
+                "{indent}var sdf_result = sdf_star(p, {n}, {r}, {ir});\n"
             ));
         }
         "box" => {
             let w = get_arg(args, "width", 0, "box");
             let h = get_arg(args, "height", 1, "box");
-            s.push_str(&format!("{indent}let sdf_result = sdf_box(p, {w}, {h});\n"));
+            s.push_str(&format!("{indent}var sdf_result = sdf_box(p, {w}, {h});\n"));
         }
         "hex" => {
             let r = get_arg(args, "radius", 0, "hex");
-            s.push_str(&format!("{indent}let sdf_result = sdf_hex(p, {r});\n"));
+            s.push_str(&format!("{indent}var sdf_result = sdf_hex(p, {r});\n"));
         }
         "glow" => {
             let intensity = get_arg(args, "intensity", 0, "glow");
             s.push_str(&format!(
-                "{indent}let glow_result = apply_glow(sdf_result, {intensity});\n"
+                "{indent}let glow_pulse = {intensity} * (0.9 + 0.1 * sin(time * 2.0));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}let glow_result = apply_glow(sdf_result, glow_pulse);\n"
             ));
             s.push_str(&format!(
                 "{indent}var color_result = vec4<f32>(vec3<f32>(glow_result), 1.0);\n"
@@ -373,7 +376,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let pers = get_arg(args, "persistence", 2, "fbm");
             let lac = get_arg(args, "lacunarity", 3, "fbm");
             s.push_str(&format!(
-                "{indent}let sdf_result = fbm2((p * {sc}), i32({oct}), {pers}, {lac});\n"
+                "{indent}var sdf_result = fbm2((p * {sc} + vec2<f32>(time * 0.1, time * 0.07)), i32({oct}), {pers}, {lac});\n"
             ));
         }
         "grain" => {
@@ -383,7 +386,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "simplex" => {
             let sc = get_arg(args, "scale", 0, "simplex");
-            s.push_str(&format!("{indent}let sdf_result = noise2(p * {sc});\n"));
+            s.push_str(&format!("{indent}var sdf_result = noise2(p * {sc} + vec2<f32>(time * 0.1, time * 0.07));\n"));
         }
         "warp" => {
             let sc = get_arg(args, "scale", 0, "warp");
@@ -416,7 +419,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "voronoi" => {
             let sc = get_arg(args, "scale", 0, "voronoi");
-            s.push_str(&format!("{indent}let sdf_result = voronoi2(p * {sc});\n"));
+            s.push_str(&format!("{indent}var sdf_result = voronoi2(p * {sc} + vec2<f32>(time * 0.05, time * 0.03));\n"));
         }
         "radial_fade" => {
             let inner = get_arg(args, "inner", 0, "radial_fade");

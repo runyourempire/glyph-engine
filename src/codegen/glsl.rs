@@ -309,7 +309,10 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         "glow" => {
             let intensity = get_arg(args, "intensity", 0, "glow");
             s.push_str(&format!(
-                "{indent}float glow_result = apply_glow(sdf_result, {intensity});\n\n"
+                "{indent}float glow_pulse = {intensity} * (0.9 + 0.1 * sin(time * 2.0));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float glow_result = apply_glow(sdf_result, glow_pulse);\n\n"
             ));
             s.push_str(&format!(
                 "{indent}vec4 color_result = vec4(vec3(glow_result), 1.0);\n"
@@ -382,7 +385,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let pers = get_arg(args, "persistence", 2, "fbm");
             let lac = get_arg(args, "lacunarity", 3, "fbm");
             s.push_str(&format!(
-                "{indent}float sdf_result = fbm2((p * {sc}), int({oct}), {pers}, {lac});\n"
+                "{indent}float sdf_result = fbm2((p * {sc} + vec2(time * 0.1, time * 0.07)), int({oct}), {pers}, {lac});\n"
             ));
         }
         "grain" => {
@@ -392,7 +395,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "simplex" => {
             let sc = get_arg(args, "scale", 0, "simplex");
-            s.push_str(&format!("{indent}float sdf_result = noise2(p * {sc});\n"));
+            s.push_str(&format!("{indent}float sdf_result = noise2(p * {sc} + vec2(time * 0.1, time * 0.07));\n"));
         }
         "warp" => {
             let sc = get_arg(args, "scale", 0, "warp");
@@ -423,7 +426,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "voronoi" => {
             let sc = get_arg(args, "scale", 0, "voronoi");
-            s.push_str(&format!("{indent}float sdf_result = voronoi2(p * {sc});\n"));
+            s.push_str(&format!("{indent}float sdf_result = voronoi2(p * {sc} + vec2(time * 0.05, time * 0.03));\n"));
         }
         "radial_fade" => {
             let inner = get_arg(args, "inner", 0, "radial_fade");
