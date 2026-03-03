@@ -75,6 +75,7 @@ mod tests {
             opts: vec![],
             memory: None,
             cast: Some(cast.into()),
+            blend: BlendMode::Add,
             body: LayerBody::Pipeline(stages),
         }
     }
@@ -134,6 +135,7 @@ mod tests {
             opts: vec![],
             memory: None,
             cast: None,
+            blend: BlendMode::Add,
             body: LayerBody::Pipeline(vec![stage("circle"), stage("glow")]),
         };
         assert!(validate_layer_cast(&layer).is_ok());

@@ -31,6 +31,8 @@ enum LexToken {
     Memory,
     #[token("cast")]
     Cast,
+    #[token("blend")]
+    Blend,
     #[token("listen")]
     Listen,
     #[token("voice")]
@@ -175,6 +177,7 @@ fn convert(lt: LexToken, slice: &str) -> Result<Token, CompileError> {
         LexToken::Over => Token::Over,
         LexToken::Memory => Token::Memory,
         LexToken::Cast => Token::Cast,
+        LexToken::Blend => Token::Blend,
         LexToken::Listen => Token::Listen,
         LexToken::Voice => Token::Voice,
         LexToken::Score => Token::Score,

@@ -338,6 +338,27 @@ impl Parser {
             None
         };
 
+        // Optional `blend: <mode>` (add, screen, multiply, overlay)
+        let blend = if matches!(self.peek(), Some(Token::Blend)) {
+            self.advance(); // consume `blend`
+            self.expect(&Token::Colon)?;
+            let mode_str = self.expect_ident()?;
+            match mode_str.as_str() {
+                "add" => BlendMode::Add,
+                "screen" => BlendMode::Screen,
+                "multiply" => BlendMode::Multiply,
+                "overlay" => BlendMode::Overlay,
+                _ => {
+                    return Err(CompileError::validation(format!(
+                        "unknown blend mode '{}', expected: add, screen, multiply, overlay",
+                        mode_str
+                    )));
+                }
+            }
+        } else {
+            BlendMode::Add
+        };
+
         self.expect(&Token::LBrace)?;
         let body = self.parse_layer_body()?;
         self.expect(&Token::RBrace)?;
@@ -347,6 +368,7 @@ impl Parser {
             opts,
             memory,
             cast,
+            blend,
             body,
         })
     }

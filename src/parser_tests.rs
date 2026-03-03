@@ -1005,3 +1005,56 @@ fn parse_flow_block() {
     assert_eq!(f.octaves, 6);
     assert!((f.strength - 2.0).abs() < f64::EPSILON);
 }
+
+// ===================================================================
+// Layer with blend mode
+// ===================================================================
+
+#[test]
+fn parse_layer_with_blend_screen() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("fx".into())),
+        s(Token::Blend),
+        s(Token::Colon),
+        s(Token::Ident("screen".into())),
+        s(Token::LBrace),
+        s(Token::Ident("color".into())),
+        s(Token::Colon),
+        s(Token::StringLit("red".into())),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse blend");
+    assert_eq!(
+        prog.cinematics[0].layers[0].blend,
+        crate::ast::BlendMode::Screen
+    );
+}
+
+#[test]
+fn parse_layer_default_blend_is_add() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
+        s(Token::Ident("color".into())),
+        s(Token::Colon),
+        s(Token::StringLit("blue".into())),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse");
+    assert_eq!(
+        prog.cinematics[0].layers[0].blend,
+        crate::ast::BlendMode::Add
+    );
+}

@@ -72,6 +72,9 @@ pub fn generate_fragment(cinematic: &Cinematic, uniforms: &[UniformInfo]) -> Str
 
 fn emit_wgsl_builtins(s: &mut String, cinematic: &Cinematic) {
     let needs_circle = cinematic.layers.iter().any(|l| has_stage(l, "circle"));
+    let needs_star = cinematic.layers.iter().any(|l| has_stage(l, "star"));
+    let needs_box = cinematic.layers.iter().any(|l| has_stage(l, "box"));
+    let needs_hex = cinematic.layers.iter().any(|l| has_stage(l, "hex"));
     let needs_fbm = cinematic.layers.iter().any(|l| has_stage(l, "fbm"));
     let needs_warp = cinematic.layers.iter().any(|l| has_stage(l, "warp"));
     let needs_simplex = cinematic.layers.iter().any(|l| has_stage(l, "simplex"));
@@ -81,6 +84,27 @@ fn emit_wgsl_builtins(s: &mut String, cinematic: &Cinematic) {
     if needs_circle {
         s.push_str("fn sdf_circle(p: vec2<f32>, radius: f32) -> f32 {\n");
         s.push_str("    return length(p) - radius;\n");
+        s.push_str("}\n\n");
+    }
+
+    if needs_star {
+        emit_wgsl_star(s);
+    }
+
+    if needs_box {
+        s.push_str("fn sdf_box(p: vec2<f32>, w: f32, h: f32) -> f32 {\n");
+        s.push_str("    let d = abs(p) - vec2<f32>(w, h);\n");
+        s.push_str("    return length(max(d, vec2<f32>(0.0, 0.0))) + min(max(d.x, d.y), 0.0);\n");
+        s.push_str("}\n\n");
+    }
+
+    if needs_hex {
+        s.push_str("fn sdf_hex(p: vec2<f32>, r: f32) -> f32 {\n");
+        s.push_str("    let k = vec3<f32>(-0.866025, 0.5, 0.577350);\n");
+        s.push_str("    var q = abs(p);\n");
+        s.push_str("    q = q - 2.0 * min(dot(k.xy, q), 0.0) * k.xy;\n");
+        s.push_str("    q = q - vec2<f32>(clamp(q.x, -k.z * r, k.z * r), r);\n");
+        s.push_str("    return length(q) * sign(q.y);\n");
         s.push_str("}\n\n");
     }
 
@@ -99,6 +123,25 @@ fn emit_wgsl_builtins(s: &mut String, cinematic: &Cinematic) {
     if needs_palette {
         emit_wgsl_palette(s);
     }
+}
+
+fn emit_wgsl_star(s: &mut String) {
+    s.push_str("fn sdf_star(p: vec2<f32>, n: f32, r: f32, ir: f32) -> f32 {\n");
+    s.push_str("    let an = 3.14159265 / n;\n");
+    s.push_str("    let a = atan2(p.y, p.x);\n");
+    s.push_str("    let period = 2.0 * an;\n");
+    s.push_str("    let sa = (a + an) - floor((a + an) / period) * period - an;\n");
+    s.push_str("    let q = length(p) * vec2<f32>(cos(sa), abs(sin(sa)));\n");
+    s.push_str("    let tip = vec2<f32>(r, 0.0);\n");
+    s.push_str("    let valley = vec2<f32>(ir * cos(an), ir * sin(an));\n");
+    s.push_str("    let e = tip - valley;\n");
+    s.push_str("    let d = q - valley;\n");
+    s.push_str("    let t = clamp(dot(d, e) / dot(e, e), 0.0, 1.0);\n");
+    s.push_str("    let closest = valley + e * t;\n");
+    s.push_str("    let dist = length(q - closest);\n");
+    s.push_str("    let cross_val = d.x * e.y - d.y * e.x;\n");
+    s.push_str("    return select(dist, -dist, cross_val > 0.0);\n");
+    s.push_str("}\n\n");
 }
 
 fn emit_wgsl_fbm(s: &mut String) {
@@ -195,9 +238,33 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
 
     if multi {
         s.push_str(&format!("{indent}let lc = color_result.rgb;\n"));
-        s.push_str(&format!(
-            "{indent}final_color = vec4<f32>(final_color.rgb + lc * 1.0, 1.0);\n"
-        ));
+        match layer.blend {
+            BlendMode::Add => {
+                s.push_str(&format!(
+                    "{indent}final_color = vec4<f32>(final_color.rgb + lc, 1.0);\n"
+                ));
+            }
+            BlendMode::Screen => {
+                s.push_str(&format!(
+                    "{indent}final_color = vec4<f32>(1.0 - (1.0 - final_color.rgb) * (1.0 - lc), 1.0);\n"
+                ));
+            }
+            BlendMode::Multiply => {
+                s.push_str(&format!(
+                    "{indent}final_color = vec4<f32>(final_color.rgb * lc, 1.0);\n"
+                ));
+            }
+            BlendMode::Overlay => {
+                s.push_str(&format!("{indent}{{ let base = final_color.rgb;\n"));
+                s.push_str(&format!("{indent}let lo = 2.0 * base * lc;\n"));
+                s.push_str(&format!(
+                    "{indent}let hi = 1.0 - 2.0 * (1.0 - base) * (1.0 - lc);\n"
+                ));
+                s.push_str(&format!(
+                    "{indent}final_color = vec4<f32>(select(hi, lo, base < vec3<f32>(0.5)), 1.0); }}\n"
+                ));
+            }
+        }
         s.push_str("    }\n\n");
     } else {
         s.push_str(&format!("{indent}return color_result;\n"));
@@ -217,6 +284,23 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             s.push_str(&format!(
                 "{indent}let sdf_result = abs(length(p) - {r}) - {w};\n"
             ));
+        }
+        "star" => {
+            let n = get_arg(args, "points", 0, "star");
+            let r = get_arg(args, "radius", 1, "star");
+            let ir = get_arg(args, "inner", 2, "star");
+            s.push_str(&format!(
+                "{indent}let sdf_result = sdf_star(p, {n}, {r}, {ir});\n"
+            ));
+        }
+        "box" => {
+            let w = get_arg(args, "width", 0, "box");
+            let h = get_arg(args, "height", 1, "box");
+            s.push_str(&format!("{indent}let sdf_result = sdf_box(p, {w}, {h});\n"));
+        }
+        "hex" => {
+            let r = get_arg(args, "radius", 0, "hex");
+            s.push_str(&format!("{indent}let sdf_result = sdf_hex(p, {r});\n"));
         }
         "glow" => {
             let intensity = get_arg(args, "intensity", 0, "glow");
@@ -405,6 +489,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(stages),
             }],
             arcs: vec![],
@@ -542,5 +627,120 @@ mod tests {
         assert!(output.contains("atan2(p.y, p.x)"), "polar transform");
         assert!(output.contains("noise2(p *"), "simplex noise");
         assert!(output.contains("fn noise2"), "noise2 helper emitted");
+    }
+
+    fn make_multi_layer(layers: Vec<Layer>) -> Cinematic {
+        Cinematic {
+            name: "test".into(),
+            layers,
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
+        }
+    }
+
+    #[test]
+    fn wgsl_screen_blend_emits_formula() {
+        let cin = make_multi_layer(vec![
+            Layer {
+                name: "bg".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                blend: BlendMode::Add,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                }]),
+            },
+            Layer {
+                name: "fx".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                blend: BlendMode::Screen,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                }]),
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(
+            output.contains("1.0 - (1.0 - "),
+            "screen blend formula: {output}"
+        );
+    }
+
+    #[test]
+    fn wgsl_multiply_blend_emits_formula() {
+        let cin = make_multi_layer(vec![
+            Layer {
+                name: "bg".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                blend: BlendMode::Add,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                }]),
+            },
+            Layer {
+                name: "fx".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                blend: BlendMode::Multiply,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                }]),
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(
+            output.contains("final_color.rgb * lc"),
+            "multiply blend formula: {output}"
+        );
+    }
+
+    #[test]
+    fn wgsl_overlay_blend_emits_select() {
+        let cin = make_multi_layer(vec![
+            Layer {
+                name: "bg".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                blend: BlendMode::Add,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                }]),
+            },
+            Layer {
+                name: "fx".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                blend: BlendMode::Overlay,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                }]),
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(
+            output.contains("select("),
+            "overlay blend uses select: {output}"
+        );
     }
 }

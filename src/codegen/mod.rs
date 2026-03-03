@@ -250,6 +250,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(stages),
             }],
             arcs: vec![],
@@ -321,6 +322,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Params(vec![Param {
                     name: "intensity".into(),
                     value: Expr::Number(0.5),
@@ -353,6 +355,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: Some("sdf".into()),
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -380,6 +383,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: Some("sdf".into()),
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -414,6 +418,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -456,6 +461,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -516,6 +522,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -560,6 +567,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -606,6 +614,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -664,6 +673,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -703,6 +713,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -744,6 +755,7 @@ mod tests {
                 opts: vec![],
                 memory: None,
                 cast: None,
+                blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],

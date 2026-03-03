@@ -15,8 +15,15 @@ pub fn webgpu_renderer() -> &'static str {
     this.running = false;
     this.startTime = performance.now() / 1000;
     this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };
+    this.mouseX = 0; this.mouseY = 0;
     this.userParams = {};
     for (const u of uniformDefs) this.userParams[u.name] = u.default;
+    this._onMouseMove = (e) => {
+      const r = this.canvas.getBoundingClientRect();
+      this.mouseX = (e.clientX - r.left) / r.width;
+      this.mouseY = 1.0 - (e.clientY - r.top) / r.height;
+    };
+    this.canvas.addEventListener('mousemove', this._onMouseMove);
   }
 
   async init() {
@@ -84,7 +91,7 @@ pub fn webgpu_renderer() -> &'static str {
     data[4] = this.audioData.energy;
     data[5] = this.audioData.beat;
     data[6] = w; data[7] = h;
-    data[8] = 0; data[9] = 0; // mouse
+    data[8] = this.mouseX; data[9] = this.mouseY;
     let i = 10;
     for (const u of this.uniformDefs) data[i++] = this.userParams[u.name] ?? u.default;
     this.device.queue.writeBuffer(this.uniformBuffer, 0, data);
@@ -105,7 +112,7 @@ pub fn webgpu_renderer() -> &'static str {
 
   setParam(name, value) { this.userParams[name] = value; }
   setAudioData(d) { Object.assign(this.audioData, d); }
-  destroy() { this.stop(); this.device?.destroy(); }
+  destroy() { this.stop(); this.canvas.removeEventListener('mousemove', this._onMouseMove); this.device?.destroy(); }
 }"#
 }
 
@@ -122,8 +129,15 @@ pub fn webgl2_renderer() -> &'static str {
     this.running = false;
     this.startTime = performance.now() / 1000;
     this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };
+    this.mouseX = 0; this.mouseY = 0;
     this.userParams = {};
     for (const u of uniformDefs) this.userParams[u.name] = u.default;
+    this._onMouseMove = (e) => {
+      const r = this.canvas.getBoundingClientRect();
+      this.mouseX = (e.clientX - r.left) / r.width;
+      this.mouseY = 1.0 - (e.clientY - r.top) / r.height;
+    };
+    this.canvas.addEventListener('mousemove', this._onMouseMove);
   }
 
   init() {
@@ -203,7 +217,7 @@ pub fn webgl2_renderer() -> &'static str {
     gl.uniform1f(this.locs.energy, this.audioData.energy);
     gl.uniform1f(this.locs.beat, this.audioData.beat);
     gl.uniform2f(this.locs.resolution, this.canvas.width, this.canvas.height);
-    gl.uniform2f(this.locs.mouse, 0, 0);
+    gl.uniform2f(this.locs.mouse, this.mouseX, this.mouseY);
     for (const u of this.uniformDefs) {
       gl.uniform1f(this.paramLocs[u.name], this.userParams[u.name] ?? u.default);
     }
@@ -212,6 +226,6 @@ pub fn webgl2_renderer() -> &'static str {
 
   setParam(name, value) { this.userParams[name] = value; }
   setAudioData(d) { Object.assign(this.audioData, d); }
-  destroy() { this.stop(); }
+  destroy() { this.stop(); this.canvas.removeEventListener('mousemove', this._onMouseMove); }
 }"#
 }

@@ -61,6 +61,22 @@ static STAR_PARAMS: &[BuiltinParam] = &[
     },
 ];
 
+static BOX_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "width",
+        default: Some(0.3),
+    },
+    BuiltinParam {
+        name: "height",
+        default: Some(0.2),
+    },
+];
+
+static HEX_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "radius",
+    default: Some(0.3),
+}];
+
 static GLOW_PARAMS: &[BuiltinParam] = &[BuiltinParam {
     name: "intensity",
     default: Some(1.5),
@@ -299,6 +315,18 @@ static BUILTINS: &[BuiltinFn] = &[
         output: ShaderState::Sdf,
     },
     BuiltinFn {
+        name: "box",
+        params: BOX_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "hex",
+        params: HEX_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
         name: "fbm",
         params: FBM_PARAMS,
         input: ShaderState::Position,
@@ -437,6 +465,8 @@ mod tests {
             "circle",
             "ring",
             "star",
+            "box",
+            "hex",
             "glow",
             "tint",
             "bloom",
