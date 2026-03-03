@@ -135,11 +135,21 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
         ));
     }
     // Convenience alias: 'progress' maps to fill_angle (scaled to radians)
-    s.push_str("  get progress() { return this.fill_angle / (2 * Math.PI); }\n");
-    s.push_str("  set progress(v) { this.fill_angle = v * 2 * Math.PI; }\n");
+    // Only emit if fill_angle exists AND 'progress' isn't already a real uniform
+    let has_fill_angle = shader.uniforms.iter().any(|u| u.name == "fill_angle");
+    let has_progress = shader.uniforms.iter().any(|u| u.name == "progress");
+    if has_fill_angle && !has_progress {
+        s.push_str("  get progress() { return this.fill_angle / (2 * Math.PI); }\n");
+        s.push_str("  set progress(v) { this.fill_angle = v * 2 * Math.PI; }\n");
+    }
     // Convenience alias: 'health' maps to intensity
-    s.push_str("  get health() { return this.intensity; }\n");
-    s.push_str("  set health(v) { this.intensity = v; }\n");
+    // Only emit if intensity exists AND 'health' isn't already a real uniform
+    let has_intensity = shader.uniforms.iter().any(|u| u.name == "intensity");
+    let has_health = shader.uniforms.iter().any(|u| u.name == "health");
+    if has_intensity && !has_health {
+        s.push_str("  get health() { return this.intensity; }\n");
+        s.push_str("  set health(v) { this.intensity = v; }\n");
+    }
     s.push_str("\n");
 
     s.push_str("  static get observedAttributes() { return UNIFORMS.map(u => u.name); }\n");
@@ -294,5 +304,131 @@ mod tests {
         assert_eq!(to_kebab("My Cool Viz"), "my-cool-viz");
         assert_eq!(to_pascal("celebration-burst"), "CelebrationBurst");
         assert_eq!(to_pascal("test"), "Test");
+    }
+
+    #[test]
+    fn progress_alias_only_when_fill_angle_exists() {
+        let with_fill = ShaderOutput {
+            name: "ring".into(),
+            wgsl_fragment: "f".into(),
+            wgsl_vertex: "v".into(),
+            glsl_fragment: "f".into(),
+            glsl_vertex: "v".into(),
+            uniforms: vec![UniformInfo {
+                name: "fill_angle".into(),
+                default: 0.0,
+            }],
+            uses_memory: false,
+            js_modules: vec![],
+            compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
+        };
+        let js = generate_component(&with_fill);
+        assert!(js.contains("set progress(v)"), "should have progress alias");
+        assert!(js.contains("set fill_angle(v)"), "should have fill_angle setter");
+
+        let without_fill = ShaderOutput {
+            name: "orb".into(),
+            wgsl_fragment: "f".into(),
+            wgsl_vertex: "v".into(),
+            glsl_fragment: "f".into(),
+            glsl_vertex: "v".into(),
+            uniforms: vec![UniformInfo {
+                name: "glow".into(),
+                default: 1.0,
+            }],
+            uses_memory: false,
+            js_modules: vec![],
+            compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
+        };
+        let js = generate_component(&without_fill);
+        assert!(!js.contains("set progress(v)"), "should NOT have progress alias");
+    }
+
+    #[test]
+    fn health_alias_only_when_intensity_exists() {
+        let with_intensity = ShaderOutput {
+            name: "orb".into(),
+            wgsl_fragment: "f".into(),
+            wgsl_vertex: "v".into(),
+            glsl_fragment: "f".into(),
+            glsl_vertex: "v".into(),
+            uniforms: vec![UniformInfo {
+                name: "intensity".into(),
+                default: 1.0,
+            }],
+            uses_memory: false,
+            js_modules: vec![],
+            compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
+        };
+        let js = generate_component(&with_intensity);
+        assert!(js.contains("set health(v)"), "should have health alias");
+
+        let without_intensity = ShaderOutput {
+            name: "bars".into(),
+            wgsl_fragment: "f".into(),
+            wgsl_vertex: "v".into(),
+            glsl_fragment: "f".into(),
+            glsl_vertex: "v".into(),
+            uniforms: vec![UniformInfo {
+                name: "glow_val".into(),
+                default: 1.0,
+            }],
+            uses_memory: false,
+            js_modules: vec![],
+            compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
+        };
+        let js = generate_component(&without_intensity);
+        assert!(!js.contains("set health(v)"), "should NOT have health alias");
+    }
+
+    #[test]
+    fn no_duplicate_progress_when_uniform_named_progress() {
+        let shader = ShaderOutput {
+            name: "countdown".into(),
+            wgsl_fragment: "f".into(),
+            wgsl_vertex: "v".into(),
+            glsl_fragment: "f".into(),
+            glsl_vertex: "v".into(),
+            uniforms: vec![
+                UniformInfo {
+                    name: "progress".into(),
+                    default: 0.0,
+                },
+                UniformInfo {
+                    name: "urgency".into(),
+                    default: 0.0,
+                },
+            ],
+            uses_memory: false,
+            js_modules: vec![],
+            compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
+        };
+        let js = generate_component(&shader);
+        // Should have exactly one 'set progress' (the uniform setter), not the alias
+        let count = js.matches("set progress(v)").count();
+        assert_eq!(count, 1, "expected exactly one progress setter, got {count}");
+        // The one setter should be setParam-based, not fill_angle-based
+        assert!(js.contains("set progress(v) { this.setParam('progress', v); }"));
+        assert!(!js.contains("this.fill_angle"));
     }
 }
