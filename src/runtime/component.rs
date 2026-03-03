@@ -53,6 +53,12 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
         s.push_str("\n\n");
     }
 
+    // Inject feature JS modules (listen, voice, score, temporal, gravity, breed)
+    for module_js in &shader.js_modules {
+        s.push_str(module_js);
+        s.push_str("\n\n");
+    }
+
     // Custom element class
     s.push_str(&format!("class {class} extends HTMLElement {{\n"));
     s.push_str("  constructor() {\n");
@@ -172,6 +178,8 @@ mod tests {
             glsl_vertex: "void main(){}".into(),
             uniforms: vec![],
             uses_memory: false,
+            js_modules: vec![],
+            compute_wgsl: None,
         };
         let js = generate_component(&shader);
         assert!(js.contains("customElements.define('game-test-viz'"));
@@ -188,6 +196,8 @@ mod tests {
             glsl_vertex: "glsl_v".into(),
             uniforms: vec![UniformInfo { name: "speed".into(), default: 1.0 }],
             uses_memory: false,
+            js_modules: vec![],
+            compute_wgsl: None,
         };
         let js = generate_component(&shader);
         assert!(js.contains("class GameRenderer"));
@@ -205,11 +215,30 @@ mod tests {
             glsl_vertex: "glsl_v".into(),
             uniforms: vec![],
             uses_memory: true,
+            js_modules: vec![],
+            compute_wgsl: None,
         };
         let js = generate_component(&shader);
         assert!(js.contains("USES_MEMORY = true"));
         assert!(js.contains("_initMemory"));
         assert!(js.contains("_initMemoryGL"));
+    }
+
+    #[test]
+    fn component_with_listen_includes_pipeline() {
+        let shader = ShaderOutput {
+            name: "audio-viz".into(),
+            wgsl_fragment: "wgsl".into(),
+            wgsl_vertex: "wgsl_v".into(),
+            glsl_fragment: "glsl".into(),
+            glsl_vertex: "glsl_v".into(),
+            uniforms: vec![],
+            uses_memory: false,
+            js_modules: vec!["class GameListenPipeline { /* listen */ }".into()],
+            compute_wgsl: None,
+        };
+        let js = generate_component(&shader);
+        assert!(js.contains("GameListenPipeline"));
     }
 
     #[test]

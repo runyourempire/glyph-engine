@@ -68,15 +68,39 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
     let program = compile_to_ast(source)?;
     let mut outputs = Vec::new();
 
+    // Resolve URI-schemed imports into adapter JS modules
+    let mut import_modules = Vec::new();
+    for import in &program.imports {
+        match adapters::parse_uri(&import.path) {
+            adapters::ImportScheme::Shadertoy(id) => {
+                import_modules.push(adapters::shadertoy::generate_shadertoy_adapter(&id));
+            }
+            adapters::ImportScheme::Midi { channel } => {
+                import_modules.push(adapters::midi::generate_midi_adapter(channel));
+            }
+            adapters::ImportScheme::Osc { host, port, path } => {
+                import_modules.push(adapters::osc::generate_osc_adapter(&host, port, &path));
+            }
+            adapters::ImportScheme::Camera { device_index } => {
+                import_modules.push(adapters::camera::generate_camera_adapter(device_index));
+            }
+            adapters::ImportScheme::File => {} // standard file import — future work
+        }
+    }
+
     for cinematic in &program.cinematics {
-        let shader = codegen::generate(cinematic)?;
+        let mut shader = codegen::generate(cinematic)?;
+
+        // Prepend import adapter modules so they're available to all cinematic JS
+        let mut all_js = import_modules.clone();
+        all_js.append(&mut shader.js_modules);
+        shader.js_modules = all_js;
 
         let js = match config.output_format {
             OutputFormat::Component | OutputFormat::Standalone => {
                 runtime::component::generate_component(&shader)
             }
             OutputFormat::Html => {
-                // For HTML format, the JS is still the component (embedded in HTML below)
                 runtime::component::generate_component(&shader)
             }
         };
@@ -94,6 +118,26 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             glsl: Some(shader.glsl_fragment),
             js,
             html,
+        });
+    }
+
+    // Apply project vertex overrides
+    for proj in &program.projects {
+        let custom_vert = codegen::project::generate_vertex_wgsl(&proj.mode);
+        if let Some(out) = outputs.iter_mut().find(|o| o.name == proj.source) {
+            out.wgsl = Some(custom_vert);
+        }
+    }
+
+    // Breed blocks produce standalone JS modules (not shader output)
+    for breed_block in &program.breeds {
+        let js = codegen::breed::generate_breed_js(breed_block);
+        outputs.push(CompileOutput {
+            name: breed_block.name.clone(),
+            wgsl: None,
+            glsl: None,
+            js,
+            html: None,
         });
     }
 

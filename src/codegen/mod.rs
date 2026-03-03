@@ -16,7 +16,7 @@ pub mod temporal;
 pub mod voice;
 pub mod wgsl;
 
-use crate::ast::{Cinematic, Expr, LayerBody};
+use crate::ast::{Cinematic, Expr, LayerBody, Param};
 use crate::builtins;
 use crate::error::CompileError;
 
@@ -37,6 +37,10 @@ pub struct ShaderOutput {
     pub glsl_vertex: String,
     pub uniforms: Vec<UniformInfo>,
     pub uses_memory: bool,
+    /// Collected JS classes (listen, voice, score, breed, temporal, gravity).
+    pub js_modules: Vec<String>,
+    /// Gravity compute shader (separate pipeline).
+    pub compute_wgsl: Option<String>,
 }
 
 /// Extract user-defined uniform parameters from a cinematic's layers.
@@ -96,6 +100,22 @@ pub fn validate(cinematic: &Cinematic) -> Result<(), CompileError> {
     Ok(())
 }
 
+/// Collect all `Param` references from a cinematic's `LayerBody::Params` layers.
+fn collect_all_params(cinematic: &Cinematic) -> Vec<&Param> {
+    cinematic
+        .layers
+        .iter()
+        .filter_map(|layer| {
+            if let LayerBody::Params(params) = &layer.body {
+                Some(params.iter())
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .collect()
+}
+
 /// Generate shaders for a single cinematic.
 pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
     validate(cinematic)?;
@@ -107,6 +127,40 @@ pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
 
     let uses_memory = memory::any_layer_uses_memory(&cinematic.layers);
 
+    // Collect JS feature modules
+    let mut js_modules = Vec::new();
+
+    // Temporal: collect params from all layers
+    let all_params: Vec<Param> = collect_all_params(cinematic).into_iter().cloned().collect();
+    if temporal::any_param_uses_temporal(&all_params) {
+        let (init, update) = temporal::generate_temporal_js(&all_params);
+        js_modules.push(format!("{init}\n{update}"));
+    }
+
+    // Listen → GameListenPipeline class
+    if let Some(ref lb) = cinematic.listen {
+        js_modules.push(listen::generate_listen_js(lb));
+    }
+
+    // Voice → GameVoiceSynth class
+    if let Some(ref vb) = cinematic.voice {
+        js_modules.push(voice::generate_voice_js(vb));
+    }
+
+    // Score → GameScorePlayer class
+    if let Some(ref sb) = cinematic.score {
+        js_modules.push(score::generate_score_js(sb));
+    }
+
+    // Gravity → compute WGSL + GameGravitySim JS class
+    let compute_wgsl = if let Some(ref gb) = cinematic.gravity {
+        let n = 1024u32;
+        js_modules.push(gravity::generate_compute_runtime_js(n));
+        Some(gravity::generate_compute_wgsl(gb, n))
+    } else {
+        None
+    };
+
     Ok(ShaderOutput {
         name: cinematic.name.clone(),
         wgsl_fragment,
@@ -115,6 +169,8 @@ pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
         glsl_vertex: glsl::vertex_shader().to_string(),
         uniforms,
         uses_memory,
+        js_modules,
+        compute_wgsl,
     })
 }
 
@@ -245,5 +301,80 @@ mod tests {
         };
         let err = generate(&cin).unwrap_err();
         assert!(err.to_string().contains("cast as 'sdf'"));
+    }
+
+    #[test]
+    fn generate_with_listen_produces_js_module() {
+        let cin = Cinematic {
+            name: "audio-viz".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(vec![
+                    Stage { name: "circle".into(), args: vec![] },
+                    Stage { name: "glow".into(), args: vec![] },
+                ]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: Some(crate::ast::ListenBlock {
+                signals: vec![crate::ast::ListenSignal {
+                    name: "onset".into(),
+                    algorithm: "attack".into(),
+                    params: vec![],
+                }],
+            }),
+            voice: None,
+            score: None,
+            gravity: None,
+        };
+        let output = generate(&cin).unwrap();
+        assert_eq!(output.js_modules.len(), 1);
+        assert!(output.js_modules[0].contains("GameListenPipeline"));
+        assert!(output.compute_wgsl.is_none());
+    }
+
+    #[test]
+    fn generate_with_gravity_produces_compute() {
+        let cin = Cinematic {
+            name: "particles".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(vec![
+                    Stage { name: "circle".into(), args: vec![] },
+                    Stage { name: "glow".into(), args: vec![] },
+                ]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: Some(crate::ast::GravityBlock {
+                force_law: Expr::Number(1.0),
+                damping: 0.99,
+                bounds: crate::ast::BoundsMode::Reflect,
+            }),
+        };
+        let output = generate(&cin).unwrap();
+        assert!(output.compute_wgsl.is_some());
+        assert!(output.compute_wgsl.unwrap().contains("cs_main"));
+        assert!(output.js_modules.iter().any(|m| m.contains("GameGravitySim")));
+    }
+
+    #[test]
+    fn generate_default_has_empty_js_modules() {
+        let cin = make_cinematic(vec![
+            Stage { name: "circle".into(), args: vec![] },
+            Stage { name: "glow".into(), args: vec![] },
+        ]);
+        let output = generate(&cin).unwrap();
+        assert!(output.js_modules.is_empty());
+        assert!(output.compute_wgsl.is_none());
     }
 }

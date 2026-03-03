@@ -39,6 +39,12 @@ pub fn generate_html(shader: &ShaderOutput) -> String {
     s.push_str(super::helpers::webgl2_renderer());
     s.push_str("\n\n");
 
+    // Inject feature JS modules (listen, voice, score, temporal, gravity, breed)
+    for module_js in &shader.js_modules {
+        s.push_str(module_js);
+        s.push_str("\n\n");
+    }
+
     s.push_str("(async function() {\n");
     s.push_str("  const canvas = document.getElementById('c');\n");
     s.push_str("  function resize() {\n");
@@ -81,6 +87,8 @@ mod tests {
             glsl_vertex: "void main(){}".into(),
             uniforms: vec![],
             uses_memory: false,
+            js_modules: vec![],
+            compute_wgsl: None,
         };
         let html = generate_html(&shader);
         assert!(html.contains("<!DOCTYPE html>"));
