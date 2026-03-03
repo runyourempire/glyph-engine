@@ -1,0 +1,46 @@
+// Curl noise vector fields — divergence-free flow
+// Particles advected by curl noise produce organic, smoke-like motion.
+
+cinematic "smoke" {
+  layer bg {
+    circle(0.5) | tint(0.01, 0.01, 0.02, 1.0)
+  }
+
+  flow {
+    type: curl
+    scale: 3.0
+    speed: 0.5
+    octaves: 4
+    strength: 1.0
+  }
+}
+
+// Vortex field — rotational flow around center with turbulence
+cinematic "vortex" {
+  layer bg {
+    circle(0.5) | tint(0.02, 0.0, 0.03, 1.0)
+  }
+
+  flow {
+    type: vortex
+    scale: 2.0
+    speed: 0.3
+    octaves: 3
+    strength: 1.5
+  }
+}
+
+// Perlin flow — chaotic, non-divergence-free
+cinematic "chaos-wind" {
+  layer bg {
+    circle(0.5) | tint(0.0, 0.01, 0.02, 1.0)
+  }
+
+  flow {
+    type: perlin
+    scale: 5.0
+    speed: 0.8
+    octaves: 6
+    strength: 2.0
+  }
+}

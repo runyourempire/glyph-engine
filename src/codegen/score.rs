@@ -114,10 +114,16 @@ pub fn flatten_score(score: &ScoreBlock) -> Vec<TimelineEntry> {
                     for motif_name in &phrase.motifs {
                         if let Some(motif) = score.motifs.iter().find(|m| m.name == *motif_name) {
                             emit_motif(&mut timeline, motif, phrase_cursor, bpm);
-                            phrase_cursor += motif_durations.get(motif_name.as_str()).copied().unwrap_or(0.0);
+                            phrase_cursor += motif_durations
+                                .get(motif_name.as_str())
+                                .copied()
+                                .unwrap_or(0.0);
                         }
                     }
-                    sec_cursor += phrase_durs.get(phrase_name.as_str()).copied().unwrap_or(0.0);
+                    sec_cursor += phrase_durs
+                        .get(phrase_name.as_str())
+                        .copied()
+                        .unwrap_or(0.0);
                 }
             }
             cursor += section_durs.get(item_name.as_str()).copied().unwrap_or(0.0);
@@ -126,13 +132,19 @@ pub fn flatten_score(score: &ScoreBlock) -> Vec<TimelineEntry> {
             for motif_name in &phrase.motifs {
                 if let Some(motif) = score.motifs.iter().find(|m| m.name == *motif_name) {
                     emit_motif(&mut timeline, motif, phrase_cursor, bpm);
-                    phrase_cursor += motif_durations.get(motif_name.as_str()).copied().unwrap_or(0.0);
+                    phrase_cursor += motif_durations
+                        .get(motif_name.as_str())
+                        .copied()
+                        .unwrap_or(0.0);
                 }
             }
             cursor += phrase_durs.get(item_name.as_str()).copied().unwrap_or(0.0);
         } else if let Some(motif) = score.motifs.iter().find(|m| m.name == *item_name) {
             emit_motif(&mut timeline, motif, cursor, bpm);
-            cursor += motif_durations.get(item_name.as_str()).copied().unwrap_or(0.0);
+            cursor += motif_durations
+                .get(item_name.as_str())
+                .copied()
+                .unwrap_or(0.0);
         }
     }
 
@@ -177,8 +189,12 @@ pub fn generate_score_js(score: &ScoreBlock) -> String {
     }
 
     s.push_str("    ];\n");
-    s.push_str(&format!("    this._totalDur = {};\n",
-        timeline.iter().map(|e| e.start_seconds + e.duration_seconds).fold(0.0_f64, f64::max)
+    s.push_str(&format!(
+        "    this._totalDur = {};\n",
+        timeline
+            .iter()
+            .map(|e| e.start_seconds + e.duration_seconds)
+            .fold(0.0_f64, f64::max)
     ));
     s.push_str("    this._startTime = null;\n");
     s.push_str("  }\n\n");

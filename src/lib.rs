@@ -100,9 +100,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             OutputFormat::Component | OutputFormat::Standalone => {
                 runtime::component::generate_component(&shader)
             }
-            OutputFormat::Html => {
-                runtime::component::generate_component(&shader)
-            }
+            OutputFormat::Html => runtime::component::generate_component(&shader),
         };
 
         let html = match config.output_format {

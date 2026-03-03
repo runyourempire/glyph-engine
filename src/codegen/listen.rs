@@ -3,7 +3,7 @@
 //! Supported algorithms: attack (onset detection), pitch (autocorrelation),
 //! phase (beat subdivision), delta (energy derivative).
 
-use crate::ast::{ListenBlock, Param, Expr};
+use crate::ast::{Expr, ListenBlock, Param};
 
 /// Generate JavaScript for a listen block's Web Audio DSP pipeline.
 pub fn generate_listen_js(listen: &ListenBlock) -> String {
@@ -34,9 +34,7 @@ pub fn generate_listen_js(listen: &ListenBlock) -> String {
                 let threshold = get_param_f64(&sig.params, "threshold", 0.7);
                 let decay_ms = get_param_f64(&sig.params, "decay", 300.0);
                 let decay_rate = 1.0 / (decay_ms / 16.67); // ~60fps
-                s.push_str(&format!(
-                    "    {{ // onset: {}\n", sig.name
-                ));
+                s.push_str(&format!("    {{ // onset: {}\n", sig.name));
                 s.push_str("      let energy = 0;\n");
                 s.push_str("      for (let i = 0; i < this._fftData.length; i++) {\n");
                 s.push_str("        const v = (this._fftData[i] + 140) / 140;\n");
@@ -46,9 +44,7 @@ pub fn generate_listen_js(listen: &ListenBlock) -> String {
                 s.push_str(&format!(
                     "      if (this._prevSpectrum !== null && energy - this._prevEnergy > {threshold}) {{\n"
                 ));
-                s.push_str(&format!(
-                    "        this.signals['{}'] = 1.0;\n", sig.name
-                ));
+                s.push_str(&format!("        this.signals['{}'] = 1.0;\n", sig.name));
                 s.push_str("      } else {\n");
                 s.push_str(&format!(
                     "        this.signals['{}'] = Math.max(0, this.signals['{}'] - {decay_rate});\n",
@@ -68,9 +64,7 @@ pub fn generate_listen_js(listen: &ListenBlock) -> String {
                 s.push_str(&format!(
                     "      const minLag = Math.floor(sr / {max_hz});\n"
                 ));
-                s.push_str(&format!(
-                    "      const maxLag = Math.ceil(sr / {min_hz});\n"
-                ));
+                s.push_str(&format!("      const maxLag = Math.ceil(sr / {min_hz});\n"));
                 s.push_str("      for (let lag = minLag; lag <= Math.min(maxLag, this._timeData.length / 2); lag++) {\n");
                 s.push_str("        let corr = 0;\n");
                 s.push_str("        for (let i = 0; i < this._timeData.length - lag; i++) {\n");
@@ -108,9 +102,7 @@ pub fn generate_listen_js(listen: &ListenBlock) -> String {
                 s.push_str("        energy += v * v;\n");
                 s.push_str("      }\n");
                 s.push_str("      energy /= this._fftData.length;\n");
-                s.push_str(&format!(
-                    "      const alpha = 1.0 / ({window_s} * 60);\n"
-                ));
+                s.push_str(&format!("      const alpha = 1.0 / ({window_s} * 60);\n"));
                 s.push_str("      const delta = energy - this._prevEnergy;\n");
                 s.push_str(&format!(
                     "      this.signals['{}'] = Math.max(-1, Math.min(1, delta * 10));\n",

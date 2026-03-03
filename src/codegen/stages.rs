@@ -69,7 +69,10 @@ mod tests {
     use crate::ast::{Arg, Expr, Stage};
 
     fn stage(name: &str) -> Stage {
-        Stage { name: name.into(), args: vec![] }
+        Stage {
+            name: name.into(),
+            args: vec![],
+        }
     }
 
     #[test]

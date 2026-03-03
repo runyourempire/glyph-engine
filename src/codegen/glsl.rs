@@ -15,10 +15,7 @@ use crate::codegen::stages::get_arg;
 use crate::codegen::UniformInfo;
 
 /// Generate a GLSL ES 3.0 fragment shader for a cinematic.
-pub fn generate_fragment(
-    cinematic: &Cinematic,
-    uniforms: &[UniformInfo],
-) -> String {
+pub fn generate_fragment(cinematic: &Cinematic, uniforms: &[UniformInfo]) -> String {
     let mut s = String::with_capacity(4096);
 
     // Header
@@ -158,7 +155,9 @@ fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
 
     if multi {
         s.push_str(&format!("{indent}vec3 lc = color_result.rgb;\n"));
-        s.push_str(&format!("{indent}final_color = vec4(final_color.rgb + lc * 1.000, 1.0);\n"));
+        s.push_str(&format!(
+            "{indent}final_color = vec4(final_color.rgb + lc * 1.000, 1.0);\n"
+        ));
         s.push_str("    }\n\n");
     } else {
         s.push_str(&format!("{indent}fragColor = color_result;\n"));
@@ -175,31 +174,45 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         "ring" => {
             let r = get_arg(args, "radius", 0, "ring");
             let w = get_arg(args, "width", 1, "ring");
-            s.push_str(&format!("{indent}float sdf_result = abs(length(p) - {r}) - {w};\n"));
+            s.push_str(&format!(
+                "{indent}float sdf_result = abs(length(p) - {r}) - {w};\n"
+            ));
         }
         "glow" => {
             let intensity = get_arg(args, "intensity", 0, "glow");
-            s.push_str(&format!("{indent}float glow_result = apply_glow(sdf_result, {intensity});\n\n"));
-            s.push_str(&format!("{indent}vec4 color_result = vec4(vec3(glow_result), 1.0);\n"));
+            s.push_str(&format!(
+                "{indent}float glow_result = apply_glow(sdf_result, {intensity});\n\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 color_result = vec4(vec3(glow_result), 1.0);\n"
+            ));
         }
         "tint" => {
             let r = get_arg(args, "r", 0, "tint");
             let g = get_arg(args, "g", 1, "tint");
             let b = get_arg(args, "b", 2, "tint");
-            s.push_str(&format!("{indent}color_result = vec4(color_result.rgb * vec3({r}, {g}, {b}), 1.0);\n"));
+            s.push_str(&format!(
+                "{indent}color_result = vec4(color_result.rgb * vec3({r}, {g}, {b}), 1.0);\n"
+            ));
         }
         "bloom" => {
             let thresh = get_arg(args, "threshold", 0, "bloom");
             let strength = get_arg(args, "strength", 1, "bloom");
             // GLSL: dot returns float, NOT vec3
-            s.push_str(&format!("{indent}float pp_lum = dot(color_result.rgb, vec3(0.299, 0.587, 0.114));\n"));
+            s.push_str(&format!(
+                "{indent}float pp_lum = dot(color_result.rgb, vec3(0.299, 0.587, 0.114));\n"
+            ));
             s.push_str(&format!("{indent}color_result = vec4(color_result.rgb + max(pp_lum - {thresh}, 0.0) * {strength}, 1.0);\n"));
         }
         "rotate" => {
             let angle = get_arg(args, "angle", 0, "rotate");
             // GLSL: use `float`, NOT `let`
-            s.push_str(&format!("{indent}{{ float rc = cos({angle}); float rs = sin({angle});\n"));
-            s.push_str(&format!("{indent}p = vec2(p.x * rc - p.y * rs, p.x * rs + p.y * rc); }}\n"));
+            s.push_str(&format!(
+                "{indent}{{ float rc = cos({angle}); float rs = sin({angle});\n"
+            ));
+            s.push_str(&format!(
+                "{indent}p = vec2(p.x * rc - p.y * rs, p.x * rs + p.y * rc); }}\n"
+            ));
         }
         "translate" => {
             let x = get_arg(args, "x", 0, "translate");
@@ -212,9 +225,13 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "mask_arc" => {
             let angle = get_arg(args, "angle", 0, "mask_arc");
-            s.push_str(&format!("{indent}float arc_theta = atan(p.x, p.y) + 3.14159265359;\n"));
+            s.push_str(&format!(
+                "{indent}float arc_theta = atan(p.x, p.y) + 3.14159265359;\n"
+            ));
             // GLSL: use ternary, NOT select()
-            s.push_str(&format!("{indent}sdf_result = (arc_theta < {angle} ? sdf_result : 999.0);\n"));
+            s.push_str(&format!(
+                "{indent}sdf_result = (arc_theta < {angle} ? sdf_result : 999.0);\n"
+            ));
         }
         "shade" => {
             let r = get_arg(args, "r", 0, "shade");
@@ -224,15 +241,21 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "emissive" => {
             let intensity = get_arg(args, "intensity", 0, "emissive");
-            s.push_str(&format!("{indent}float glow_result = apply_glow(sdf_result, {intensity});\n"));
-            s.push_str(&format!("{indent}vec4 color_result = vec4(vec3(glow_result), glow_result);\n"));
+            s.push_str(&format!(
+                "{indent}float glow_result = apply_glow(sdf_result, {intensity});\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 color_result = vec4(vec3(glow_result), glow_result);\n"
+            ));
         }
         "fbm" => {
             let sc = get_arg(args, "scale", 0, "fbm");
             let oct = get_arg(args, "octaves", 1, "fbm");
             let pers = get_arg(args, "persistence", 2, "fbm");
             let lac = get_arg(args, "lacunarity", 3, "fbm");
-            s.push_str(&format!("{indent}float sdf_result = fbm2((p * {sc}), int({oct}), {pers}, {lac});\n"));
+            s.push_str(&format!(
+                "{indent}float sdf_result = fbm2((p * {sc}), int({oct}), {pers}, {lac});\n"
+            ));
         }
         "grain" => {
             let amount = get_arg(args, "amount", 0, "grain");
@@ -285,38 +308,74 @@ mod tests {
             }],
             arcs: vec![],
             resonates: vec![],
-            listen: None, voice: None, score: None, gravity: None,
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         }
     }
 
     #[test]
     fn glsl_has_void_main() {
         let cin = make_cinematic(vec![
-            Stage { name: "circle".into(), args: vec![] },
-            Stage { name: "glow".into(), args: vec![] },
+            Stage {
+                name: "circle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
         ]);
         let output = generate_fragment(&cin, &[]);
-        assert!(output.contains("void main()"), "must use void main(), got:\n{output}");
+        assert!(
+            output.contains("void main()"),
+            "must use void main(), got:\n{output}"
+        );
         assert!(!output.contains("fs_main"), "must NOT contain fs_main");
     }
 
     #[test]
     fn glsl_has_c_style_params() {
         let cin = make_cinematic(vec![
-            Stage { name: "circle".into(), args: vec![] },
-            Stage { name: "glow".into(), args: vec![] },
+            Stage {
+                name: "circle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
         ]);
         let output = generate_fragment(&cin, &[]);
-        assert!(output.contains("float sdf_circle(vec2 p, float radius)"), "C-style params");
-        assert!(output.contains("float apply_glow(float d, float intensity)"), "C-style params");
-        assert!(!output.contains("p: vec2"), "must NOT have WGSL-style params");
+        assert!(
+            output.contains("float sdf_circle(vec2 p, float radius)"),
+            "C-style params"
+        );
+        assert!(
+            output.contains("float apply_glow(float d, float intensity)"),
+            "C-style params"
+        );
+        assert!(
+            !output.contains("p: vec2"),
+            "must NOT have WGSL-style params"
+        );
     }
 
     #[test]
     fn glsl_uses_fragcolor_not_return() {
         let cin = make_cinematic(vec![
-            Stage { name: "circle".into(), args: vec![] },
-            Stage { name: "glow".into(), args: vec![] },
+            Stage {
+                name: "circle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
         ]);
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("fragColor = "), "must assign fragColor");
@@ -325,36 +384,70 @@ mod tests {
     #[test]
     fn glsl_uses_float_not_let() {
         let cin = make_cinematic(vec![
-            Stage { name: "circle".into(), args: vec![] },
-            Stage { name: "glow".into(), args: vec![] },
-            Stage { name: "tint".into(), args: vec![] },
+            Stage {
+                name: "circle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "tint".into(),
+                args: vec![],
+            },
         ]);
         let output = generate_fragment(&cin, &[]);
         // Main body should use `float` and `vec2`, not `let`
-        assert!(!output.contains("\n    let "), "must NOT use `let` in GLSL body");
+        assert!(
+            !output.contains("\n    let "),
+            "must NOT use `let` in GLSL body"
+        );
         assert!(output.contains("vec2 uv = "), "must use typed declarations");
     }
 
     #[test]
     fn glsl_bloom_uses_float_lum() {
         let cin = make_cinematic(vec![
-            Stage { name: "circle".into(), args: vec![] },
-            Stage { name: "glow".into(), args: vec![] },
-            Stage { name: "bloom".into(), args: vec![] },
+            Stage {
+                name: "circle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "bloom".into(),
+                args: vec![],
+            },
         ]);
         let output = generate_fragment(&cin, &[]);
-        assert!(output.contains("float pp_lum = dot("), "dot() must return float");
+        assert!(
+            output.contains("float pp_lum = dot("),
+            "dot() must return float"
+        );
         assert!(!output.contains("vec3 pp_lum"), "must NOT use vec3 for lum");
     }
 
     #[test]
     fn glsl_mask_arc_uses_ternary() {
         let cin = make_cinematic(vec![
-            Stage { name: "ring".into(), args: vec![] },
-            Stage { name: "mask_arc".into(), args: vec![
-                Arg { name: None, value: Expr::Number(4.0) },
-            ] },
-            Stage { name: "glow".into(), args: vec![] },
+            Stage {
+                name: "ring".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "mask_arc".into(),
+                args: vec![Arg {
+                    name: None,
+                    value: Expr::Number(4.0),
+                }],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
         ]);
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("? sdf_result : 999.0"), "must use ternary");
@@ -364,15 +457,31 @@ mod tests {
     #[test]
     fn glsl_rotate_uses_float_not_let() {
         let cin = make_cinematic(vec![
-            Stage { name: "rotate".into(), args: vec![
-                Arg { name: None, value: Expr::Number(1.0) },
-            ] },
-            Stage { name: "circle".into(), args: vec![] },
-            Stage { name: "glow".into(), args: vec![] },
+            Stage {
+                name: "rotate".into(),
+                args: vec![Arg {
+                    name: None,
+                    value: Expr::Number(1.0),
+                }],
+            },
+            Stage {
+                name: "circle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
         ]);
         let output = generate_fragment(&cin, &[]);
-        assert!(output.contains("float rc = cos("), "must use float, not let");
-        assert!(output.contains("float rs = sin("), "must use float, not let");
+        assert!(
+            output.contains("float rc = cos("),
+            "must use float, not let"
+        );
+        assert!(
+            output.contains("float rs = sin("),
+            "must use float, not let"
+        );
     }
 
     #[test]
@@ -389,35 +498,68 @@ mod tests {
             name: "multi".into(),
             layers: vec![
                 Layer {
-                    name: "a".into(), opts: vec![], memory: None, cast: None,
+                    name: "a".into(),
+                    opts: vec![],
+                    memory: None,
+                    cast: None,
                     body: LayerBody::Pipeline(vec![
-                        Stage { name: "circle".into(), args: vec![] },
-                        Stage { name: "glow".into(), args: vec![] },
+                        Stage {
+                            name: "circle".into(),
+                            args: vec![],
+                        },
+                        Stage {
+                            name: "glow".into(),
+                            args: vec![],
+                        },
                     ]),
                 },
                 Layer {
-                    name: "b".into(), opts: vec![], memory: None, cast: None,
+                    name: "b".into(),
+                    opts: vec![],
+                    memory: None,
+                    cast: None,
                     body: LayerBody::Pipeline(vec![
-                        Stage { name: "ring".into(), args: vec![] },
-                        Stage { name: "glow".into(), args: vec![] },
+                        Stage {
+                            name: "ring".into(),
+                            args: vec![],
+                        },
+                        Stage {
+                            name: "glow".into(),
+                            args: vec![],
+                        },
                     ]),
                 },
             ],
             arcs: vec![],
             resonates: vec![],
-            listen: None, voice: None, score: None, gravity: None,
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         };
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("vec4 final_color"));
         assert!(output.contains("fragColor = final_color"));
-        assert!(!output.contains("return final_color"), "GLSL must NOT return in void main");
+        assert!(
+            !output.contains("return final_color"),
+            "GLSL must NOT return in void main"
+        );
     }
 
     #[test]
     fn glsl_fbm_correct_types() {
         let cin = make_cinematic(vec![
-            Stage { name: "fbm".into(), args: vec![] },
-            Stage { name: "glow".into(), args: vec![] },
+            Stage {
+                name: "fbm".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
         ]);
         let output = generate_fragment(&cin, &[]);
         // hash2: vec2 param, vec3 local
@@ -429,7 +571,12 @@ mod tests {
         assert!(output.contains("vec2 f = fract(p)"), "vec2 not float for f");
         assert!(output.contains("vec2 u = f * f"), "vec2 not float for u");
         // fbm2: C-style params, no colon syntax
-        assert!(output.contains("float fbm2(vec2 p, int octaves, float persistence, float lacunarity)"));
-        assert!(!output.contains("float value: float"), "no colon syntax in GLSL");
+        assert!(
+            output.contains("float fbm2(vec2 p, int octaves, float persistence, float lacunarity)")
+        );
+        assert!(
+            !output.contains("float value: float"),
+            "no colon syntax in GLSL"
+        );
     }
 }

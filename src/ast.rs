@@ -14,7 +14,7 @@ pub struct Import {
     pub alias: String,
 }
 
-/// `cinematic "name" { layers, arcs, resonates, listen, voice, score, gravity }`
+/// `cinematic "name" { layers, arcs, resonates, listen, voice, score, gravity, react, swarm, flow }`
 #[derive(Debug, Clone)]
 pub struct Cinematic {
     pub name: String,
@@ -25,6 +25,9 @@ pub struct Cinematic {
     pub voice: Option<VoiceBlock>,
     pub score: Option<ScoreBlock>,
     pub gravity: Option<GravityBlock>,
+    pub react: Option<ReactBlock>,
+    pub swarm: Option<SwarmBlock>,
+    pub flow: Option<FlowBlock>,
 }
 
 /// `layer ident [(opts)] [memory: f] [cast kind] { body }`
@@ -135,12 +138,22 @@ pub enum Expr {
     Number(f64),
     String(String),
     Ident(String),
-    DottedIdent { object: String, field: String },
+    DottedIdent {
+        object: String,
+        field: String,
+    },
     Array(Vec<Expr>),
     Paren(Box<Expr>),
     Neg(Box<Expr>),
-    BinOp { op: BinOp, left: Box<Expr>, right: Box<Expr> },
-    Call { name: String, args: Vec<Arg> },
+    BinOp {
+        op: BinOp,
+        left: Box<Expr>,
+        right: Box<Expr>,
+    },
+    Call {
+        name: String,
+        args: Vec<Arg>,
+    },
     Duration(Duration),
 }
 
@@ -266,4 +279,64 @@ pub enum ProjectMode {
     Dome,
     Cube,
     Led,
+}
+
+// ── Phase 6: Emergent Systems ────────────────────────────
+
+/// `react { feed, kill, diffuse_a, diffuse_b, seed }`
+/// Gray-Scott reaction-diffusion on ping-pong textures.
+#[derive(Debug, Clone)]
+pub struct ReactBlock {
+    pub feed: f64,
+    pub kill: f64,
+    pub diffuse_a: f64,
+    pub diffuse_b: f64,
+    pub seed: SeedMode,
+}
+
+/// Initial perturbation for reaction-diffusion.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SeedMode {
+    /// Centered blob of chemical B
+    Center(f64),
+    /// Random scattered points
+    Scatter(u32),
+    /// Uniform random field
+    Random(f64),
+}
+
+/// `swarm { agents, sensor_angle, sensor_dist, turn_angle, step, deposit, decay, bounds }`
+/// Physarum polycephalum stigmergic agent simulation.
+#[derive(Debug, Clone)]
+pub struct SwarmBlock {
+    pub agents: u32,
+    pub sensor_angle: f64,
+    pub sensor_dist: f64,
+    pub turn_angle: f64,
+    pub step_size: f64,
+    pub deposit: f64,
+    pub decay: f64,
+    pub diffuse: u32,
+    pub bounds: BoundsMode,
+}
+
+/// `flow { type, scale, speed, octaves, strength, bounds }`
+/// Curl noise vector field for particle advection.
+#[derive(Debug, Clone)]
+pub struct FlowBlock {
+    pub flow_type: FlowType,
+    pub scale: f64,
+    pub speed: f64,
+    pub octaves: u32,
+    pub strength: f64,
+    pub bounds: BoundsMode,
+}
+
+/// Vector field generation algorithm.
+#[derive(Debug, Clone, PartialEq)]
+pub enum FlowType {
+    Curl,
+    Perlin,
+    Simplex,
+    Vortex,
 }

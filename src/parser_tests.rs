@@ -220,7 +220,11 @@ fn parse_expr_precedence() {
     let mut p = Parser::new(tokens);
     let expr = p.parse_expr().expect("should parse");
     match &expr {
-        Expr::BinOp { op: BinOp::Add, left, right } => {
+        Expr::BinOp {
+            op: BinOp::Add,
+            left,
+            right,
+        } => {
             assert!(matches!(left.as_ref(), Expr::Number(n) if (*n - 1.0).abs() < f64::EPSILON));
             assert!(matches!(right.as_ref(), Expr::BinOp { op: BinOp::Mul, .. }));
         }
@@ -241,7 +245,11 @@ fn parse_expr_power_right_assoc() {
     let mut p = Parser::new(tokens);
     let expr = p.parse_expr().expect("should parse");
     match &expr {
-        Expr::BinOp { op: BinOp::Pow, right, .. } => {
+        Expr::BinOp {
+            op: BinOp::Pow,
+            right,
+            ..
+        } => {
             assert!(matches!(right.as_ref(), Expr::BinOp { op: BinOp::Pow, .. }));
         }
         other => panic!("unexpected expr: {other:?}"),
@@ -443,20 +451,32 @@ fn parse_dotted_ident_expr() {
 #[test]
 fn parse_temporal_delay() {
     let tokens = vec![
-        s(Token::Cinematic), s(Token::StringLit("t".into())), s(Token::LBrace),
-        s(Token::Layer), s(Token::Ident("bg".into())), s(Token::LBrace),
-        s(Token::Ident("bass".into())), s(Token::Colon), s(Token::Float(0.5)),
-        s(Token::Tilde), s(Token::Ident("audio".into())), s(Token::Dot),
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
         s(Token::Ident("bass".into())),
-        s(Token::ShiftRight), s(Token::Millis(200.0)),
-        s(Token::RBrace), s(Token::RBrace),
+        s(Token::Colon),
+        s(Token::Float(0.5)),
+        s(Token::Tilde),
+        s(Token::Ident("audio".into())),
+        s(Token::Dot),
+        s(Token::Ident("bass".into())),
+        s(Token::ShiftRight),
+        s(Token::Millis(200.0)),
+        s(Token::RBrace),
+        s(Token::RBrace),
     ];
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse temporal delay");
     match &prog.cinematics[0].layers[0].body {
         LayerBody::Params(params) => {
             assert_eq!(params[0].temporal_ops.len(), 1);
-            assert!(matches!(&params[0].temporal_ops[0], TemporalOp::Delay(Duration::Millis(v)) if (*v - 200.0).abs() < f64::EPSILON));
+            assert!(
+                matches!(&params[0].temporal_ops[0], TemporalOp::Delay(Duration::Millis(v)) if (*v - 200.0).abs() < f64::EPSILON)
+            );
         }
         _ => panic!("expected params"),
     }
@@ -465,18 +485,28 @@ fn parse_temporal_delay() {
 #[test]
 fn parse_temporal_smooth() {
     let tokens = vec![
-        s(Token::Cinematic), s(Token::StringLit("t".into())), s(Token::LBrace),
-        s(Token::Layer), s(Token::Ident("bg".into())), s(Token::LBrace),
-        s(Token::Ident("val".into())), s(Token::Colon), s(Token::Float(0.5)),
-        s(Token::Diamond), s(Token::Millis(50.0)),
-        s(Token::RBrace), s(Token::RBrace),
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
+        s(Token::Ident("val".into())),
+        s(Token::Colon),
+        s(Token::Float(0.5)),
+        s(Token::Diamond),
+        s(Token::Millis(50.0)),
+        s(Token::RBrace),
+        s(Token::RBrace),
     ];
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse temporal smooth");
     match &prog.cinematics[0].layers[0].body {
         LayerBody::Params(params) => {
             assert_eq!(params[0].temporal_ops.len(), 1);
-            assert!(matches!(&params[0].temporal_ops[0], TemporalOp::Smooth(Duration::Millis(v)) if (*v - 50.0).abs() < f64::EPSILON));
+            assert!(
+                matches!(&params[0].temporal_ops[0], TemporalOp::Smooth(Duration::Millis(v)) if (*v - 50.0).abs() < f64::EPSILON)
+            );
         }
         _ => panic!("expected params"),
     }
@@ -485,13 +515,23 @@ fn parse_temporal_smooth() {
 #[test]
 fn parse_temporal_trigger() {
     let tokens = vec![
-        s(Token::Cinematic), s(Token::StringLit("t".into())), s(Token::LBrace),
-        s(Token::Layer), s(Token::Ident("bg".into())), s(Token::LBrace),
-        s(Token::Ident("beat".into())), s(Token::Colon), s(Token::Float(0.0)),
-        s(Token::Tilde), s(Token::Ident("audio".into())), s(Token::Dot),
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
         s(Token::Ident("beat".into())),
-        s(Token::BangBang), s(Token::Millis(300.0)),
-        s(Token::RBrace), s(Token::RBrace),
+        s(Token::Colon),
+        s(Token::Float(0.0)),
+        s(Token::Tilde),
+        s(Token::Ident("audio".into())),
+        s(Token::Dot),
+        s(Token::Ident("beat".into())),
+        s(Token::BangBang),
+        s(Token::Millis(300.0)),
+        s(Token::RBrace),
+        s(Token::RBrace),
     ];
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse temporal trigger");
@@ -507,20 +547,33 @@ fn parse_temporal_trigger() {
 #[test]
 fn parse_temporal_range() {
     let tokens = vec![
-        s(Token::Cinematic), s(Token::StringLit("t".into())), s(Token::LBrace),
-        s(Token::Layer), s(Token::Ident("bg".into())), s(Token::LBrace),
-        s(Token::Ident("energy".into())), s(Token::Colon), s(Token::Float(0.5)),
-        s(Token::DotDot), s(Token::LBracket),
-        s(Token::Float(0.1)), s(Token::Comma), s(Token::Float(0.9)),
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
+        s(Token::Ident("energy".into())),
+        s(Token::Colon),
+        s(Token::Float(0.5)),
+        s(Token::DotDot),
+        s(Token::LBracket),
+        s(Token::Float(0.1)),
+        s(Token::Comma),
+        s(Token::Float(0.9)),
         s(Token::RBracket),
-        s(Token::RBrace), s(Token::RBrace),
+        s(Token::RBrace),
+        s(Token::RBrace),
     ];
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse temporal range");
     match &prog.cinematics[0].layers[0].body {
         LayerBody::Params(params) => {
             assert_eq!(params[0].temporal_ops.len(), 1);
-            assert!(matches!(&params[0].temporal_ops[0], TemporalOp::Range(_, _)));
+            assert!(matches!(
+                &params[0].temporal_ops[0],
+                TemporalOp::Range(_, _)
+            ));
         }
         _ => panic!("expected params"),
     }
@@ -530,17 +583,31 @@ fn parse_temporal_range() {
 fn parse_chained_temporal_ops() {
     // bass: 0.5 ~ audio.bass <> 50ms >> 200ms .. [0.0, 1.0]
     let tokens = vec![
-        s(Token::Cinematic), s(Token::StringLit("t".into())), s(Token::LBrace),
-        s(Token::Layer), s(Token::Ident("bg".into())), s(Token::LBrace),
-        s(Token::Ident("bass".into())), s(Token::Colon), s(Token::Float(0.5)),
-        s(Token::Tilde), s(Token::Ident("audio".into())), s(Token::Dot),
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
         s(Token::Ident("bass".into())),
-        s(Token::Diamond), s(Token::Millis(50.0)),
-        s(Token::ShiftRight), s(Token::Millis(200.0)),
-        s(Token::DotDot), s(Token::LBracket),
-        s(Token::Float(0.0)), s(Token::Comma), s(Token::Float(1.0)),
+        s(Token::Colon),
+        s(Token::Float(0.5)),
+        s(Token::Tilde),
+        s(Token::Ident("audio".into())),
+        s(Token::Dot),
+        s(Token::Ident("bass".into())),
+        s(Token::Diamond),
+        s(Token::Millis(50.0)),
+        s(Token::ShiftRight),
+        s(Token::Millis(200.0)),
+        s(Token::DotDot),
+        s(Token::LBracket),
+        s(Token::Float(0.0)),
+        s(Token::Comma),
+        s(Token::Float(1.0)),
         s(Token::RBracket),
-        s(Token::RBrace), s(Token::RBrace),
+        s(Token::RBrace),
+        s(Token::RBrace),
     ];
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse chained temporal ops");
@@ -549,7 +616,10 @@ fn parse_chained_temporal_ops() {
             assert_eq!(params[0].temporal_ops.len(), 3);
             assert!(matches!(&params[0].temporal_ops[0], TemporalOp::Smooth(_)));
             assert!(matches!(&params[0].temporal_ops[1], TemporalOp::Delay(_)));
-            assert!(matches!(&params[0].temporal_ops[2], TemporalOp::Range(_, _)));
+            assert!(matches!(
+                &params[0].temporal_ops[2],
+                TemporalOp::Range(_, _)
+            ));
         }
         _ => panic!("expected params"),
     }
@@ -562,12 +632,18 @@ fn parse_chained_temporal_ops() {
 #[test]
 fn parse_listen_block() {
     let tokens = vec![
-        s(Token::Cinematic), s(Token::StringLit("t".into())), s(Token::LBrace),
-        s(Token::Listen), s(Token::LBrace),
-        s(Token::Ident("onset".into())), s(Token::Colon),
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Listen),
+        s(Token::LBrace),
+        s(Token::Ident("onset".into())),
+        s(Token::Colon),
         s(Token::Ident("attack".into())),
         s(Token::LParen),
-        s(Token::Ident("threshold".into())), s(Token::Colon), s(Token::Float(0.7)),
+        s(Token::Ident("threshold".into())),
+        s(Token::Colon),
+        s(Token::Float(0.7)),
         s(Token::RParen),
         s(Token::RBrace),
         s(Token::RBrace),
@@ -588,17 +664,26 @@ fn parse_listen_block() {
 #[test]
 fn parse_voice_block() {
     let tokens = vec![
-        s(Token::Cinematic), s(Token::StringLit("t".into())), s(Token::LBrace),
-        s(Token::Voice), s(Token::LBrace),
-        s(Token::Ident("tone".into())), s(Token::Colon),
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Voice),
+        s(Token::LBrace),
+        s(Token::Ident("tone".into())),
+        s(Token::Colon),
         s(Token::Ident("sine".into())),
         s(Token::LParen),
-        s(Token::Ident("freq".into())), s(Token::Colon), s(Token::Integer(440)),
+        s(Token::Ident("freq".into())),
+        s(Token::Colon),
+        s(Token::Integer(440)),
         s(Token::RParen),
-        s(Token::Ident("filt".into())), s(Token::Colon),
+        s(Token::Ident("filt".into())),
+        s(Token::Colon),
         s(Token::Ident("lowpass".into())),
         s(Token::LParen),
-        s(Token::Ident("cutoff".into())), s(Token::Colon), s(Token::Integer(2000)),
+        s(Token::Ident("cutoff".into())),
+        s(Token::Colon),
+        s(Token::Integer(2000)),
         s(Token::RParen),
         s(Token::RBrace),
         s(Token::RBrace),
@@ -620,21 +705,35 @@ fn parse_voice_block() {
 #[test]
 fn parse_score_block() {
     let tokens = vec![
-        s(Token::Cinematic), s(Token::StringLit("t".into())), s(Token::LBrace),
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
         s(Token::Score),
-        s(Token::Ident("tempo".into())), s(Token::LParen), s(Token::Integer(120)), s(Token::RParen),
+        s(Token::Ident("tempo".into())),
+        s(Token::LParen),
+        s(Token::Integer(120)),
+        s(Token::RParen),
         s(Token::LBrace),
         // motif rise { scale: 0 -> 1 over 4bars }
-        s(Token::Ident("motif".into())), s(Token::Ident("rise".into())), s(Token::LBrace),
-        s(Token::Ident("scale".into())), s(Token::Colon),
-        s(Token::Integer(0)), s(Token::Arrow), s(Token::Integer(1)),
-        s(Token::Over), s(Token::Bars(4)),
+        s(Token::Ident("motif".into())),
+        s(Token::Ident("rise".into())),
+        s(Token::LBrace),
+        s(Token::Ident("scale".into())),
+        s(Token::Colon),
+        s(Token::Integer(0)),
+        s(Token::Arrow),
+        s(Token::Integer(1)),
+        s(Token::Over),
+        s(Token::Bars(4)),
         s(Token::RBrace),
         // phrase build = rise
-        s(Token::Ident("phrase".into())), s(Token::Ident("build".into())), s(Token::Eq),
+        s(Token::Ident("phrase".into())),
+        s(Token::Ident("build".into())),
+        s(Token::Eq),
         s(Token::Ident("rise".into())),
         // arrange: build
-        s(Token::Ident("arrange".into())), s(Token::Colon),
+        s(Token::Ident("arrange".into())),
+        s(Token::Colon),
         s(Token::Ident("build".into())),
         s(Token::RBrace),
         s(Token::RBrace),
@@ -739,7 +838,10 @@ fn parse_gravity_block() {
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse gravity");
     assert_eq!(prog.cinematics.len(), 1);
-    let g = prog.cinematics[0].gravity.as_ref().expect("gravity should be Some");
+    let g = prog.cinematics[0]
+        .gravity
+        .as_ref()
+        .expect("gravity should be Some");
     assert!((g.damping - 0.995).abs() < f64::EPSILON);
     assert_eq!(g.bounds, crate::ast::BoundsMode::Wrap);
 }
@@ -772,4 +874,134 @@ fn parse_project_block() {
     assert_eq!(pr.source, "main");
     assert_eq!(pr.params.len(), 1);
     assert_eq!(pr.params[0].name, "segments");
+}
+
+// ===================================================================
+// React block
+// ===================================================================
+
+#[test]
+fn parse_react_block() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("turing".into())),
+        s(Token::LBrace),
+        // react { feed: 0.04, kill: 0.06, seed: scatter(50) }
+        s(Token::React),
+        s(Token::LBrace),
+        s(Token::Ident("feed".into())),
+        s(Token::Colon),
+        s(Token::Float(0.04)),
+        s(Token::Comma),
+        s(Token::Ident("kill".into())),
+        s(Token::Colon),
+        s(Token::Float(0.06)),
+        s(Token::Comma),
+        s(Token::Ident("seed".into())),
+        s(Token::Colon),
+        s(Token::Ident("scatter".into())),
+        s(Token::LParen),
+        s(Token::Float(50.0)),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse react");
+    assert_eq!(prog.cinematics.len(), 1);
+    let r = prog.cinematics[0]
+        .react
+        .as_ref()
+        .expect("react should be Some");
+    assert!((r.feed - 0.04).abs() < f64::EPSILON);
+    assert!((r.kill - 0.06).abs() < f64::EPSILON);
+    assert!(matches!(r.seed, crate::ast::SeedMode::Scatter(50)));
+}
+
+// ===================================================================
+// Swarm block
+// ===================================================================
+
+#[test]
+fn parse_swarm_block() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("physarum".into())),
+        s(Token::LBrace),
+        // swarm { agents: 50000, sensor_angle: 30, decay: 0.9, bounds: reflect }
+        s(Token::Swarm),
+        s(Token::LBrace),
+        s(Token::Ident("agents".into())),
+        s(Token::Colon),
+        s(Token::Float(50000.0)),
+        s(Token::Comma),
+        s(Token::Ident("sensor_angle".into())),
+        s(Token::Colon),
+        s(Token::Float(30.0)),
+        s(Token::Comma),
+        s(Token::Ident("decay".into())),
+        s(Token::Colon),
+        s(Token::Float(0.9)),
+        s(Token::Comma),
+        s(Token::Ident("bounds".into())),
+        s(Token::Colon),
+        s(Token::Ident("reflect".into())),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse swarm");
+    assert_eq!(prog.cinematics.len(), 1);
+    let sw = prog.cinematics[0]
+        .swarm
+        .as_ref()
+        .expect("swarm should be Some");
+    assert_eq!(sw.agents, 50000);
+    assert!((sw.sensor_angle - 30.0).abs() < f64::EPSILON);
+    assert!((sw.decay - 0.9).abs() < f64::EPSILON);
+    assert_eq!(sw.bounds, crate::ast::BoundsMode::Reflect);
+}
+
+// ===================================================================
+// Flow block
+// ===================================================================
+
+#[test]
+fn parse_flow_block() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("smoke".into())),
+        s(Token::LBrace),
+        // flow { type: vortex, scale: 5.0, octaves: 6, strength: 2.0 }
+        s(Token::Flow),
+        s(Token::LBrace),
+        s(Token::Ident("type".into())),
+        s(Token::Colon),
+        s(Token::Ident("vortex".into())),
+        s(Token::Comma),
+        s(Token::Ident("scale".into())),
+        s(Token::Colon),
+        s(Token::Float(5.0)),
+        s(Token::Comma),
+        s(Token::Ident("octaves".into())),
+        s(Token::Colon),
+        s(Token::Float(6.0)),
+        s(Token::Comma),
+        s(Token::Ident("strength".into())),
+        s(Token::Colon),
+        s(Token::Float(2.0)),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse flow");
+    assert_eq!(prog.cinematics.len(), 1);
+    let f = prog.cinematics[0]
+        .flow
+        .as_ref()
+        .expect("flow should be Some");
+    assert_eq!(f.flow_type, crate::ast::FlowType::Vortex);
+    assert!((f.scale - 5.0).abs() < f64::EPSILON);
+    assert_eq!(f.octaves, 6);
+    assert!((f.strength - 2.0).abs() < f64::EPSILON);
 }

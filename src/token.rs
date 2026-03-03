@@ -23,30 +23,33 @@ pub enum Token {
     Mutate,
     Gravity,
     Project,
+    React,
+    Swarm,
+    Flow,
 
     // --- punctuation ---
-    Pipe,      // |
-    Tilde,     // ~
-    LBrace,    // {
-    RBrace,    // }
-    LParen,    // (
-    RParen,    // )
-    LBracket,  // [
-    RBracket,  // ]
-    Colon,     // :
-    Comma,     // ,
-    Dot,       // .
-    Plus,      // +
-    Minus,     // -
-    Star,      // *
-    Slash,     // /
-    Caret,     // ^
-    Eq,        // =
-    Arrow,     // ->
-    ShiftRight,// >>
-    Diamond,   // <>
-    BangBang,  // !!
-    DotDot,    // ..
+    Pipe,       // |
+    Tilde,      // ~
+    LBrace,     // {
+    RBrace,     // }
+    LParen,     // (
+    RParen,     // )
+    LBracket,   // [
+    RBracket,   // ]
+    Colon,      // :
+    Comma,      // ,
+    Dot,        // .
+    Plus,       // +
+    Minus,      // -
+    Star,       // *
+    Slash,      // /
+    Caret,      // ^
+    Eq,         // =
+    Arrow,      // ->
+    ShiftRight, // >>
+    Diamond,    // <>
+    BangBang,   // !!
+    DotDot,     // ..
 
     // --- literals ---
     Float(f64),
@@ -86,6 +89,9 @@ impl std::fmt::Display for Token {
             Token::Mutate => write!(f, "mutate"),
             Token::Gravity => write!(f, "gravity"),
             Token::Project => write!(f, "project"),
+            Token::React => write!(f, "react"),
+            Token::Swarm => write!(f, "swarm"),
+            Token::Flow => write!(f, "flow"),
             Token::Pipe => write!(f, "|"),
             Token::Tilde => write!(f, "~"),
             Token::LBrace => write!(f, "{{"),

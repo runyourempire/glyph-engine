@@ -1,0 +1,48 @@
+// Reaction-diffusion Turing patterns (Gray-Scott model)
+// Two chemicals feed and consume each other, producing organic patterns:
+// spots, stripes, labyrinths, waves — depending on feed/kill rates.
+
+cinematic "turing-patterns" {
+  layer bg {
+    circle(0.5) | tint(0.02, 0.02, 0.05, 1.0)
+  }
+
+  // Classic coral/spot pattern
+  react {
+    feed: 0.055
+    kill: 0.062
+    diffuse_a: 1.0
+    diffuse_b: 0.5
+    seed: center(0.15)
+  }
+}
+
+// Mitosis pattern — cell-like splitting
+cinematic "mitosis" {
+  layer bg {
+    circle(0.5) | tint(0.01, 0.01, 0.03, 1.0)
+  }
+
+  react {
+    feed: 0.028
+    kill: 0.062
+    diffuse_a: 1.0
+    diffuse_b: 0.5
+    seed: scatter(30)
+  }
+}
+
+// Labyrinth pattern — maze-like structures
+cinematic "labyrinth" {
+  layer bg {
+    circle(0.5) | tint(0.03, 0.01, 0.02, 1.0)
+  }
+
+  react {
+    feed: 0.04
+    kill: 0.06
+    diffuse_a: 1.0
+    diffuse_b: 0.5
+    seed: random(0.05)
+  }
+}

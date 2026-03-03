@@ -89,6 +89,10 @@ mod tests {
             uses_memory: false,
             js_modules: vec![],
             compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
         };
         let html = generate_html(&shader);
         assert!(html.contains("<!DOCTYPE html>"));

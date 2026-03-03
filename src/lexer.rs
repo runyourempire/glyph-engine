@@ -49,6 +49,12 @@ enum LexToken {
     Gravity,
     #[token("project")]
     Project,
+    #[token("react")]
+    React,
+    #[token("swarm")]
+    Swarm,
+    #[token("flow")]
+    Flow,
     #[token("true")]
     True,
     #[token("false")]
@@ -178,6 +184,9 @@ fn convert(lt: LexToken, slice: &str) -> Result<Token, CompileError> {
         LexToken::Mutate => Token::Mutate,
         LexToken::Gravity => Token::Gravity,
         LexToken::Project => Token::Project,
+        LexToken::React => Token::React,
+        LexToken::Swarm => Token::Swarm,
+        LexToken::Flow => Token::Flow,
         LexToken::True => Token::Ident("true".into()),
         LexToken::False => Token::Ident("false".into()),
 
@@ -263,10 +272,18 @@ mod tests {
     fn lex_keywords() {
         assert_eq!(tokens("cinematic"), vec![Token::Cinematic]);
         assert_eq!(tokens("layer"), vec![Token::Layer]);
-        assert_eq!(tokens("import as arc resonate over memory cast"), vec![
-            Token::Import, Token::As, Token::Arc, Token::Resonate,
-            Token::Over, Token::Memory, Token::Cast,
-        ]);
+        assert_eq!(
+            tokens("import as arc resonate over memory cast"),
+            vec![
+                Token::Import,
+                Token::As,
+                Token::Arc,
+                Token::Resonate,
+                Token::Over,
+                Token::Memory,
+                Token::Cast,
+            ]
+        );
     }
 
     #[test]
@@ -291,18 +308,26 @@ mod tests {
 
     #[test]
     fn lex_identifiers() {
-        assert_eq!(tokens("foo bar_baz"), vec![
-            Token::Ident("foo".into()),
-            Token::Ident("bar_baz".into()),
-        ]);
+        assert_eq!(
+            tokens("foo bar_baz"),
+            vec![Token::Ident("foo".into()), Token::Ident("bar_baz".into()),]
+        );
     }
 
     #[test]
     fn lex_operators() {
-        assert_eq!(tokens("| ~ >> <> !! .. ->"), vec![
-            Token::Pipe, Token::Tilde, Token::ShiftRight,
-            Token::Diamond, Token::BangBang, Token::DotDot, Token::Arrow,
-        ]);
+        assert_eq!(
+            tokens("| ~ >> <> !! .. ->"),
+            vec![
+                Token::Pipe,
+                Token::Tilde,
+                Token::ShiftRight,
+                Token::Diamond,
+                Token::BangBang,
+                Token::DotDot,
+                Token::Arrow,
+            ]
+        );
     }
 
     #[test]
@@ -316,10 +341,10 @@ mod tests {
 
     #[test]
     fn lex_comments_skipped() {
-        assert_eq!(tokens("foo // comment\nbar"), vec![
-            Token::Ident("foo".into()),
-            Token::Ident("bar".into()),
-        ]);
+        assert_eq!(
+            tokens("foo // comment\nbar"),
+            vec![Token::Ident("foo".into()), Token::Ident("bar".into()),]
+        );
     }
 
     #[test]

@@ -15,7 +15,8 @@ pub fn generate_camera_adapter(device_index: u32) -> String {
     s.push_str("      const devices = await navigator.mediaDevices.enumerateDevices();\n");
     s.push_str("      const cameras = devices.filter(d => d.kind === 'videoinput');\n");
     s.push_str(&format!(
-        "      const cam = cameras[{}] || cameras[0];\n", device_index
+        "      const cam = cameras[{}] || cameras[0];\n",
+        device_index
     ));
     s.push_str("      if (!cam) return false;\n");
     s.push_str("      this._stream = await navigator.mediaDevices.getUserMedia({\n");

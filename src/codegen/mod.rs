@@ -6,14 +6,17 @@
 pub mod arc;
 pub mod breed;
 pub mod cast;
+pub mod flow;
 pub mod glsl;
 pub mod gravity;
 pub mod listen;
 pub mod memory;
 pub mod project;
+pub mod react;
 pub mod resonate;
 pub mod score;
 pub mod stages;
+pub mod swarm;
 pub mod temporal;
 pub mod voice;
 pub mod wgsl;
@@ -39,10 +42,18 @@ pub struct ShaderOutput {
     pub glsl_vertex: String,
     pub uniforms: Vec<UniformInfo>,
     pub uses_memory: bool,
-    /// Collected JS classes (listen, voice, score, breed, temporal, gravity).
+    /// Collected JS classes (listen, voice, score, breed, temporal, gravity, react, swarm, flow).
     pub js_modules: Vec<String>,
     /// Gravity compute shader (separate pipeline).
     pub compute_wgsl: Option<String>,
+    /// Reaction-diffusion compute shader.
+    pub react_wgsl: Option<String>,
+    /// Swarm agent compute shader.
+    pub swarm_agent_wgsl: Option<String>,
+    /// Swarm trail diffuse/decay compute shader.
+    pub swarm_trail_wgsl: Option<String>,
+    /// Flow field compute shader.
+    pub flow_wgsl: Option<String>,
 }
 
 /// Extract user-defined uniform parameters from a cinematic's layers.
@@ -179,6 +190,36 @@ pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
         }
     }
 
+    // React → compute WGSL + GameReactionField JS class
+    let react_wgsl = if let Some(ref rb) = cinematic.react {
+        let (w, h) = (256u32, 256u32);
+        js_modules.push(react::generate_compute_runtime_js(rb, w, h));
+        Some(react::generate_compute_wgsl(rb))
+    } else {
+        None
+    };
+
+    // Swarm → dual compute WGSL + GameSwarmSim JS class
+    let (swarm_agent_wgsl, swarm_trail_wgsl) = if let Some(ref sb) = cinematic.swarm {
+        let (w, h) = (512u32, 512u32);
+        js_modules.push(swarm::generate_swarm_runtime_js(sb, w, h));
+        (
+            Some(swarm::generate_agent_wgsl(sb)),
+            Some(swarm::generate_trail_wgsl(sb)),
+        )
+    } else {
+        (None, None)
+    };
+
+    // Flow → compute WGSL + GameFlowField JS class
+    let flow_wgsl = if let Some(ref fb) = cinematic.flow {
+        let (w, h) = (256u32, 256u32);
+        js_modules.push(flow::generate_flow_runtime_js(fb, w, h));
+        Some(flow::generate_compute_wgsl(fb))
+    } else {
+        None
+    };
+
     Ok(ShaderOutput {
         name: cinematic.name.clone(),
         wgsl_fragment,
@@ -189,6 +230,10 @@ pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
         uses_memory,
         js_modules,
         compute_wgsl,
+        react_wgsl,
+        swarm_agent_wgsl,
+        swarm_trail_wgsl,
+        flow_wgsl,
     })
 }
 
@@ -213,6 +258,9 @@ mod tests {
             voice: None,
             score: None,
             gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         }
     }
 
@@ -286,6 +334,9 @@ mod tests {
             voice: None,
             score: None,
             gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         };
         let uniforms = extract_uniforms(&cin);
         assert_eq!(uniforms.len(), 1);
@@ -313,6 +364,9 @@ mod tests {
             voice: None,
             score: None,
             gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         };
         assert!(generate(&cin).is_ok());
     }
@@ -343,6 +397,9 @@ mod tests {
             voice: None,
             score: None,
             gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         };
         let err = generate(&cin).unwrap_err();
         assert!(err.to_string().contains("cast as 'sdf'"));
@@ -380,6 +437,9 @@ mod tests {
             voice: None,
             score: None,
             gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         };
         let output = generate(&cin).unwrap();
         assert_eq!(output.js_modules.len(), 1);
@@ -417,6 +477,9 @@ mod tests {
                 damping: 0.99,
                 bounds: crate::ast::BoundsMode::Reflect,
             }),
+            react: None,
+            swarm: None,
+            flow: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output.compute_wgsl.is_some());
@@ -477,6 +540,9 @@ mod tests {
             voice: None,
             score: None,
             gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output
@@ -519,6 +585,9 @@ mod tests {
             voice: None,
             score: None,
             gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output
@@ -569,6 +638,9 @@ mod tests {
             voice: None,
             score: None,
             gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         };
         let output = generate(&cin).unwrap();
         let has_resonate = output
@@ -581,5 +653,125 @@ mod tests {
             .any(|m| m.contains("GameArcTimeline"));
         assert!(has_resonate, "Should have resonance network");
         assert!(has_arc, "Should have arc timeline");
+    }
+
+    #[test]
+    fn generate_with_react_produces_compute() {
+        let cin = Cinematic {
+            name: "turing".into(),
+            layers: vec![Layer {
+                name: "bg".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                }]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            react: Some(crate::ast::ReactBlock {
+                feed: 0.055,
+                kill: 0.062,
+                diffuse_a: 1.0,
+                diffuse_b: 0.5,
+                seed: crate::ast::SeedMode::Center(0.1),
+            }),
+            swarm: None,
+            flow: None,
+        };
+        let output = generate(&cin).unwrap();
+        assert!(output.react_wgsl.is_some());
+        let has_runtime = output
+            .js_modules
+            .iter()
+            .any(|m| m.contains("GameReactionField"));
+        assert!(has_runtime, "Should have reaction field runtime");
+    }
+
+    #[test]
+    fn generate_with_swarm_produces_dual_compute() {
+        let cin = Cinematic {
+            name: "physarum".into(),
+            layers: vec![Layer {
+                name: "bg".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                }]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            react: None,
+            swarm: Some(crate::ast::SwarmBlock {
+                agents: 50000,
+                sensor_angle: 45.0,
+                sensor_dist: 9.0,
+                turn_angle: 45.0,
+                step_size: 1.0,
+                deposit: 5.0,
+                decay: 0.95,
+                diffuse: 1,
+                bounds: crate::ast::BoundsMode::Wrap,
+            }),
+            flow: None,
+        };
+        let output = generate(&cin).unwrap();
+        assert!(output.swarm_agent_wgsl.is_some());
+        assert!(output.swarm_trail_wgsl.is_some());
+        let has_runtime = output.js_modules.iter().any(|m| m.contains("GameSwarmSim"));
+        assert!(has_runtime, "Should have swarm sim runtime");
+    }
+
+    #[test]
+    fn generate_with_flow_produces_compute() {
+        let cin = Cinematic {
+            name: "smoke".into(),
+            layers: vec![Layer {
+                name: "bg".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                }]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            react: None,
+            swarm: None,
+            flow: Some(crate::ast::FlowBlock {
+                flow_type: crate::ast::FlowType::Curl,
+                scale: 3.0,
+                speed: 0.5,
+                octaves: 4,
+                strength: 1.0,
+                bounds: crate::ast::BoundsMode::Wrap,
+            }),
+        };
+        let output = generate(&cin).unwrap();
+        assert!(output.flow_wgsl.is_some());
+        let has_runtime = output
+            .js_modules
+            .iter()
+            .any(|m| m.contains("GameFlowField"));
+        assert!(has_runtime, "Should have flow field runtime");
     }
 }

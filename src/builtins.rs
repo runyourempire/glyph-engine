@@ -30,105 +30,241 @@ pub struct BuiltinFn {
 
 // ── Param lists ──────────────────────────────────────────
 
-static CIRCLE_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "radius", default: Some(0.2) },
-];
+static CIRCLE_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "radius",
+    default: Some(0.2),
+}];
 
 static RING_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "radius", default: Some(0.3) },
-    BuiltinParam { name: "width", default: Some(0.02) },
+    BuiltinParam {
+        name: "radius",
+        default: Some(0.3),
+    },
+    BuiltinParam {
+        name: "width",
+        default: Some(0.02),
+    },
 ];
 
 static STAR_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "points", default: Some(5.0) },
-    BuiltinParam { name: "radius", default: Some(0.3) },
-    BuiltinParam { name: "inner", default: Some(0.15) },
+    BuiltinParam {
+        name: "points",
+        default: Some(5.0),
+    },
+    BuiltinParam {
+        name: "radius",
+        default: Some(0.3),
+    },
+    BuiltinParam {
+        name: "inner",
+        default: Some(0.15),
+    },
 ];
 
-static GLOW_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "intensity", default: Some(1.5) },
-];
+static GLOW_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "intensity",
+    default: Some(1.5),
+}];
 
 static TINT_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "r", default: Some(1.0) },
-    BuiltinParam { name: "g", default: Some(1.0) },
-    BuiltinParam { name: "b", default: Some(1.0) },
+    BuiltinParam {
+        name: "r",
+        default: Some(1.0),
+    },
+    BuiltinParam {
+        name: "g",
+        default: Some(1.0),
+    },
+    BuiltinParam {
+        name: "b",
+        default: Some(1.0),
+    },
 ];
 
 static BLOOM_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "threshold", default: Some(0.3) },
-    BuiltinParam { name: "strength", default: Some(2.0) },
+    BuiltinParam {
+        name: "threshold",
+        default: Some(0.3),
+    },
+    BuiltinParam {
+        name: "strength",
+        default: Some(2.0),
+    },
 ];
 
-static GRAIN_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "amount", default: Some(0.1) },
-];
+static GRAIN_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "amount",
+    default: Some(0.1),
+}];
 
 static TRANSLATE_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "x", default: Some(0.0) },
-    BuiltinParam { name: "y", default: Some(0.0) },
+    BuiltinParam {
+        name: "x",
+        default: Some(0.0),
+    },
+    BuiltinParam {
+        name: "y",
+        default: Some(0.0),
+    },
 ];
 
-static ROTATE_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "angle", default: Some(0.0) },
-];
+static ROTATE_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "angle",
+    default: Some(0.0),
+}];
 
-static SCALE_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "s", default: Some(1.0) },
-];
+static SCALE_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "s",
+    default: Some(1.0),
+}];
 
 static SHADE_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "r", default: Some(1.0) },
-    BuiltinParam { name: "g", default: Some(1.0) },
-    BuiltinParam { name: "b", default: Some(1.0) },
+    BuiltinParam {
+        name: "r",
+        default: Some(1.0),
+    },
+    BuiltinParam {
+        name: "g",
+        default: Some(1.0),
+    },
+    BuiltinParam {
+        name: "b",
+        default: Some(1.0),
+    },
 ];
 
-static EMISSIVE_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "intensity", default: Some(1.0) },
-];
+static EMISSIVE_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "intensity",
+    default: Some(1.0),
+}];
 
 static FBM_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "scale", default: Some(1.0) },
-    BuiltinParam { name: "octaves", default: Some(4.0) },
-    BuiltinParam { name: "persistence", default: Some(0.5) },
-    BuiltinParam { name: "lacunarity", default: Some(2.0) },
+    BuiltinParam {
+        name: "scale",
+        default: Some(1.0),
+    },
+    BuiltinParam {
+        name: "octaves",
+        default: Some(4.0),
+    },
+    BuiltinParam {
+        name: "persistence",
+        default: Some(0.5),
+    },
+    BuiltinParam {
+        name: "lacunarity",
+        default: Some(2.0),
+    },
 ];
 
-static SIMPLEX_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "scale", default: Some(1.0) },
-];
+static SIMPLEX_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "scale",
+    default: Some(1.0),
+}];
 
-static MASK_ARC_PARAMS: &[BuiltinParam] = &[
-    BuiltinParam { name: "angle", default: None },
-];
+static MASK_ARC_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "angle",
+    default: None,
+}];
 
 // ── Registry ─────────────────────────────────────────────
 
 static BUILTINS: &[BuiltinFn] = &[
     // SDF generators: Position -> Sdf
-    BuiltinFn { name: "circle",  params: CIRCLE_PARAMS,  input: ShaderState::Position, output: ShaderState::Sdf },
-    BuiltinFn { name: "ring",    params: RING_PARAMS,    input: ShaderState::Position, output: ShaderState::Sdf },
-    BuiltinFn { name: "star",    params: STAR_PARAMS,    input: ShaderState::Position, output: ShaderState::Sdf },
-    BuiltinFn { name: "fbm",     params: FBM_PARAMS,     input: ShaderState::Position, output: ShaderState::Sdf },
-    BuiltinFn { name: "simplex", params: SIMPLEX_PARAMS,  input: ShaderState::Position, output: ShaderState::Sdf },
-
+    BuiltinFn {
+        name: "circle",
+        params: CIRCLE_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "ring",
+        params: RING_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "star",
+        params: STAR_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "fbm",
+        params: FBM_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "simplex",
+        params: SIMPLEX_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
     // Bridges: Sdf -> Color
-    BuiltinFn { name: "glow",     params: GLOW_PARAMS,     input: ShaderState::Sdf, output: ShaderState::Color },
-    BuiltinFn { name: "shade",    params: SHADE_PARAMS,    input: ShaderState::Sdf, output: ShaderState::Color },
-    BuiltinFn { name: "emissive", params: EMISSIVE_PARAMS, input: ShaderState::Sdf, output: ShaderState::Color },
-
+    BuiltinFn {
+        name: "glow",
+        params: GLOW_PARAMS,
+        input: ShaderState::Sdf,
+        output: ShaderState::Color,
+    },
+    BuiltinFn {
+        name: "shade",
+        params: SHADE_PARAMS,
+        input: ShaderState::Sdf,
+        output: ShaderState::Color,
+    },
+    BuiltinFn {
+        name: "emissive",
+        params: EMISSIVE_PARAMS,
+        input: ShaderState::Sdf,
+        output: ShaderState::Color,
+    },
     // Color processors: Color -> Color
-    BuiltinFn { name: "tint",  params: TINT_PARAMS,  input: ShaderState::Color, output: ShaderState::Color },
-    BuiltinFn { name: "bloom", params: BLOOM_PARAMS, input: ShaderState::Color, output: ShaderState::Color },
-    BuiltinFn { name: "grain", params: GRAIN_PARAMS, input: ShaderState::Color, output: ShaderState::Color },
-
+    BuiltinFn {
+        name: "tint",
+        params: TINT_PARAMS,
+        input: ShaderState::Color,
+        output: ShaderState::Color,
+    },
+    BuiltinFn {
+        name: "bloom",
+        params: BLOOM_PARAMS,
+        input: ShaderState::Color,
+        output: ShaderState::Color,
+    },
+    BuiltinFn {
+        name: "grain",
+        params: GRAIN_PARAMS,
+        input: ShaderState::Color,
+        output: ShaderState::Color,
+    },
     // Transforms: Position -> Position
-    BuiltinFn { name: "translate", params: TRANSLATE_PARAMS, input: ShaderState::Position, output: ShaderState::Position },
-    BuiltinFn { name: "rotate",    params: ROTATE_PARAMS,    input: ShaderState::Position, output: ShaderState::Position },
-    BuiltinFn { name: "scale",     params: SCALE_PARAMS,     input: ShaderState::Position, output: ShaderState::Position },
-
+    BuiltinFn {
+        name: "translate",
+        params: TRANSLATE_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Position,
+    },
+    BuiltinFn {
+        name: "rotate",
+        params: ROTATE_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Position,
+    },
+    BuiltinFn {
+        name: "scale",
+        params: SCALE_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Position,
+    },
     // Sdf modifiers: Sdf -> Sdf
-    BuiltinFn { name: "mask_arc", params: MASK_ARC_PARAMS, input: ShaderState::Sdf, output: ShaderState::Sdf },
+    BuiltinFn {
+        name: "mask_arc",
+        params: MASK_ARC_PARAMS,
+        input: ShaderState::Sdf,
+        output: ShaderState::Sdf,
+    },
 ];
 
 /// Look up a built-in function by name.
@@ -147,9 +283,23 @@ mod tests {
 
     #[test]
     fn all_builtins_reachable() {
-        for name in ["circle", "ring", "star", "glow", "tint", "bloom",
-                      "grain", "translate", "rotate", "scale", "shade",
-                      "emissive", "fbm", "simplex", "mask_arc"] {
+        for name in [
+            "circle",
+            "ring",
+            "star",
+            "glow",
+            "tint",
+            "bloom",
+            "grain",
+            "translate",
+            "rotate",
+            "scale",
+            "shade",
+            "emissive",
+            "fbm",
+            "simplex",
+            "mask_arc",
+        ] {
             assert!(lookup(name).is_some(), "missing builtin: {name}");
         }
     }

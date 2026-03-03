@@ -244,10 +244,7 @@ mod tests {
     fn range_emits_clamp() {
         let params = vec![param_with_ops(
             "vol",
-            vec![TemporalOp::Range(
-                Expr::Number(0.0),
-                Expr::Number(1.0),
-            )],
+            vec![TemporalOp::Range(Expr::Number(0.0), Expr::Number(1.0))],
         )];
         let (init, update) = generate_temporal_js(&params);
         // Range doesn't need a class

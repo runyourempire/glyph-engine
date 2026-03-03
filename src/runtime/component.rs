@@ -3,8 +3,8 @@
 //! Generates a self-contained `.js` file that defines a custom element
 //! (`<game-xyz>`) with WebGPU primary and WebGL2 fallback.
 
-use crate::codegen::ShaderOutput;
 use crate::codegen::memory;
+use crate::codegen::ShaderOutput;
 
 /// Generate a zero-dependency Web Component JS file.
 pub fn generate_component(shader: &ShaderOutput) -> String {
@@ -28,14 +28,19 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     // Build incrementally to avoid stack overflow from giant format! macro
     let mut s = String::with_capacity(16384);
 
-    s.push_str(&format!("// GAME Component: {tag} — auto-generated, do not edit.\n"));
+    s.push_str(&format!(
+        "// GAME Component: {tag} — auto-generated, do not edit.\n"
+    ));
     s.push_str("(function(){\n");
     s.push_str(&format!("const WGSL_V = `{wgsl_v}`;\n"));
     s.push_str(&format!("const WGSL_F = `{wgsl_f}`;\n"));
     s.push_str(&format!("const GLSL_V = `{glsl_v}`;\n"));
     s.push_str(&format!("const GLSL_F = `{glsl_f}`;\n"));
     s.push_str(&format!("const UNIFORMS = [{uniform_defs_json}];\n"));
-    s.push_str(&format!("const USES_MEMORY = {};\n\n", if uses_memory { "true" } else { "false" }));
+    s.push_str(&format!(
+        "const USES_MEMORY = {};\n\n",
+        if uses_memory { "true" } else { "false" }
+    ));
 
     s.push_str(super::helpers::webgpu_renderer());
     s.push_str("\n\n");
@@ -95,7 +100,9 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     s.push_str("      if (gl.init()) {\n");
     s.push_str("        this._renderer = gl;\n");
     s.push_str("      } else {\n");
-    s.push_str(&format!("        console.warn('game-{tag}: no WebGPU or WebGL2 support');\n"));
+    s.push_str(&format!(
+        "        console.warn('game-{tag}: no WebGPU or WebGL2 support');\n"
+    ));
     s.push_str("        return;\n");
     s.push_str("      }\n");
     s.push_str("    }\n");
@@ -112,7 +119,9 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
 
     s.push_str("  setParam(name, value) { this._renderer?.setParam(name, value); }\n");
     s.push_str("  setAudioData(data) { this._renderer?.setAudioData(data); }\n");
-    s.push_str("  setAudioSource(bridge) { bridge?.subscribe(d => this._renderer?.setAudioData(d)); }\n\n");
+    s.push_str(
+        "  setAudioSource(bridge) { bridge?.subscribe(d => this._renderer?.setAudioData(d)); }\n\n",
+    );
 
     s.push_str("  static get observedAttributes() { return UNIFORMS.map(u => u.name); }\n");
     s.push_str("  attributeChangedCallback(name, _, val) {\n");
@@ -180,6 +189,10 @@ mod tests {
             uses_memory: false,
             js_modules: vec![],
             compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
         };
         let js = generate_component(&shader);
         assert!(js.contains("customElements.define('game-test-viz'"));
@@ -194,10 +207,17 @@ mod tests {
             wgsl_vertex: "wgsl_v".into(),
             glsl_fragment: "glsl".into(),
             glsl_vertex: "glsl_v".into(),
-            uniforms: vec![UniformInfo { name: "speed".into(), default: 1.0 }],
+            uniforms: vec![UniformInfo {
+                name: "speed".into(),
+                default: 1.0,
+            }],
             uses_memory: false,
             js_modules: vec![],
             compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
         };
         let js = generate_component(&shader);
         assert!(js.contains("class GameRenderer"));
@@ -217,6 +237,10 @@ mod tests {
             uses_memory: true,
             js_modules: vec![],
             compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
         };
         let js = generate_component(&shader);
         assert!(js.contains("USES_MEMORY = true"));
@@ -236,6 +260,10 @@ mod tests {
             uses_memory: false,
             js_modules: vec!["class GameListenPipeline { /* listen */ }".into()],
             compute_wgsl: None,
+            react_wgsl: None,
+            swarm_agent_wgsl: None,
+            swarm_trail_wgsl: None,
+            flow_wgsl: None,
         };
         let js = generate_component(&shader);
         assert!(js.contains("GameListenPipeline"));

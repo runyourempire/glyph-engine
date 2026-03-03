@@ -11,7 +11,12 @@ pub fn generate_breed_js(breed: &BreedBlock) -> String {
     s.push_str(&format!(
         "  constructor() {{ this.name = '{}'; this.parents = [{}]; }}\n",
         breed.name,
-        breed.parents.iter().map(|p| format!("'{p}'")).collect::<Vec<_>>().join(", ")
+        breed
+            .parents
+            .iter()
+            .map(|p| format!("'{p}'"))
+            .collect::<Vec<_>>()
+            .join(", ")
     ));
 
     s.push_str("\n  merge(parentA, parentB) {\n");
@@ -21,27 +26,32 @@ pub fn generate_breed_js(breed: &BreedBlock) -> String {
         match rule.strategy.as_str() {
             "mix" => {
                 s.push_str(&format!(
-                    "    // inherit {}: mix({})\n", rule.target, rule.weight
+                    "    // inherit {}: mix({})\n",
+                    rule.target, rule.weight
                 ));
                 s.push_str(&format!(
                     "    for (const k of Object.keys(parentA.{} || {{}})) {{\n",
                     rule.target
                 ));
                 s.push_str(&format!(
-                    "      const a = parentA.{}[k] || 0;\n", rule.target
+                    "      const a = parentA.{}[k] || 0;\n",
+                    rule.target
                 ));
                 s.push_str(&format!(
-                    "      const b = parentB.{}[k] || 0;\n", rule.target
+                    "      const b = parentB.{}[k] || 0;\n",
+                    rule.target
                 ));
                 s.push_str(&format!(
                     "      result[k] = a * {} + b * {};\n",
-                    rule.weight, 1.0 - rule.weight
+                    rule.weight,
+                    1.0 - rule.weight
                 ));
                 s.push_str("    }\n");
             }
             "pick" => {
                 s.push_str(&format!(
-                    "    // inherit {}: pick({})\n", rule.target, rule.weight
+                    "    // inherit {}: pick({})\n",
+                    rule.target, rule.weight
                 ));
                 s.push_str(&format!(
                     "    for (const k of Object.keys(parentA.{} || {{}})) {{\n",
@@ -54,16 +64,15 @@ pub fn generate_breed_js(breed: &BreedBlock) -> String {
                 s.push_str("    }\n");
             }
             _ => {
-                s.push_str(&format!(
-                    "    // unknown strategy '{}'\n", rule.strategy
-                ));
+                s.push_str(&format!("    // unknown strategy '{}'\n", rule.strategy));
             }
         }
     }
 
     for mutation in &breed.mutations {
         s.push_str(&format!(
-            "    // mutate {}: +/-{}\n", mutation.target, mutation.range
+            "    // mutate {}: +/-{}\n",
+            mutation.target, mutation.range
         ));
         s.push_str(&format!(
             "    if (result['{}'] !== undefined) result['{}'] += (Math.random() * 2 - 1) * {};\n",

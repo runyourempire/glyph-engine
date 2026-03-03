@@ -24,9 +24,7 @@ pub fn generate_midi_adapter(channel: u8) -> String {
     s.push_str("  _onMessage(e) {\n");
     s.push_str("    const [status, cc, val] = e.data;\n");
     s.push_str("    const ch = status & 0x0F;\n");
-    s.push_str(&format!(
-        "    if (ch !== {}) return;\n", channel
-    ));
+    s.push_str(&format!("    if (ch !== {}) return;\n", channel));
     s.push_str("    const type = status & 0xF0;\n");
     s.push_str("    if (type === 0xB0) { // CC\n");
     s.push_str("      this._values[`cc${cc}`] = val / 127;\n");

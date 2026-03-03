@@ -3,10 +3,10 @@
 //! Each adapter handles a specific URI scheme and produces
 //! runtime JavaScript to inject the external data source.
 
-pub mod shadertoy;
+pub mod camera;
 pub mod midi;
 pub mod osc;
-pub mod camera;
+pub mod shadertoy;
 
 /// The kind of import source identified by URI scheme.
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +18,11 @@ pub enum ImportScheme {
     /// `midi://channel/N` — MIDI controller input
     Midi { channel: u8 },
     /// `osc://host:port/path` — OSC over WebSocket
-    Osc { host: String, port: u16, path: String },
+    Osc {
+        host: String,
+        port: u16,
+        path: String,
+    },
     /// `camera://N` — webcam texture source
     Camera { device_index: u32 },
 }
@@ -28,7 +32,8 @@ pub fn parse_uri(uri: &str) -> ImportScheme {
     if let Some(id) = uri.strip_prefix("shadertoy://") {
         ImportScheme::Shadertoy(id.to_string())
     } else if let Some(rest) = uri.strip_prefix("midi://") {
-        let channel = rest.strip_prefix("channel/")
+        let channel = rest
+            .strip_prefix("channel/")
             .and_then(|s| s.parse().ok())
             .unwrap_or(0);
         ImportScheme::Midi { channel }

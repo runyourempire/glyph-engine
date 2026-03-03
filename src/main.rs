@@ -91,8 +91,8 @@ fn main() -> Result<()> {
                 let source = std::fs::read_to_string(path)
                     .with_context(|| format!("read: {}", path.display()))?;
 
-                let results = game_compiler::compile(&source, &config)
-                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                let results =
+                    game_compiler::compile(&source, &config).map_err(|e| anyhow::anyhow!("{e}"))?;
 
                 for output in &results {
                     let stem = &output.name;
@@ -131,8 +131,8 @@ fn main() -> Result<()> {
             for path in &input {
                 let source = std::fs::read_to_string(path)
                     .with_context(|| format!("read: {}", path.display()))?;
-                let _program = game_compiler::compile_to_ast(&source)
-                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                let _program =
+                    game_compiler::compile_to_ast(&source).map_err(|e| anyhow::anyhow!("{e}"))?;
                 eprintln!("[game dev] parsed {} successfully", path.display());
             }
             eprintln!(

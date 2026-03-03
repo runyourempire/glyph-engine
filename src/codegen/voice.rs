@@ -3,7 +3,7 @@
 //! Generates OscillatorNode, BiquadFilterNode, and GainNode chains
 //! driven by layer visual state (GPU readback).
 
-use crate::ast::{VoiceBlock, Param, Expr};
+use crate::ast::{Expr, Param, VoiceBlock};
 
 /// Generate JavaScript for a voice block's Web Audio synthesis graph.
 pub fn generate_voice_js(voice: &VoiceBlock) -> String {
@@ -19,13 +19,16 @@ pub fn generate_voice_js(voice: &VoiceBlock) -> String {
             "sine" | "square" | "sawtooth" | "triangle" => {
                 let freq = get_param_f64(&node.params, "freq", 440.0);
                 s.push_str(&format!(
-                    "    this._nodes['{}'] = ctx.createOscillator();\n", node.name
+                    "    this._nodes['{}'] = ctx.createOscillator();\n",
+                    node.name
                 ));
                 s.push_str(&format!(
-                    "    this._nodes['{}'].type = '{}';\n", node.name, node.kind
+                    "    this._nodes['{}'].type = '{}';\n",
+                    node.name, node.kind
                 ));
                 s.push_str(&format!(
-                    "    this._nodes['{}'].frequency.value = {freq};\n", node.name
+                    "    this._nodes['{}'].frequency.value = {freq};\n",
+                    node.name
                 ));
             }
             "noise" => {
@@ -35,13 +38,16 @@ pub fn generate_voice_js(voice: &VoiceBlock) -> String {
                 s.push_str("      const data = buf.getChannelData(0);\n");
                 s.push_str("      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;\n");
                 s.push_str(&format!(
-                    "      this._nodes['{}'] = ctx.createBufferSource();\n", node.name
+                    "      this._nodes['{}'] = ctx.createBufferSource();\n",
+                    node.name
                 ));
                 s.push_str(&format!(
-                    "      this._nodes['{}'].buffer = buf;\n", node.name
+                    "      this._nodes['{}'].buffer = buf;\n",
+                    node.name
                 ));
                 s.push_str(&format!(
-                    "      this._nodes['{}'].loop = true;\n", node.name
+                    "      this._nodes['{}'].loop = true;\n",
+                    node.name
                 ));
                 s.push_str("    }\n");
             }
@@ -49,25 +55,31 @@ pub fn generate_voice_js(voice: &VoiceBlock) -> String {
                 let cutoff = get_param_f64(&node.params, "cutoff", 1000.0);
                 let q = get_param_f64(&node.params, "q", 1.0);
                 s.push_str(&format!(
-                    "    this._nodes['{}'] = ctx.createBiquadFilter();\n", node.name
+                    "    this._nodes['{}'] = ctx.createBiquadFilter();\n",
+                    node.name
                 ));
                 s.push_str(&format!(
-                    "    this._nodes['{}'].type = '{}';\n", node.name, node.kind
+                    "    this._nodes['{}'].type = '{}';\n",
+                    node.name, node.kind
                 ));
                 s.push_str(&format!(
-                    "    this._nodes['{}'].frequency.value = {cutoff};\n", node.name
+                    "    this._nodes['{}'].frequency.value = {cutoff};\n",
+                    node.name
                 ));
                 s.push_str(&format!(
-                    "    this._nodes['{}'].Q.value = {q};\n", node.name
+                    "    this._nodes['{}'].Q.value = {q};\n",
+                    node.name
                 ));
             }
             "gain" => {
                 let level = get_param_f64(&node.params, "level", 0.5);
                 s.push_str(&format!(
-                    "    this._nodes['{}'] = ctx.createGain();\n", node.name
+                    "    this._nodes['{}'] = ctx.createGain();\n",
+                    node.name
                 ));
                 s.push_str(&format!(
-                    "    this._nodes['{}'].gain.value = {level};\n", node.name
+                    "    this._nodes['{}'].gain.value = {level};\n",
+                    node.name
                 ));
             }
             "reverb" => {
@@ -82,16 +94,19 @@ pub fn generate_voice_js(voice: &VoiceBlock) -> String {
                 s.push_str("        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/len, 2);\n");
                 s.push_str("      }\n");
                 s.push_str(&format!(
-                    "      this._nodes['{}'] = ctx.createConvolver();\n", node.name
+                    "      this._nodes['{}'] = ctx.createConvolver();\n",
+                    node.name
                 ));
                 s.push_str(&format!(
-                    "      this._nodes['{}'].buffer = buf;\n", node.name
+                    "      this._nodes['{}'].buffer = buf;\n",
+                    node.name
                 ));
                 s.push_str("    }\n");
             }
             _ => {
                 s.push_str(&format!(
-                    "    // unknown voice node kind: '{}'\n", node.kind
+                    "    // unknown voice node kind: '{}'\n",
+                    node.kind
                 ));
             }
         }
@@ -104,7 +119,9 @@ pub fn generate_voice_js(voice: &VoiceBlock) -> String {
     s.push_str("    for (let i = 0; i < names.length - 1; i++) {\n");
     s.push_str("      this._nodes[names[i]].connect(this._nodes[names[i + 1]]);\n");
     s.push_str("    }\n");
-    s.push_str("    if (names.length > 0) this._nodes[names[names.length - 1]].connect(destination);\n");
+    s.push_str(
+        "    if (names.length > 0) this._nodes[names[names.length - 1]].connect(destination);\n",
+    );
     s.push_str("  }\n\n");
 
     s.push_str("  start() {\n");
@@ -116,7 +133,9 @@ pub fn generate_voice_js(voice: &VoiceBlock) -> String {
     s.push_str("  setParam(nodeName, paramName, value) {\n");
     s.push_str("    const n = this._nodes[nodeName];\n");
     s.push_str("    if (!n) return;\n");
-    s.push_str("    if (n[paramName] && n[paramName].value !== undefined) n[paramName].value = value;\n");
+    s.push_str(
+        "    if (n[paramName] && n[paramName].value !== undefined) n[paramName].value = value;\n",
+    );
     s.push_str("    else if (n.frequency && paramName === 'freq') n.frequency.value = value;\n");
     s.push_str("    else if (n.gain && paramName === 'level') n.gain.value = value;\n");
     s.push_str("  }\n\n");
@@ -190,9 +209,21 @@ mod tests {
     fn voice_chain_connects() {
         let voice = VoiceBlock {
             nodes: vec![
-                VoiceNode { name: "osc".into(), kind: "sine".into(), params: vec![] },
-                VoiceNode { name: "filt".into(), kind: "lowpass".into(), params: vec![] },
-                VoiceNode { name: "vol".into(), kind: "gain".into(), params: vec![] },
+                VoiceNode {
+                    name: "osc".into(),
+                    kind: "sine".into(),
+                    params: vec![],
+                },
+                VoiceNode {
+                    name: "filt".into(),
+                    kind: "lowpass".into(),
+                    params: vec![],
+                },
+                VoiceNode {
+                    name: "vol".into(),
+                    kind: "gain".into(),
+                    params: vec![],
+                },
             ],
         };
         let js = generate_voice_js(&voice);

@@ -80,7 +80,10 @@ mod tests {
     }
 
     fn stage(name: &str) -> Stage {
-        Stage { name: name.into(), args: vec![] }
+        Stage {
+            name: name.into(),
+            args: vec![],
+        }
     }
 
     #[test]
@@ -91,17 +94,17 @@ mod tests {
 
     #[test]
     fn cast_color_with_color_pipeline() {
-        let layer = layer_with_cast("main", "color", vec![
-            stage("circle"), stage("glow"), stage("tint"),
-        ]);
+        let layer = layer_with_cast(
+            "main",
+            "color",
+            vec![stage("circle"), stage("glow"), stage("tint")],
+        );
         assert!(validate_layer_cast(&layer).is_ok());
     }
 
     #[test]
     fn cast_sdf_rejects_color_pipeline() {
-        let layer = layer_with_cast("main", "sdf", vec![
-            stage("circle"), stage("glow"),
-        ]);
+        let layer = layer_with_cast("main", "sdf", vec![stage("circle"), stage("glow")]);
         let err = validate_layer_cast(&layer).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("cast as 'sdf'"), "error: {msg}");
@@ -138,9 +141,11 @@ mod tests {
 
     #[test]
     fn cast_position_with_transforms() {
-        let layer = layer_with_cast("prep", "position", vec![
-            stage("translate"), stage("rotate"), stage("scale"),
-        ]);
+        let layer = layer_with_cast(
+            "prep",
+            "position",
+            vec![stage("translate"), stage("rotate"), stage("scale")],
+        );
         assert!(validate_layer_cast(&layer).is_ok());
     }
 
@@ -161,7 +166,13 @@ mod tests {
             ],
             arcs: vec![],
             resonates: vec![],
-            listen: None, voice: None, score: None, gravity: None,
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         };
         let err = validate_casts(&cin).unwrap_err();
         assert!(err.to_string().contains("layer 'b'"));
@@ -175,9 +186,7 @@ mod tests {
 
     #[test]
     fn rgba_alias_works() {
-        let layer = layer_with_cast("main", "rgba", vec![
-            stage("circle"), stage("glow"),
-        ]);
+        let layer = layer_with_cast("main", "rgba", vec![stage("circle"), stage("glow")]);
         assert!(validate_layer_cast(&layer).is_ok());
     }
 }

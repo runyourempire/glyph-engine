@@ -53,7 +53,9 @@ impl Parser {
     }
 
     fn check(&self, expected: &Token) -> bool {
-        self.peek().map_or(false, |t| std::mem::discriminant(t) == std::mem::discriminant(expected))
+        self.peek().map_or(false, |t| {
+            std::mem::discriminant(t) == std::mem::discriminant(expected)
+        })
     }
 
     /// Returns `true` if the next token is an identifier that is NOT a
@@ -73,7 +75,9 @@ impl Parser {
     fn expect(&mut self, expected: &Token) -> Result<Token, CompileError> {
         let (line, col) = self.current_pos();
         match self.advance() {
-            Some(tok) if std::mem::discriminant(&tok) == std::mem::discriminant(expected) => Ok(tok),
+            Some(tok) if std::mem::discriminant(&tok) == std::mem::discriminant(expected) => {
+                Ok(tok)
+            }
             Some(tok) => Err(CompileError::ParseError {
                 message: format!("expected `{expected}`, found `{tok}`"),
                 line,
@@ -145,10 +149,21 @@ impl Parser {
         let mut depth = 0i32;
         while let Some(tok) = self.peek() {
             match tok {
-                Token::LBrace => { depth += 1; self.advance(); }
-                Token::RBrace if depth > 0 => { depth -= 1; self.advance(); }
-                Token::RBrace => { self.advance(); return; }
-                _ => { self.advance(); }
+                Token::LBrace => {
+                    depth += 1;
+                    self.advance();
+                }
+                Token::RBrace if depth > 0 => {
+                    depth -= 1;
+                    self.advance();
+                }
+                Token::RBrace => {
+                    self.advance();
+                    return;
+                }
+                _ => {
+                    self.advance();
+                }
             }
         }
     }
@@ -167,19 +182,31 @@ impl Parser {
             match self.peek() {
                 Some(Token::Import) => match self.parse_import() {
                     Ok(imp) => imports.push(imp),
-                    Err(e) => { self.skip_to_recovery(); return Err(e); }
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
                 },
                 Some(Token::Cinematic) => match self.parse_cinematic() {
                     Ok(cin) => cinematics.push(cin),
-                    Err(e) => { self.skip_to_recovery(); return Err(e); }
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
                 },
                 Some(Token::Breed) => match self.parse_breed() {
                     Ok(b) => breeds.push(b),
-                    Err(e) => { self.skip_to_recovery(); return Err(e); }
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
                 },
                 Some(Token::Project) => match self.parse_project() {
                     Ok(p) => projects.push(p),
-                    Err(e) => { self.skip_to_recovery(); return Err(e); }
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
                 },
                 Some(_) => {
                     let (line, col) = self.current_pos();
@@ -197,7 +224,12 @@ impl Parser {
             }
         }
 
-        Ok(Program { imports, cinematics, breeds, projects })
+        Ok(Program {
+            imports,
+            cinematics,
+            breeds,
+            projects,
+        })
     }
 
     // ======================================================================
@@ -228,6 +260,9 @@ impl Parser {
         let mut voice = None;
         let mut score = None;
         let mut gravity = None;
+        let mut react = None;
+        let mut swarm = None;
+        let mut flow = None;
 
         while !self.at_end() && !self.check(&Token::RBrace) {
             match self.peek() {
@@ -238,11 +273,14 @@ impl Parser {
                 Some(Token::Voice) => voice = Some(self.parse_voice()?),
                 Some(Token::Score) => score = Some(self.parse_score()?),
                 Some(Token::Gravity) => gravity = Some(self.parse_gravity()?),
+                Some(Token::React) => react = Some(self.parse_react()?),
+                Some(Token::Swarm) => swarm = Some(self.parse_swarm()?),
+                Some(Token::Flow) => flow = Some(self.parse_flow()?),
                 _ => {
                     let (line, col) = self.current_pos();
                     return Err(CompileError::ParseError {
                         message: format!(
-                            "expected `layer`, `arc`, `resonate`, `listen`, `voice`, `score`, or `gravity` inside cinematic, found `{}`",
+                            "expected `layer`, `arc`, `resonate`, `listen`, `voice`, `score`, `gravity`, `react`, `swarm`, or `flow` inside cinematic, found `{}`",
                             self.peek().map_or("EOF".into(), |t| t.to_string())
                         ),
                         line,
@@ -253,7 +291,19 @@ impl Parser {
         }
 
         self.expect(&Token::RBrace)?;
-        Ok(Cinematic { name, layers, arcs, resonates, listen, voice, score, gravity })
+        Ok(Cinematic {
+            name,
+            layers,
+            arcs,
+            resonates,
+            listen,
+            voice,
+            score,
+            gravity,
+            react,
+            swarm,
+            flow,
+        })
     }
 
     // ======================================================================
@@ -292,7 +342,13 @@ impl Parser {
         let body = self.parse_layer_body()?;
         self.expect(&Token::RBrace)?;
 
-        Ok(Layer { name, opts, memory, cast, body })
+        Ok(Layer {
+            name,
+            opts,
+            memory,
+            cast,
+            body,
+        })
     }
 
     fn parse_layer_opts(&mut self) -> Result<Vec<Param>, CompileError> {
@@ -302,7 +358,12 @@ impl Parser {
             let name = self.expect_ident()?;
             self.expect(&Token::Colon)?;
             let value = self.parse_expr()?;
-            params.push(Param { name, value, modulation: None, temporal_ops: vec![] });
+            params.push(Param {
+                name,
+                value,
+                modulation: None,
+                temporal_ops: vec![],
+            });
             if !self.check(&Token::RParen) {
                 self.expect(&Token::Comma)?;
             }
@@ -320,9 +381,7 @@ impl Parser {
         }
 
         match (self.tokens.get(self.pos), self.tokens.get(self.pos + 1)) {
-            (Some((Token::Ident(_), _, _)), Some((Token::Colon, _, _))) => {
-                self.parse_param_list()
-            }
+            (Some((Token::Ident(_), _, _)), Some((Token::Colon, _, _))) => self.parse_param_list(),
             (Some((Token::Ident(_), _, _)), Some((Token::LParen, _, _))) => {
                 self.parse_stage_pipeline()
             }
@@ -350,7 +409,12 @@ impl Parser {
 
             let temporal_ops = self.parse_temporal_ops()?;
 
-            params.push(Param { name, value, modulation, temporal_ops });
+            params.push(Param {
+                name,
+                value,
+                modulation,
+                temporal_ops,
+            });
         }
         Ok(LayerBody::Params(params))
     }
@@ -430,7 +494,10 @@ impl Parser {
             let name = self.expect_ident()?;
             self.expect(&Token::Colon)?;
             let value = self.parse_expr()?;
-            Ok(Arg { name: Some(name), value })
+            Ok(Arg {
+                name: Some(name),
+                value,
+            })
         } else {
             let value = self.parse_expr()?;
             Ok(Arg { name: None, value })
@@ -466,7 +533,13 @@ impl Parser {
         } else {
             None
         };
-        Ok(ArcEntry { target, from, to, duration, easing })
+        Ok(ArcEntry {
+            target,
+            from,
+            to,
+            duration,
+            easing,
+        })
     }
 
     fn parse_dotted_ident(&mut self) -> Result<String, CompileError> {
@@ -486,20 +559,20 @@ impl Parser {
             Some(Token::Seconds(v)) => Ok(Duration::Seconds(v)),
             Some(Token::Millis(v)) => Ok(Duration::Millis(v)),
             Some(Token::Bars(v)) => Ok(Duration::Bars(v)),
-            Some(Token::Float(v)) => {
-                Err(CompileError::ParseError {
-                    message: format!("expected duration (e.g. 2s, 500ms, 4bars), found bare number {v}"),
-                    line,
-                    col,
-                })
-            }
-            Some(Token::Integer(v)) => {
-                Err(CompileError::ParseError {
-                    message: format!("expected duration (e.g. 2s, 500ms, 4bars), found bare number {v}"),
-                    line,
-                    col,
-                })
-            }
+            Some(Token::Float(v)) => Err(CompileError::ParseError {
+                message: format!(
+                    "expected duration (e.g. 2s, 500ms, 4bars), found bare number {v}"
+                ),
+                line,
+                col,
+            }),
+            Some(Token::Integer(v)) => Err(CompileError::ParseError {
+                message: format!(
+                    "expected duration (e.g. 2s, 500ms, 4bars), found bare number {v}"
+                ),
+                line,
+                col,
+            }),
             Some(tok) => Err(CompileError::ParseError {
                 message: format!("expected duration, found `{tok}`"),
                 line,
@@ -537,7 +610,12 @@ impl Parser {
         let field = self.expect_ident()?;
         self.expect(&Token::Star)?;
         let weight = self.parse_expr()?;
-        Ok(ResonateEntry { source, target, field, weight })
+        Ok(ResonateEntry {
+            source,
+            target,
+            field,
+            weight,
+        })
     }
 
     // ======================================================================
@@ -557,7 +635,11 @@ impl Parser {
             } else {
                 vec![]
             };
-            signals.push(ListenSignal { name, algorithm, params });
+            signals.push(ListenSignal {
+                name,
+                algorithm,
+                params,
+            });
         }
         self.expect(&Token::RBrace)?;
         Ok(ListenBlock { signals })
@@ -570,7 +652,12 @@ impl Parser {
             let name = self.expect_ident()?;
             self.expect(&Token::Colon)?;
             let value = self.parse_expr()?;
-            params.push(Param { name, value, modulation: None, temporal_ops: vec![] });
+            params.push(Param {
+                name,
+                value,
+                modulation: None,
+                temporal_ops: vec![],
+            });
             if !self.check(&Token::RParen) {
                 self.expect(&Token::Comma)?;
             }
@@ -592,7 +679,7 @@ impl Parser {
             self.expect(&Token::Colon)?;
             let kind = self.expect_ident()?;
             let params = if self.check(&Token::LParen) {
-                self.parse_listen_params()?  // Reuse same param parser
+                self.parse_listen_params()? // Reuse same param parser
             } else {
                 vec![]
             };
@@ -661,7 +748,10 @@ impl Parser {
                     while self.is_score_ref_ident() {
                         refs.push(self.expect_ident()?);
                     }
-                    sections.push(Section { name, phrases: refs });
+                    sections.push(Section {
+                        name,
+                        phrases: refs,
+                    });
                 }
                 Some(Token::Ident(s)) if s == "arrange" => {
                     self.advance();
@@ -684,7 +774,13 @@ impl Parser {
             }
         }
         self.expect(&Token::RBrace)?;
-        Ok(ScoreBlock { tempo_bpm, motifs, phrases, sections, arrange })
+        Ok(ScoreBlock {
+            tempo_bpm,
+            motifs,
+            phrases,
+            sections,
+            arrange,
+        })
     }
 
     // ======================================================================
@@ -718,7 +814,11 @@ impl Parser {
                     self.expect(&Token::LParen)?;
                     let weight = self.expect_number()?;
                     self.expect(&Token::RParen)?;
-                    inherit_rules.push(InheritRule { target, strategy, weight });
+                    inherit_rules.push(InheritRule {
+                        target,
+                        strategy,
+                        weight,
+                    });
                 }
                 Some(Token::Mutate) => {
                     self.advance();
@@ -742,7 +842,12 @@ impl Parser {
             }
         }
         self.expect(&Token::RBrace)?;
-        Ok(BreedBlock { name, parents, inherit_rules, mutations })
+        Ok(BreedBlock {
+            name,
+            parents,
+            inherit_rules,
+            mutations,
+        })
     }
 
     // ======================================================================
@@ -798,7 +903,238 @@ impl Parser {
             }
         }
         self.expect(&Token::RBrace)?;
-        Ok(GravityBlock { force_law, damping, bounds })
+        Ok(GravityBlock {
+            force_law,
+            damping,
+            bounds,
+        })
+    }
+
+    // ======================================================================
+    // react { feed, kill, diffuse_a, diffuse_b, seed }
+    // ======================================================================
+
+    fn parse_react(&mut self) -> Result<ReactBlock, CompileError> {
+        self.expect(&Token::React)?;
+        self.expect(&Token::LBrace)?;
+
+        let mut feed = 0.055;
+        let mut kill = 0.062;
+        let mut diffuse_a = 1.0;
+        let mut diffuse_b = 0.5;
+        let mut seed = SeedMode::Center(0.1);
+
+        while !self.at_end() && !self.check(&Token::RBrace) {
+            let key = self.expect_ident()?;
+            self.expect(&Token::Colon)?;
+            match key.as_str() {
+                "feed" => feed = self.expect_number()?,
+                "kill" => kill = self.expect_number()?,
+                "diffuse_a" => diffuse_a = self.expect_number()?,
+                "diffuse_b" => diffuse_b = self.expect_number()?,
+                "seed" => {
+                    let mode = self.expect_ident()?;
+                    self.expect(&Token::LParen)?;
+                    match mode.as_str() {
+                        "center" => {
+                            let radius = self.expect_number()?;
+                            seed = SeedMode::Center(radius);
+                        }
+                        "scatter" => {
+                            let count = self.expect_number()? as u32;
+                            seed = SeedMode::Scatter(count);
+                        }
+                        "random" => {
+                            let density = self.expect_number()?;
+                            seed = SeedMode::Random(density);
+                        }
+                        _ => {
+                            let (line, col) = self.current_pos();
+                            return Err(CompileError::ParseError {
+                                message: format!(
+                                    "unknown seed mode `{mode}`, expected center/scatter/random"
+                                ),
+                                line,
+                                col,
+                            });
+                        }
+                    }
+                    self.expect(&Token::RParen)?;
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message: format!("unknown react property `{key}`"),
+                        line,
+                        col,
+                    });
+                }
+            }
+            if matches!(self.peek(), Some(Token::Comma)) {
+                self.advance();
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(ReactBlock {
+            feed,
+            kill,
+            diffuse_a,
+            diffuse_b,
+            seed,
+        })
+    }
+
+    // ======================================================================
+    // swarm { agents, sensor_angle, sensor_dist, turn_angle, step, ... }
+    // ======================================================================
+
+    fn parse_swarm(&mut self) -> Result<SwarmBlock, CompileError> {
+        self.expect(&Token::Swarm)?;
+        self.expect(&Token::LBrace)?;
+
+        let mut agents = 100000u32;
+        let mut sensor_angle = 45.0;
+        let mut sensor_dist = 9.0;
+        let mut turn_angle = 45.0;
+        let mut step_size = 1.0;
+        let mut deposit = 5.0;
+        let mut decay = 0.95;
+        let mut diffuse = 1u32;
+        let mut bounds = BoundsMode::Wrap;
+
+        while !self.at_end() && !self.check(&Token::RBrace) {
+            let key = self.expect_ident()?;
+            self.expect(&Token::Colon)?;
+            match key.as_str() {
+                "agents" => agents = self.expect_number()? as u32,
+                "sensor_angle" => sensor_angle = self.expect_number()?,
+                "sensor_dist" => sensor_dist = self.expect_number()?,
+                "turn_angle" => turn_angle = self.expect_number()?,
+                "step" => step_size = self.expect_number()?,
+                "deposit" => deposit = self.expect_number()?,
+                "decay" => decay = self.expect_number()?,
+                "diffuse" => diffuse = self.expect_number()? as u32,
+                "bounds" => {
+                    let mode_str = self.expect_ident()?;
+                    bounds = match mode_str.as_str() {
+                        "reflect" => BoundsMode::Reflect,
+                        "wrap" => BoundsMode::Wrap,
+                        "none" => BoundsMode::None,
+                        _ => {
+                            let (line, col) = self.current_pos();
+                            return Err(CompileError::ParseError {
+                                message: format!("unknown bounds mode `{mode_str}`"),
+                                line,
+                                col,
+                            });
+                        }
+                    };
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message: format!("unknown swarm property `{key}`"),
+                        line,
+                        col,
+                    });
+                }
+            }
+            if matches!(self.peek(), Some(Token::Comma)) {
+                self.advance();
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(SwarmBlock {
+            agents,
+            sensor_angle,
+            sensor_dist,
+            turn_angle,
+            step_size,
+            deposit,
+            decay,
+            diffuse,
+            bounds,
+        })
+    }
+
+    // ======================================================================
+    // flow { type, scale, speed, octaves, strength, bounds }
+    // ======================================================================
+
+    fn parse_flow(&mut self) -> Result<FlowBlock, CompileError> {
+        self.expect(&Token::Flow)?;
+        self.expect(&Token::LBrace)?;
+
+        let mut flow_type = FlowType::Curl;
+        let mut scale = 3.0;
+        let mut speed = 0.5;
+        let mut octaves = 4u32;
+        let mut strength = 1.0;
+        let mut bounds = BoundsMode::Wrap;
+
+        while !self.at_end() && !self.check(&Token::RBrace) {
+            let key = self.expect_ident()?;
+            self.expect(&Token::Colon)?;
+            match key.as_str() {
+                "type" => {
+                    let t = self.expect_ident()?;
+                    flow_type = match t.as_str() {
+                        "curl" => FlowType::Curl,
+                        "perlin" => FlowType::Perlin,
+                        "simplex" => FlowType::Simplex,
+                        "vortex" => FlowType::Vortex,
+                        _ => {
+                            let (line, col) = self.current_pos();
+                            return Err(CompileError::ParseError {
+                                message: format!("unknown flow type `{t}`"),
+                                line,
+                                col,
+                            });
+                        }
+                    };
+                }
+                "scale" => scale = self.expect_number()?,
+                "speed" => speed = self.expect_number()?,
+                "octaves" => octaves = self.expect_number()? as u32,
+                "strength" => strength = self.expect_number()?,
+                "bounds" => {
+                    let mode_str = self.expect_ident()?;
+                    bounds = match mode_str.as_str() {
+                        "reflect" => BoundsMode::Reflect,
+                        "wrap" => BoundsMode::Wrap,
+                        "none" => BoundsMode::None,
+                        _ => {
+                            let (line, col) = self.current_pos();
+                            return Err(CompileError::ParseError {
+                                message: format!("unknown bounds mode `{mode_str}`"),
+                                line,
+                                col,
+                            });
+                        }
+                    };
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message: format!("unknown flow property `{key}`"),
+                        line,
+                        col,
+                    });
+                }
+            }
+            if matches!(self.peek(), Some(Token::Comma)) {
+                self.advance();
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(FlowBlock {
+            flow_type,
+            scale,
+            speed,
+            octaves,
+            strength,
+            bounds,
+        })
     }
 
     // ======================================================================
@@ -854,7 +1190,11 @@ impl Parser {
         }
         self.expect(&Token::RBrace)?;
 
-        Ok(ProjectBlock { mode, source, params })
+        Ok(ProjectBlock {
+            mode,
+            source,
+            params,
+        })
     }
 
     // ======================================================================
@@ -915,13 +1255,34 @@ impl Parser {
     fn parse_atom(&mut self) -> Result<Expr, CompileError> {
         let (line, col) = self.current_pos();
         match self.peek().cloned() {
-            Some(Token::Float(v)) => { self.advance(); Ok(Expr::Number(v)) }
-            Some(Token::Integer(v)) => { self.advance(); Ok(Expr::Number(v as f64)) }
-            Some(Token::Seconds(v)) => { self.advance(); Ok(Expr::Duration(Duration::Seconds(v))) }
-            Some(Token::Millis(v)) => { self.advance(); Ok(Expr::Duration(Duration::Millis(v))) }
-            Some(Token::Bars(v)) => { self.advance(); Ok(Expr::Duration(Duration::Bars(v))) }
-            Some(Token::Degrees(v)) => { self.advance(); Ok(Expr::Number(v)) }
-            Some(Token::StringLit(s)) => { self.advance(); Ok(Expr::String(s)) }
+            Some(Token::Float(v)) => {
+                self.advance();
+                Ok(Expr::Number(v))
+            }
+            Some(Token::Integer(v)) => {
+                self.advance();
+                Ok(Expr::Number(v as f64))
+            }
+            Some(Token::Seconds(v)) => {
+                self.advance();
+                Ok(Expr::Duration(Duration::Seconds(v)))
+            }
+            Some(Token::Millis(v)) => {
+                self.advance();
+                Ok(Expr::Duration(Duration::Millis(v)))
+            }
+            Some(Token::Bars(v)) => {
+                self.advance();
+                Ok(Expr::Duration(Duration::Bars(v)))
+            }
+            Some(Token::Degrees(v)) => {
+                self.advance();
+                Ok(Expr::Number(v))
+            }
+            Some(Token::StringLit(s)) => {
+                self.advance();
+                Ok(Expr::String(s))
+            }
             Some(Token::Ident(name)) => {
                 self.advance();
                 // call: IDENT '(' args ')'
@@ -935,7 +1296,10 @@ impl Parser {
                 else if matches!(self.peek(), Some(Token::Dot)) {
                     self.advance();
                     let field = self.expect_ident()?;
-                    Ok(Expr::DottedIdent { object: name, field })
+                    Ok(Expr::DottedIdent {
+                        object: name,
+                        field,
+                    })
                 } else {
                     Ok(Expr::Ident(name))
                 }

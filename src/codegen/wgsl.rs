@@ -6,10 +6,7 @@ use crate::codegen::stages::get_arg;
 use crate::codegen::UniformInfo;
 
 /// Generate a WGSL fragment shader for a cinematic.
-pub fn generate_fragment(
-    cinematic: &Cinematic,
-    uniforms: &[UniformInfo],
-) -> String {
+pub fn generate_fragment(cinematic: &Cinematic, uniforms: &[UniformInfo]) -> String {
     let mut s = String::with_capacity(4096);
 
     // Uniform struct
@@ -105,7 +102,9 @@ fn emit_wgsl_fbm(s: &mut String) {
     s.push_str("    let u_v = f * f * (3.0 - 2.0 * f);\n");
     s.push_str("    return mix(\n");
     s.push_str("        mix(hash2(i), hash2(i + vec2<f32>(1.0, 0.0)), u_v.x),\n");
-    s.push_str("        mix(hash2(i + vec2<f32>(0.0, 1.0)), hash2(i + vec2<f32>(1.0, 1.0)), u_v.x),\n");
+    s.push_str(
+        "        mix(hash2(i + vec2<f32>(0.0, 1.0)), hash2(i + vec2<f32>(1.0, 1.0)), u_v.x),\n",
+    );
     s.push_str("        u_v.y\n");
     s.push_str("    ) * 2.0 - 1.0;\n");
     s.push_str("}\n\n");
@@ -137,7 +136,9 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
     }
     let indent = if multi { "        " } else { "    " };
 
-    s.push_str(&format!("{indent}var p = vec2<f32>(uv.x * aspect, uv.y);\n"));
+    s.push_str(&format!(
+        "{indent}var p = vec2<f32>(uv.x * aspect, uv.y);\n"
+    ));
 
     for stage in body {
         emit_wgsl_stage(s, stage, indent);
@@ -150,7 +151,9 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
 
     if multi {
         s.push_str(&format!("{indent}let lc = color_result.rgb;\n"));
-        s.push_str(&format!("{indent}final_color = vec4<f32>(final_color.rgb + lc * 1.0, 1.0);\n"));
+        s.push_str(&format!(
+            "{indent}final_color = vec4<f32>(final_color.rgb + lc * 1.0, 1.0);\n"
+        ));
         s.push_str("    }\n\n");
     } else {
         s.push_str(&format!("{indent}return color_result;\n"));
@@ -167,12 +170,18 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         "ring" => {
             let r = get_arg(args, "radius", 0, "ring");
             let w = get_arg(args, "width", 1, "ring");
-            s.push_str(&format!("{indent}let sdf_result = abs(length(p) - {r}) - {w};\n"));
+            s.push_str(&format!(
+                "{indent}let sdf_result = abs(length(p) - {r}) - {w};\n"
+            ));
         }
         "glow" => {
             let intensity = get_arg(args, "intensity", 0, "glow");
-            s.push_str(&format!("{indent}let glow_result = apply_glow(sdf_result, {intensity});\n"));
-            s.push_str(&format!("{indent}var color_result = vec4<f32>(vec3<f32>(glow_result), 1.0);\n"));
+            s.push_str(&format!(
+                "{indent}let glow_result = apply_glow(sdf_result, {intensity});\n"
+            ));
+            s.push_str(&format!(
+                "{indent}var color_result = vec4<f32>(vec3<f32>(glow_result), 1.0);\n"
+            ));
         }
         "tint" => {
             let r = get_arg(args, "r", 0, "tint");
@@ -183,13 +192,19 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         "bloom" => {
             let thresh = get_arg(args, "threshold", 0, "bloom");
             let strength = get_arg(args, "strength", 1, "bloom");
-            s.push_str(&format!("{indent}let pp_lum = dot(color_result.rgb, vec3<f32>(0.299, 0.587, 0.114));\n"));
+            s.push_str(&format!(
+                "{indent}let pp_lum = dot(color_result.rgb, vec3<f32>(0.299, 0.587, 0.114));\n"
+            ));
             s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb + max(pp_lum - {thresh}, 0.0) * {strength}, 1.0);\n"));
         }
         "rotate" => {
             let angle = get_arg(args, "angle", 0, "rotate");
-            s.push_str(&format!("{indent}{{ let rc = cos({angle}); let rs = sin({angle});\n"));
-            s.push_str(&format!("{indent}p = vec2<f32>(p.x * rc - p.y * rs, p.x * rs + p.y * rc); }}\n"));
+            s.push_str(&format!(
+                "{indent}{{ let rc = cos({angle}); let rs = sin({angle});\n"
+            ));
+            s.push_str(&format!(
+                "{indent}p = vec2<f32>(p.x * rc - p.y * rs, p.x * rs + p.y * rc); }}\n"
+            ));
         }
         "translate" => {
             let x = get_arg(args, "x", 0, "translate");
@@ -202,8 +217,12 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "mask_arc" => {
             let angle = get_arg(args, "angle", 0, "mask_arc");
-            s.push_str(&format!("{indent}let arc_theta = atan2(p.x, p.y) + 3.14159265359;\n"));
-            s.push_str(&format!("{indent}sdf_result = select(999.0, sdf_result, arc_theta < {angle});\n"));
+            s.push_str(&format!(
+                "{indent}let arc_theta = atan2(p.x, p.y) + 3.14159265359;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}sdf_result = select(999.0, sdf_result, arc_theta < {angle});\n"
+            ));
         }
         "shade" => {
             let r = get_arg(args, "r", 0, "shade");
@@ -213,15 +232,21 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "emissive" => {
             let intensity = get_arg(args, "intensity", 0, "emissive");
-            s.push_str(&format!("{indent}let glow_result = apply_glow(sdf_result, {intensity});\n"));
-            s.push_str(&format!("{indent}var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);\n"));
+            s.push_str(&format!(
+                "{indent}let glow_result = apply_glow(sdf_result, {intensity});\n"
+            ));
+            s.push_str(&format!(
+                "{indent}var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);\n"
+            ));
         }
         "fbm" => {
             let sc = get_arg(args, "scale", 0, "fbm");
             let oct = get_arg(args, "octaves", 1, "fbm");
             let pers = get_arg(args, "persistence", 2, "fbm");
             let lac = get_arg(args, "lacunarity", 3, "fbm");
-            s.push_str(&format!("{indent}let sdf_result = fbm2((p * {sc}), i32({oct}), {pers}, {lac});\n"));
+            s.push_str(&format!(
+                "{indent}let sdf_result = fbm2((p * {sc}), i32({oct}), {pers}, {lac});\n"
+            ));
         }
         "grain" => {
             let amount = get_arg(args, "amount", 0, "grain");
@@ -279,20 +304,50 @@ mod tests {
             }],
             arcs: vec![],
             resonates: vec![],
-            listen: None, voice: None, score: None, gravity: None,
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
         }
     }
 
     #[test]
     fn basic_wgsl_output() {
         let cin = make_cinematic(vec![
-            Stage { name: "circle".into(), args: vec![Arg { name: None, value: Expr::Number(0.2) }] },
-            Stage { name: "glow".into(), args: vec![Arg { name: None, value: Expr::Number(1.5) }] },
-            Stage { name: "tint".into(), args: vec![
-                Arg { name: None, value: Expr::Number(0.831) },
-                Arg { name: None, value: Expr::Number(0.686) },
-                Arg { name: None, value: Expr::Number(0.216) },
-            ] },
+            Stage {
+                name: "circle".into(),
+                args: vec![Arg {
+                    name: None,
+                    value: Expr::Number(0.2),
+                }],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![Arg {
+                    name: None,
+                    value: Expr::Number(1.5),
+                }],
+            },
+            Stage {
+                name: "tint".into(),
+                args: vec![
+                    Arg {
+                        name: None,
+                        value: Expr::Number(0.831),
+                    },
+                    Arg {
+                        name: None,
+                        value: Expr::Number(0.686),
+                    },
+                    Arg {
+                        name: None,
+                        value: Expr::Number(0.216),
+                    },
+                ],
+            },
         ]);
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("fn fs_main"));

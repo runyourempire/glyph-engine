@@ -25,12 +25,12 @@ pub fn generate_compute_wgsl(gravity: &GravityBlock, _particle_count: u32) -> St
     // Bindings
     s.push_str("@group(0) @binding(0) var<uniform> params: SimParams;\n");
     s.push_str("@group(0) @binding(1) var<storage, read> particles_in: array<Particle>;\n");
-    s.push_str("@group(0) @binding(2) var<storage, read_write> particles_out: array<Particle>;\n\n");
+    s.push_str(
+        "@group(0) @binding(2) var<storage, read_write> particles_out: array<Particle>;\n\n",
+    );
 
     // Compute entry
-    s.push_str(&format!(
-        "@compute @workgroup_size({workgroup_size})\n"
-    ));
+    s.push_str(&format!("@compute @workgroup_size({workgroup_size})\n"));
     s.push_str("fn cs_main(@builtin(global_invocation_id) gid: vec3<u32>) {\n");
     s.push_str("    let idx = gid.x;\n");
     s.push_str("    if (idx >= params.count) { return; }\n\n");
