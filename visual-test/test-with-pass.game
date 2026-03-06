@@ -1,0 +1,8 @@
+cinematic "test-with-pass" {
+  layer core {
+    circle(0.25) | glow(2.0) | tint(0.83, 0.69, 0.22)
+  }
+  pass bloom {
+    blur(2.0) | blend_add()
+  }
+}

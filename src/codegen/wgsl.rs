@@ -236,12 +236,16 @@ fn generate_fragment_inner(
         s.push('\n');
     }
 
-    let multi_layer = cinematic.layers.len() > 1;
+    let render_layers = cinematic.layers.iter().filter(|l| !matches!(l.body, LayerBody::Params(_))).count();
+    let multi_layer = render_layers > 1;
     if multi_layer {
         s.push_str("    var final_color = vec4<f32>(0.0, 0.0, 0.0, 1.0);\n\n");
     }
 
     for (i, layer) in cinematic.layers.iter().enumerate() {
+        if matches!(layer.body, LayerBody::Params(_)) {
+            continue;
+        }
         emit_wgsl_layer(&mut s, layer, i, multi_layer, fns);
     }
 

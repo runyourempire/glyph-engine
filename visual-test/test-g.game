@@ -1,0 +1,5 @@
+cinematic "test-g" {
+  layer core memory: 0.90 {
+    circle(0.25) | glow(2.0) | tint(0.83, 0.69, 0.22)
+  }
+}

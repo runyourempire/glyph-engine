@@ -1,5 +1,5 @@
-// Celebration Burst — concentric expanding rings with center flash.
-// Triple-layer design: outer ring, inner ring, center flash.
+// Celebration Burst — GPU ring explosion with radial spray.
+// Multi-ring burst with bloom post-processing.
 
 cinematic "celebration-burst" {
   layer config {
@@ -12,15 +12,27 @@ cinematic "celebration-burst" {
     white: 1.0
   }
 
+  // Outer expanding ring
   layer ring_outer {
-    ring(ring_r, 0.02) | glow(glow_str) | bloom(0.3, 2.0) | tint(gold, 0.69, 0.22)
+    ring(ring_r, 0.02) | glow(glow_str) | tint(gold, 0.69, 0.22)
   }
 
-  layer ring_inner {
-    ring(inner_r, 0.015) | glow(inner_glow) | bloom(0.3, 2.0) | tint(gold, 0.69, 0.22)
+  // Inner ring
+  layer ring_inner blend: add {
+    ring(inner_r, 0.015) | glow(inner_glow) | tint(gold, 0.69, 0.22)
   }
 
-  layer center_flash {
-    circle(0.08) | glow(flash_str) | bloom(0.4, 3.0) | tint(white, white, white)
+  // Center flash
+  layer center_flash blend: add {
+    circle(0.08) | glow(flash_str) | tint(white, white, white)
+  }
+
+  // Radial spray
+  layer spray blend: add {
+    radial(8) | ring(ring_r, 0.005) | glow(3.0) | tint(1.0, 0.85, 0.4)
+  }
+
+  pass bloom {
+    blur(3.0)
   }
 }

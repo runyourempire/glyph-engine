@@ -1,5 +1,5 @@
-// Status Orb — simple glowing circle status indicator.
-// intensity drives glow strength, green controls tint color.
+// Status Orb — connection status with conditional color.
+// green > 0.5 = connected (green), else amber warning.
 
 cinematic "status-orb" {
   layer config {
@@ -7,7 +7,26 @@ cinematic "status-orb" {
     green: 0.0
   }
 
+  // Subtle ambient noise
+  layer field blend: screen {
+    simplex(4.0) | glow(0.6) | tint(0.1, 0.15, 0.05)
+  }
+
+  // Core orb — conditional color
   layer orb {
-    circle(0.2) | glow(intensity) | tint(green, 1.0, green)
+    if green > 0.5 {
+      circle(0.2) | glow(intensity) | tint(0.2, 1.0, 0.4)
+    } else {
+      circle(0.18) | glow(intensity) | tint(0.9, 0.5, 0.1)
+    }
+  }
+
+  // Outer halo ring
+  layer halo blend: add {
+    ring(0.28, 0.006) | glow(1.2) | tint(green, 0.8, green)
+  }
+
+  pass bloom {
+    blur(1.5)
   }
 }

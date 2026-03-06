@@ -1,5 +1,5 @@
-// Score Fingerprint — 24x24 unique visual from PASIFA relevance vector.
-// Uses 4 params as seeds for a procedural hash-grid pattern.
+// Score Fingerprint — unique visual from PASIFA relevance vector.
+// Multi-layer procedural pattern with bloom.
 
 cinematic "score-fingerprint" {
   layer config {
@@ -9,7 +9,22 @@ cinematic "score-fingerprint" {
     confidence: 0.5
   }
 
-  layer grid {
-    star(0.3, 6) | glow(1.0) | grain(0.8) | tint(0.83, 0.69, 0.22)
+  // Base voronoi cells
+  layer cells {
+    voronoi(5.0) | glow(1.0) | tint(0.83, 0.69, 0.22)
+  }
+
+  // Radial structure overlay
+  layer structure blend: add {
+    radial(6) | star(6, 0.3, 0.12) | glow(0.8) | tint(0.6, 0.5, 0.2)
+  }
+
+  // High-frequency grain
+  layer texture blend: multiply {
+    simplex(8.0) | glow(0.6) | grain(0.5) | tint(0.9, 0.8, 0.4)
+  }
+
+  pass bloom {
+    blur(1.0)
   }
 }

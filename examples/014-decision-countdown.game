@@ -1,5 +1,5 @@
-// Decision Countdown — arc-driven urgency ring for decision windows.
-// progress (1→0) controls arc sweep, urgency drives color intensity.
+// Decision Countdown — urgency ring with gold-to-red conditional shift.
+// Urgency > 0.7 switches to red alert mode.
 
 cinematic "decision-countdown" {
   layer config {
@@ -7,11 +7,26 @@ cinematic "decision-countdown" {
     urgency: 0.0
   }
 
+  // Background track
   layer bg {
-    ring(0.4, 0.01) | glow(0.5) | tint(0.3, 0.3, 0.3)
+    ring(0.4, 0.008) | glow(0.4) | tint(0.25, 0.25, 0.25)
   }
 
+  // Countdown arc — conditional color
   layer countdown {
-    ring(0.4, 0.03) | mask_arc(progress) | glow(1.5) | tint(0.83, 0.69, 0.22)
+    if urgency > 0.7 {
+      ring(0.4, 0.035) | mask_arc(progress) | glow(2.5) | tint(1.0, 0.15, 0.1)
+    } else {
+      ring(0.4, 0.03) | mask_arc(progress) | glow(1.5) | tint(0.83, 0.69, 0.22)
+    }
+  }
+
+  // Urgency pulse ring
+  layer urgency_pulse blend: add {
+    ring(0.44, 0.005) | glow(1.5) | tint(1.0, 0.3, 0.15)
+  }
+
+  pass bloom {
+    blur(1.5)
   }
 }

@@ -1,0 +1,13 @@
+cinematic "cond-test" {
+  layer config {
+    energy: 0.5
+  }
+
+  layer bg {
+    if energy > 0.5 {
+      circle(0.3) | glow(3.0) | tint(1.0, 0.0, 0.0)
+    } else {
+      circle(0.2) | glow(1.0) | tint(0.0, 1.0, 0.0)
+    }
+  }
+}

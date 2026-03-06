@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Debug — Isolate black screen</title>
+<style>
+  body { background: #0a0a0a; color: #fff; font-family: system-ui; padding: 24px; }
+  .row { display: flex; gap: 24px; margin-bottom: 24px; }
+  .box { text-align: center; }
+  .box h3 { font-size: 13px; margin-bottom: 8px; }
+  .box > *:not(h3) { width: 250px; height: 250px; display: block; border: 1px solid #333; }
+  #log { background: #111; padding: 12px; font-family: monospace; font-size: 11px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+</style>
+<script type="module" src="./test-no-pass.js"></script>
+<script type="module" src="./test-with-pass.js"></script>
+<script type="module" src="./test-pass-single.js"></script>
+<script type="module" src="./test-d.js"></script>
+<script type="module" src="./test-e.js"></script>
+<script type="module" src="./test-f.js"></script>
+<script type="module" src="./test-g.js"></script>
+<script type="module" src="./trails.js"></script>
+</head>
+<body>
+<h2>Debug: Which feature causes black screen?</h2>
+<div class="row">
+  <div class="box">
+    <h3>A: Memory + Blend (no pass)</h3>
+    <game-test-no-pass></game-test-no-pass>
+  </div>
+  <div class="box">
+    <h3>B: blur + blend_add pass</h3>
+    <game-test-with-pass></game-test-with-pass>
+  </div>
+  <div class="box">
+    <h3>C: blur-only pass</h3>
+    <game-test-pass-single></game-test-pass-single>
+  </div>
+</div>
+<h2 style="margin-top:24px">Round 2: Isolating memory vs blend</h2>
+<div class="row">
+  <div class="box">
+    <h3>D: Memory only (no blend)</h3>
+    <game-test-d></game-test-d>
+  </div>
+  <div class="box">
+    <h3>E: Blend only (no memory)</h3>
+    <game-test-e></game-test-e>
+  </div>
+  <div class="box">
+    <h3>F: Plain 2 layers (control)</h3>
+    <game-test-f></game-test-f>
+  </div>
+  <div class="box">
+    <h3>G: Single layer + memory</h3>
+    <game-test-g></game-test-g>
+  </div>
+  <div class="box">
+    <h3>H: trails.js (was working)</h3>
+    <game-trails></game-trails>
+  </div>
+</div>
+<div id="log"></div>
+<script>
+const log = document.getElementById('log');
+const oe = console.error; const ow = console.warn;
+console.error = (...a) => { log.innerHTML += `<div style="color:#f44">${a.join(' ')}</div>`; oe(...a); };
+console.warn = (...a) => { log.innerHTML += `<div style="color:#da3">${a.join(' ')}</div>`; ow(...a); };
+window.addEventListener('error', e => log.innerHTML += `<div style="color:#f44">JS: ${e.message}</div>`);
+window.addEventListener('unhandledrejection', e => log.innerHTML += `<div style="color:#f44">Promise: ${e.reason}</div>`);
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
-// Achievement Progress — circular progress ring with track and fill arc.
-// fill_angle drives arc sweep, glow_val controls fill brightness.
+// Achievement Progress — circular progress ring with completion flash.
+// Bloom adds polish to the arc fill.
 
 cinematic "achievement-progress" {
   layer config {
@@ -9,11 +9,22 @@ cinematic "achievement-progress" {
     gold: 0.83
   }
 
+  // Static track ring
   layer track {
-    ring(0.35, 0.01) | glow(0.8) | tint(charcoal, charcoal, charcoal)
+    ring(0.35, 0.008) | glow(0.6) | tint(charcoal, charcoal, charcoal)
   }
 
+  // Fill arc
   layer fill {
     ring(0.35, 0.025) | mask_arc(fill_angle) | glow(glow_val) | tint(gold, 0.69, 0.22)
+  }
+
+  // Completion flash
+  layer flash blend: add {
+    circle(0.15) | glow(1.0) | tint(1.0, 0.95, 0.7)
+  }
+
+  pass bloom {
+    blur(1.5)
   }
 }

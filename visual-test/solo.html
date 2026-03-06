@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Clean Solo Test</title>
+<style>
+  body { background: #0a0a0a; color: #fff; font-family: system-ui; padding: 24px; }
+  game-test-g { display: block; width: 300px; height: 300px; border: 1px solid #333; }
+  #log { margin-top: 16px; background: #111; padding: 12px; font-family: monospace; font-size: 11px; max-height: 300px; overflow-y: auto; }
+</style>
+<script type="module" src="./test-g.js"></script>
+</head>
+<body>
+<h2>Clean solo — memory component only, no extra JS</h2>
+<game-test-g></game-test-g>
+<div id="log"></div>
+<script>
+const log = document.getElementById('log');
+function L(msg, c) { log.innerHTML += `<div style="color:${c||'#888'}">[${new Date().toLocaleTimeString()}] ${msg}</div>`; }
+const oe = console.error, ow = console.warn;
+console.error = (...a) => { L('ERR: '+a.join(' '), '#f44'); oe(...a); };
+console.warn = (...a) => { L('WARN: '+a.join(' '), '#da3'); ow(...a); };
+window.addEventListener('error', e => L(`JS: ${e.message} (${e.filename}:${e.lineno})`, '#f44'));
+window.addEventListener('unhandledrejection', e => L(`REJECT: ${e.reason}`, '#f44'));
+
+// Check after 3s
+setTimeout(() => {
+  const el = document.querySelector('game-test-g');
+  if (!el) return L('no element', '#f44');
+  if (!el.shadowRoot) return L('no shadow root', '#f44');
+  const c = el.shadowRoot.querySelector('canvas');
+  if (!c) return L('no canvas', '#f44');
+  L(`canvas: ${c.width}x${c.height}`, '#4f4');
+  // Try to find the internal renderer
+  for (const key of Object.keys(el)) {
+    if (key.startsWith('_')) L(`  el.${key} = ${typeof el[key]}`, '#888');
+  }
+}, 3000);
+</script>
+</body>
+</html>

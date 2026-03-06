@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GAME v1.0 — 4DA Component Visual Test</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #fff; font-family: 'Inter', system-ui, sans-serif; padding: 24px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; color: #d4af37; }
+  .subtitle { font-size: 12px; color: #666; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .card { background: #141414; border: 1px solid #2a2a2a; border-radius: 8px; padding: 12px; }
+  .card h2 { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .card .desc { font-size: 11px; color: #666; margin-bottom: 8px; line-height: 1.4; }
+  .card .features { font-size: 10px; color: #d4af37; margin-bottom: 8px; }
+  .card .status { font-size: 10px; font-family: monospace; padding: 3px 6px; border-radius: 3px; margin-top: 6px; }
+  .pass { background: #0a2a0a; color: #22c55e; }
+  .fail { background: #2a0a0a; color: #ef4444; }
+  .canvas-wrap { width: 100%; height: 220px; border-radius: 4px; overflow: hidden; background: #000; }
+  .canvas-wrap > * { width: 100% !important; height: 100% !important; }
+  #log { margin-top: 16px; background: #141414; border: 1px solid #2a2a2a; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 11px; max-height: 150px; overflow-y: auto; white-space: pre-wrap; color: #666; }
+  .controls { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .controls button { font-size: 10px; padding: 2px 8px; background: #1f1f1f; border: 1px solid #2a2a2a; color: #aaa; border-radius: 3px; cursor: pointer; }
+  .controls button:hover { background: #2a2a2a; color: #fff; }
+</style>
+
+<script type="module" src="./ambient-intelligence.js"></script>
+<script type="module" src="./celebration-burst.js"></script>
+<script type="module" src="./scan-ring.js"></script>
+<script type="module" src="./status-orb.js"></script>
+<script type="module" src="./boot-ring.js"></script>
+<script type="module" src="./engagement-bars.js"></script>
+<script type="module" src="./achievement-progress.js"></script>
+<script type="module" src="./score-fingerprint.js"></script>
+<script type="module" src="./decision-countdown.js"></script>
+</head>
+<body>
+
+<h1>GAME v1.0 — 4DA Components</h1>
+<div class="subtitle">9 components rewritten with conditionals, memory, post-processing, multi-layer blend</div>
+
+<div class="grid">
+
+  <div class="card">
+    <h2>Ambient Intelligence</h2>
+    <div class="desc">VoidHeartbeat — 11 params, shape-shifts on alert</div>
+    <div class="features">conditionals + memory + 5 layers + bloom pass</div>
+    <div class="canvas-wrap"><game-ambient-intelligence id="ai"></game-ambient-intelligence></div>
+    <div class="controls">
+      <button onclick="document.getElementById('ai').setParam('critical_count', 1.0)">Alert Mode</button>
+      <button onclick="document.getElementById('ai').setParam('critical_count', 0.0)">Normal</button>
+      <button onclick="document.getElementById('ai').setParam('heat', 0.8)">Heat</button>
+      <button onclick="document.getElementById('ai').setParam('pulse', 0.7)">Pulse</button>
+    </div>
+    <div class="status" data-tag="game-ambient-intelligence">waiting...</div>
+  </div>
+
+  <div class="card">
+    <h2>Celebration Burst</h2>
+    <div class="desc">Achievement unlock — expanding rings with afterglow trails</div>
+    <div class="features">memory trails + radial spray + bloom pass</div>
+    <div class="canvas-wrap"><game-celebration-burst id="cb"></game-celebration-burst></div>
+    <div class="controls">
+      <button onclick="document.getElementById('cb').setParam('ring_r', 0.3)">Expand</button>
+      <button onclick="document.getElementById('cb').setParam('ring_r', 0.1)">Reset</button>
+      <button onclick="document.getElementById('cb').setParam('flash_str', 5.0)">Flash</button>
+    </div>
+    <div class="status" data-tag="game-celebration-burst">waiting...</div>
+  </div>
+
+  <div class="card">
+    <h2>Scan Ring</h2>
+    <div class="desc">Radar sweep with persistence trail + hot dot</div>
+    <div class="features">memory trail + 3 layers + bloom pass</div>
+    <div class="canvas-wrap"><game-scan-ring></game-scan-ring></div>
+    <div class="status" data-tag="game-scan-ring">waiting...</div>
+  </div>
+
+  <div class="card">
+    <h2>Status Orb</h2>
+    <div class="desc">Connection indicator — green/amber conditional</div>
+    <div class="features">conditional color + ambient field + bloom</div>
+    <div class="canvas-wrap"><game-status-orb id="so"></game-status-orb></div>
+    <div class="controls">
+      <button onclick="document.getElementById('so').setParam('green', 1.0)">Connected</button>
+      <button onclick="document.getElementById('so').setParam('green', 0.0)">Disconnected</button>
+      <button onclick="document.getElementById('so').setParam('intensity', 3.0)">Bright</button>
+    </div>
+    <div class="status" data-tag="game-status-orb">waiting...</div>
+  </div>
+
+  <div class="card">
+    <h2>Boot Ring</h2>
+    <div class="desc">Startup progress — arc sweep with leading edge dot</div>
+    <div class="features">memory trail + edge dot + bloom pass</div>
+    <div class="canvas-wrap"><game-boot-ring id="br"></game-boot-ring></div>
+    <div class="controls">
+      <button onclick="document.getElementById('br').setParam('fill_angle', 3.14)">50%</button>
+      <button onclick="document.getElementById('br').setParam('fill_angle', 6.28)">100%</button>
+      <button onclick="document.getElementById('br').setParam('fill_angle', 0.0)">Reset</button>
+    </div>
+    <div class="status" data-tag="game-boot-ring">waiting...</div>
+  </div>
+
+  <div class="card">
+    <h2>Engagement Bars</h2>
+    <div class="desc">System activity — layered noise with temporal evolution</div>
+    <div class="features">dual noise + memory + detail overlay + bloom</div>
+    <div class="canvas-wrap"><game-engagement-bars></game-engagement-bars></div>
+    <div class="status" data-tag="game-engagement-bars">waiting...</div>
+  </div>
+
+  <div class="card">
+    <h2>Achievement Progress</h2>
+    <div class="desc">Circular progress ring with completion glow</div>
+    <div class="features">memory sweep + completion flash + bloom</div>
+    <div class="canvas-wrap"><game-achievement-progress id="ap"></game-achievement-progress></div>
+    <div class="controls">
+      <button onclick="document.getElementById('ap').setParam('fill_angle', 4.71)">75%</button>
+      <button onclick="document.getElementById('ap').setParam('fill_angle', 6.28)">Complete</button>
+      <button onclick="document.getElementById('ap').setParam('fill_angle', 0.0)">Reset</button>
+    </div>
+    <div class="status" data-tag="game-achievement-progress">waiting...</div>
+  </div>
+
+  <div class="card">
+    <h2>Score Fingerprint</h2>
+    <div class="desc">PASIFA relevance visual — voronoi + radial + grain</div>
+    <div class="features">memory + 3 layers + multiply blend + bloom</div>
+    <div class="canvas-wrap"><game-score-fingerprint id="sf"></game-score-fingerprint></div>
+    <div class="controls">
+      <button onclick="document.getElementById('sf').setParam('relevance', 0.9)">High</button>
+      <button onclick="document.getElementById('sf').setParam('relevance', 0.1)">Low</button>
+    </div>
+    <div class="status" data-tag="game-score-fingerprint">waiting...</div>
+  </div>
+
+  <div class="card">
+    <h2>Decision Countdown</h2>
+    <div class="desc">Urgency ring — gold-to-red conditional shift</div>
+    <div class="features">conditional color + memory + urgency pulse + bloom</div>
+    <div class="canvas-wrap"><game-decision-countdown id="dc"></game-decision-countdown></div>
+    <div class="controls">
+      <button onclick="document.getElementById('dc').setParam('urgency', 0.9); document.getElementById('dc').setParam('progress', 1.5)">Urgent</button>
+      <button onclick="document.getElementById('dc').setParam('urgency', 0.2); document.getElementById('dc').setParam('progress', 4.0)">Calm</button>
+    </div>
+    <div class="status" data-tag="game-decision-countdown">waiting...</div>
+  </div>
+
+</div>
+
+<div id="log"></div>
+
+<script>
+const log = document.getElementById('log');
+const origErr = console.error;
+const origWarn = console.warn;
+function addLog(msg, type) {
+  const d = document.createElement('div');
+  d.style.color = type === 'error' ? '#ef4444' : type === 'warn' ? '#d4af37' : '#666';
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+console.error = (...a) => { addLog(a.join(' '), 'error'); origErr(...a); };
+console.warn = (...a) => { addLog(a.join(' '), 'warn'); origWarn(...a); };
+window.addEventListener('error', e => addLog(`JS: ${e.message} (${e.filename}:${e.lineno})`, 'error'));
+window.addEventListener('unhandledrejection', e => addLog(`Promise: ${e.reason}`, 'error'));
+
+setTimeout(() => {
+  document.querySelectorAll('.status[data-tag]').forEach(el => {
+    const tag = el.dataset.tag;
+    const comp = document.querySelector(tag);
+    if (!comp) { el.textContent = 'FAIL: not in DOM'; el.className = 'status fail'; return; }
+    if (!customElements.get(tag)) { el.textContent = 'FAIL: not registered'; el.className = 'status fail'; return; }
+    const shadow = comp.shadowRoot;
+    if (!shadow) { el.textContent = 'FAIL: no shadow root'; el.className = 'status fail'; return; }
+    const canvas = shadow.querySelector('canvas');
+    if (!canvas) { el.textContent = 'FAIL: no canvas'; el.className = 'status fail'; return; }
+    if (canvas.width > 0 && canvas.height > 0) {
+      el.textContent = `PASS: ${canvas.width}x${canvas.height}`;
+      el.className = 'status pass';
+    } else {
+      el.textContent = `FAIL: ${canvas.width}x${canvas.height}`;
+      el.className = 'status fail';
+    }
+  });
+  addLog(`Check complete — ${document.querySelectorAll('.status.pass').length}/9 passed`, 'info');
+}, 3000);
+</script>
+</body>
+</html>
