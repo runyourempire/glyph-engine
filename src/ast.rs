@@ -39,12 +39,13 @@ pub enum BlendMode {
     Overlay,
 }
 
-/// `layer ident [(opts)] [memory: f] [cast kind] [blend mode] { body }`
+/// `layer ident [(opts)] [memory: f] [opacity: f] [cast kind] [blend mode] { body }`
 #[derive(Debug, Clone)]
 pub struct Layer {
     pub name: String,
     pub opts: Vec<Param>,
     pub memory: Option<f64>,
+    pub opacity: Option<f64>,
     pub cast: Option<String>,
     pub blend: BlendMode,
     pub body: LayerBody,

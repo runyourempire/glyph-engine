@@ -1,0 +1,29 @@
+// New Primitives — expanded shape vocabulary.
+
+// Triangle
+cinematic "triangle-glow" {
+  layer main {
+    triangle(0.3) | glow(2.0) | tint(0.4, 0.9, 0.6)
+  }
+}
+
+// Cross
+cinematic "glowing-cross" {
+  layer main {
+    cross(0.3, 0.04) | glow(2.5) | tint(1.0, 0.3, 0.3)
+  }
+}
+
+// Heart
+cinematic "neon-heart" {
+  layer main {
+    heart(0.25) | glow(3.0) | tint(1.0, 0.2, 0.4)
+  }
+}
+
+// Capsule
+cinematic "capsule-indicator" {
+  layer main {
+    capsule(0.3, 0.05) | glow(2.0) | tint(0.3, 0.7, 1.0)
+  }
+}

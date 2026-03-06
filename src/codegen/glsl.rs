@@ -77,13 +77,24 @@ pub fn generate_fragment(cinematic: &Cinematic, uniforms: &[UniformInfo]) -> Str
 fn emit_glsl_builtins(s: &mut String, cinematic: &Cinematic) {
     let needs_circle = cinematic.layers.iter().any(|l| has_stage(l, "circle"));
     let needs_star = cinematic.layers.iter().any(|l| has_stage(l, "star"));
-    let needs_box = cinematic.layers.iter().any(|l| has_stage(l, "box"));
+    let needs_box = cinematic.layers.iter().any(|l| has_stage(l, "box") || has_stage(l, "cross"));
     let needs_hex = cinematic.layers.iter().any(|l| has_stage(l, "hex"));
     let needs_fbm = cinematic.layers.iter().any(|l| has_stage(l, "fbm"));
     let needs_warp = cinematic.layers.iter().any(|l| has_stage(l, "warp"));
     let needs_simplex = cinematic.layers.iter().any(|l| has_stage(l, "simplex"));
     let needs_voronoi = cinematic.layers.iter().any(|l| has_stage(l, "voronoi"));
     let needs_palette = cinematic.layers.iter().any(|l| has_stage(l, "palette"));
+    let needs_smin = cinematic.layers.iter().any(|l| {
+        has_stage(l, "smooth_union")
+            || has_stage(l, "smooth_subtract")
+            || has_stage(l, "smooth_intersect")
+    });
+    let needs_line = cinematic.layers.iter().any(|l| has_stage(l, "line"));
+    let needs_capsule = cinematic.layers.iter().any(|l| has_stage(l, "capsule"));
+    let needs_triangle = cinematic.layers.iter().any(|l| has_stage(l, "triangle"));
+    let needs_arc_sdf = cinematic.layers.iter().any(|l| has_stage(l, "arc_sdf"));
+    let needs_heart = cinematic.layers.iter().any(|l| has_stage(l, "heart"));
+    let needs_egg = cinematic.layers.iter().any(|l| has_stage(l, "egg"));
 
     // C-style function declarations — NOT WGSL style
     if needs_circle {
@@ -127,6 +138,62 @@ fn emit_glsl_builtins(s: &mut String, cinematic: &Cinematic) {
 
     if needs_palette {
         emit_glsl_palette(s);
+    }
+
+    if needs_smin {
+        s.push_str("float smin(float a, float b, float k){\n");
+        s.push_str("    float h = max(k - abs(a - b), 0.0) / k;\n");
+        s.push_str("    return min(a, b) - h * h * k * 0.25;\n");
+        s.push_str("}\n\n");
+    }
+
+    if needs_line || needs_capsule {
+        s.push_str("float sdf_line(vec2 p, vec2 a, vec2 b){\n");
+        s.push_str("    vec2 pa = p - a;\n");
+        s.push_str("    vec2 ba = b - a;\n");
+        s.push_str("    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);\n");
+        s.push_str("    return length(pa - ba * h);\n");
+        s.push_str("}\n\n");
+    }
+
+    if needs_triangle {
+        s.push_str("float sdf_triangle(vec2 p, float sz){\n");
+        s.push_str("    float k = sqrt(3.0);\n");
+        s.push_str("    vec2 q = vec2(abs(p.x) - sz, p.y + sz / k);\n");
+        s.push_str("    if (q.x + k * q.y > 0.0) q = vec2(q.x - k * q.y, -k * q.x - q.y) / 2.0;\n");
+        s.push_str("    q = vec2(q.x - clamp(q.x, -2.0 * sz, 0.0), q.y);\n");
+        s.push_str("    return -length(q) * sign(q.y);\n");
+        s.push_str("}\n\n");
+    }
+
+    if needs_arc_sdf {
+        s.push_str("float sdf_arc(vec2 p, float ra, float angle, float rb){\n");
+        s.push_str("    vec2 sca = vec2(sin(angle), cos(angle));\n");
+        s.push_str("    vec2 q = vec2(abs(p.x), p.y);\n");
+        s.push_str("    float k = (sca.y * q.x > sca.x * q.y) ? dot(q, sca) : length(q);\n");
+        s.push_str("    return sqrt(dot(q, q) + ra * ra - 2.0 * ra * k) - rb;\n");
+        s.push_str("}\n\n");
+    }
+
+    if needs_heart {
+        s.push_str("float sdf_heart(vec2 p, float sz){\n");
+        s.push_str("    vec2 q = vec2(abs(p.x), p.y);\n");
+        s.push_str("    vec2 b = vec2(sz * 0.5, sz * 0.8);\n");
+        s.push_str("    float r = 0.5 * (b.x + b.y);\n");
+        s.push_str("    float d = length(q - vec2(0.0, r * 0.5)) - r;\n");
+        s.push_str("    float a = atan(q.x, q.y - r * 0.5);\n");
+        s.push_str("    float h = sz * (0.5 + 0.3 * cos(a));\n");
+        s.push_str("    return length(q - vec2(0.0, r * 0.5)) - h;\n");
+        s.push_str("}\n\n");
+    }
+
+    if needs_egg {
+        s.push_str("float sdf_egg(vec2 p, float ra, float rb){\n");
+        s.push_str("    vec2 q = vec2(abs(p.x), p.y);\n");
+        s.push_str("    float r = ra - rb;\n");
+        s.push_str("    float k = (q.y < 0.0) ? length(q + vec2(0.0, rb)) : length(q);\n");
+        s.push_str("    return k - ra;\n");
+        s.push_str("}\n\n");
     }
 }
 
@@ -239,7 +306,14 @@ fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
     }
 
     if multi {
-        s.push_str(&format!("{indent}vec3 lc = color_result.rgb;\n"));
+        // Apply opacity if specified
+        if let Some(opacity) = layer.opacity {
+            s.push_str(&format!(
+                "{indent}vec3 lc = color_result.rgb * {opacity:.6};\n"
+            ));
+        } else {
+            s.push_str(&format!("{indent}vec3 lc = color_result.rgb;\n"));
+        }
         match layer.blend {
             BlendMode::Add => {
                 s.push_str(&format!(
@@ -456,15 +530,272 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 "{indent}vec4 color_result = vec4(cosine_palette(sdf_result, vec3({a_r}, {a_g}, {a_b}), vec3({b_r}, {b_g}, {b_b}), vec3({c_r}, {c_g}, {c_b}), vec3({d_r}, {d_g}, {d_b})), 1.0);\n"
             ));
         }
+        // ── SDF Boolean operations ──────────────────────
+        "union" | "subtract" | "intersect" | "xor" => {
+            emit_glsl_bool_op(s, stage, indent);
+        }
+        "smooth_union" | "smooth_subtract" | "smooth_intersect" => {
+            emit_glsl_smooth_bool_op(s, stage, indent);
+        }
+        // ── Spatial operations ──────────────────────────
+        "repeat" => {
+            let sx = get_arg(args, "spacing_x", 0, "repeat");
+            let sy = get_arg(args, "spacing_y", 1, "repeat");
+            // GLSL mod() is floor-based, safe to use directly
+            s.push_str(&format!(
+                "{indent}p = vec2(mod(p.x + {sx} * 0.5, {sx}) - {sx} * 0.5, mod(p.y + {sy} * 0.5, {sy}) - {sy} * 0.5);\n"
+            ));
+        }
+        "mirror" => {
+            s.push_str(&format!("{indent}p = vec2(abs(p.x), p.y);\n"));
+        }
+        "radial" => {
+            let count = get_arg(args, "count", 0, "radial");
+            s.push_str(&format!("{indent}{{ float r_angle = atan(p.y, p.x);\n"));
+            s.push_str(&format!("{indent}float r_sector = 6.28318 / {count};\n"));
+            s.push_str(&format!(
+                "{indent}float r_a = mod(r_angle + r_sector * 0.5, r_sector) - r_sector * 0.5;\n"
+            ));
+            s.push_str(&format!("{indent}float r_r = length(p);\n"));
+            s.push_str(&format!(
+                "{indent}p = vec2(r_r * cos(r_a), r_r * sin(r_a)); }}\n"
+            ));
+        }
+        // ── Shape modifiers ─────────────────────────────
+        "round" => {
+            let r = get_arg(args, "radius", 0, "round");
+            s.push_str(&format!("{indent}sdf_result -= {r};\n"));
+        }
+        "shell" => {
+            let w = get_arg(args, "width", 0, "shell");
+            s.push_str(&format!("{indent}sdf_result = abs(sdf_result) - {w};\n"));
+        }
+        "onion" => {
+            let count = get_arg(args, "count", 0, "onion");
+            let w = get_arg(args, "width", 1, "onion");
+            s.push_str(&format!(
+                "{indent}for (int onion_i = 0; onion_i < int({count}); onion_i++) {{ sdf_result = abs(sdf_result) - {w}; }}\n"
+            ));
+        }
+        "outline" => {
+            let w = get_arg(args, "width", 0, "outline");
+            s.push_str(&format!("{indent}{{ float out_lum = dot(color_result.rgb, vec3(0.299, 0.587, 0.114));\n"));
+            s.push_str(&format!("{indent}float out_edge = abs(out_lum) - {w};\n"));
+            s.push_str(&format!("{indent}color_result = vec4(color_result.rgb * (1.0 - smoothstep(0.0, 0.02, out_edge)), 1.0); }}\n"));
+        }
+        // ── New SDF primitives ──────────────────────────
+        "line" => {
+            let x1 = get_arg(args, "x1", 0, "line");
+            let y1 = get_arg(args, "y1", 1, "line");
+            let x2 = get_arg(args, "x2", 2, "line");
+            let y2 = get_arg(args, "y2", 3, "line");
+            let w = get_arg(args, "width", 4, "line");
+            s.push_str(&format!(
+                "{indent}float sdf_result = sdf_line(p, vec2({x1}, {y1}), vec2({x2}, {y2})) - {w};\n"
+            ));
+        }
+        "capsule" => {
+            let len = get_arg(args, "length", 0, "capsule");
+            let r = get_arg(args, "radius", 1, "capsule");
+            s.push_str(&format!(
+                "{indent}float sdf_result = sdf_line(p, vec2(-{len} * 0.5, 0.0), vec2({len} * 0.5, 0.0)) - {r};\n"
+            ));
+        }
+        "triangle" => {
+            let sz = get_arg(args, "size", 0, "triangle");
+            s.push_str(&format!(
+                "{indent}float sdf_result = sdf_triangle(p, {sz});\n"
+            ));
+        }
+        "arc_sdf" => {
+            let r = get_arg(args, "radius", 0, "arc_sdf");
+            let angle = get_arg(args, "angle", 1, "arc_sdf");
+            let w = get_arg(args, "width", 2, "arc_sdf");
+            s.push_str(&format!(
+                "{indent}float sdf_result = sdf_arc(p, {r}, {angle}, {w});\n"
+            ));
+        }
+        "cross" => {
+            let sz = get_arg(args, "size", 0, "cross");
+            let aw = get_arg(args, "arm_width", 1, "cross");
+            s.push_str(&format!(
+                "{indent}float sdf_result = min(sdf_box(p, {sz}, {aw}), sdf_box(p, {aw}, {sz}));\n"
+            ));
+        }
+        "heart" => {
+            let sz = get_arg(args, "size", 0, "heart");
+            s.push_str(&format!("{indent}float sdf_result = sdf_heart(p, {sz});\n"));
+        }
+        "egg" => {
+            let r = get_arg(args, "radius", 0, "egg");
+            let k = get_arg(args, "k", 1, "egg");
+            s.push_str(&format!("{indent}float sdf_result = sdf_egg(p, {r}, {k});\n"));
+        }
+        "spiral" => {
+            let turns = get_arg(args, "turns", 0, "spiral");
+            let w = get_arg(args, "width", 1, "spiral");
+            s.push_str(&format!("{indent}float sp_r = length(p);\n"));
+            s.push_str(&format!("{indent}float sp_a = atan(p.y, p.x);\n"));
+            s.push_str(&format!("{indent}float sp_d = sp_r - (sp_a + 3.14159265) / 6.28318 / {turns};\n"));
+            s.push_str(&format!("{indent}float sdf_result = abs(sp_d - floor(sp_d + 0.5)) - {w};\n"));
+        }
+        "grid" => {
+            let spacing = get_arg(args, "spacing", 0, "grid");
+            let w = get_arg(args, "width", 1, "grid");
+            s.push_str(&format!("{indent}float gx = abs(mod(p.x + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
+            s.push_str(&format!("{indent}float gy = abs(mod(p.y + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
+            s.push_str(&format!("{indent}float sdf_result = min(gx, gy);\n"));
+        }
         _ => {
             s.push_str(&format!("{indent}// Unknown stage: {}\n", stage.name));
         }
     }
 }
 
+/// Emit GLSL code for a sub-expression SDF call (used by boolean ops).
+fn emit_glsl_sub_sdf(s: &mut String, expr: &Expr, var_name: &str, indent: &str) {
+    if let Expr::Call { name, args } = expr {
+        let sub_args: Vec<crate::ast::Arg> = args.clone();
+        match name.as_str() {
+            "circle" => {
+                let r = get_arg(&sub_args, "radius", 0, "circle");
+                s.push_str(&format!("{indent}float {var_name} = sdf_circle(p, {r});\n"));
+            }
+            "ring" => {
+                let r = get_arg(&sub_args, "radius", 0, "ring");
+                let w = get_arg(&sub_args, "width", 1, "ring");
+                s.push_str(&format!(
+                    "{indent}float {var_name} = abs(length(p) - {r}) - {w};\n"
+                ));
+            }
+            "star" => {
+                let n = get_arg(&sub_args, "points", 0, "star");
+                let r = get_arg(&sub_args, "radius", 1, "star");
+                let ir = get_arg(&sub_args, "inner", 2, "star");
+                s.push_str(&format!(
+                    "{indent}float {var_name} = sdf_star(p, {n}, {r}, {ir});\n"
+                ));
+            }
+            "box" => {
+                let w = get_arg(&sub_args, "width", 0, "box");
+                let h = get_arg(&sub_args, "height", 1, "box");
+                s.push_str(&format!(
+                    "{indent}float {var_name} = sdf_box(p, {w}, {h});\n"
+                ));
+            }
+            "hex" => {
+                let r = get_arg(&sub_args, "radius", 0, "hex");
+                s.push_str(&format!(
+                    "{indent}float {var_name} = sdf_hex(p, {r});\n"
+                ));
+            }
+            "line" => {
+                let x1 = get_arg(&sub_args, "x1", 0, "line");
+                let y1 = get_arg(&sub_args, "y1", 1, "line");
+                let x2 = get_arg(&sub_args, "x2", 2, "line");
+                let y2 = get_arg(&sub_args, "y2", 3, "line");
+                let w = get_arg(&sub_args, "width", 4, "line");
+                s.push_str(&format!(
+                    "{indent}float {var_name} = sdf_line(p, vec2({x1}, {y1}), vec2({x2}, {y2})) - {w};\n"
+                ));
+            }
+            "capsule" => {
+                let len = get_arg(&sub_args, "length", 0, "capsule");
+                let r = get_arg(&sub_args, "radius", 1, "capsule");
+                s.push_str(&format!(
+                    "{indent}float {var_name} = sdf_line(p, vec2(-{len} * 0.5, 0.0), vec2({len} * 0.5, 0.0)) - {r};\n"
+                ));
+            }
+            "triangle" => {
+                let sz = get_arg(&sub_args, "size", 0, "triangle");
+                s.push_str(&format!(
+                    "{indent}float {var_name} = sdf_triangle(p, {sz});\n"
+                ));
+            }
+            "heart" => {
+                let sz = get_arg(&sub_args, "size", 0, "heart");
+                s.push_str(&format!(
+                    "{indent}float {var_name} = sdf_heart(p, {sz});\n"
+                ));
+            }
+            "egg" => {
+                let r = get_arg(&sub_args, "radius", 0, "egg");
+                let k = get_arg(&sub_args, "k", 1, "egg");
+                s.push_str(&format!(
+                    "{indent}float {var_name} = sdf_egg(p, {r}, {k});\n"
+                ));
+            }
+            _ => {
+                s.push_str(&format!(
+                    "{indent}float {var_name} = length(p) - 0.2; // fallback\n"
+                ));
+            }
+        }
+    }
+}
+
+/// Emit GLSL code for a boolean SDF operation.
+fn emit_glsl_bool_op(s: &mut String, stage: &Stage, indent: &str) {
+    let args = &stage.args;
+    if args.len() < 2 {
+        s.push_str(&format!("{indent}float sdf_result = length(p) - 0.2;\n"));
+        return;
+    }
+    emit_glsl_sub_sdf(s, &args[0].value, "sdf_a", indent);
+    emit_glsl_sub_sdf(s, &args[1].value, "sdf_b", indent);
+    let op = match stage.name.as_str() {
+        "union" => "min(sdf_a, sdf_b)",
+        "subtract" => "max(sdf_a, -sdf_b)",
+        "intersect" => "max(sdf_a, sdf_b)",
+        "xor" => "max(min(sdf_a, sdf_b), -max(sdf_a, sdf_b))",
+        _ => "min(sdf_a, sdf_b)",
+    };
+    s.push_str(&format!("{indent}float sdf_result = {op};\n"));
+}
+
+/// Emit GLSL code for a smooth boolean SDF operation.
+fn emit_glsl_smooth_bool_op(s: &mut String, stage: &Stage, indent: &str) {
+    let args = &stage.args;
+    if args.len() < 2 {
+        s.push_str(&format!("{indent}float sdf_result = length(p) - 0.2;\n"));
+        return;
+    }
+    emit_glsl_sub_sdf(s, &args[0].value, "sdf_a", indent);
+    emit_glsl_sub_sdf(s, &args[1].value, "sdf_b", indent);
+    let k = if args.len() >= 3 {
+        get_arg(args, "k", 2, &stage.name)
+    } else {
+        "0.100000".into()
+    };
+    let op = match stage.name.as_str() {
+        "smooth_union" => format!("smin(sdf_a, sdf_b, {k})"),
+        "smooth_subtract" => format!("-smin(-sdf_a, sdf_b, {k})"),
+        "smooth_intersect" => format!("-smin(-sdf_a, -sdf_b, {k})"),
+        _ => format!("smin(sdf_a, sdf_b, {k})"),
+    };
+    s.push_str(&format!("{indent}float sdf_result = {op};\n"));
+}
+
 fn has_stage(layer: &Layer, name: &str) -> bool {
     match &layer.body {
-        LayerBody::Pipeline(stages) => stages.iter().any(|s| s.name == name),
+        LayerBody::Pipeline(stages) => stages.iter().any(|s| {
+            if s.name == name {
+                return true;
+            }
+            s.args.iter().any(|a| has_stage_in_expr(&a.value, name))
+        }),
+        _ => false,
+    }
+}
+
+fn has_stage_in_expr(expr: &Expr, name: &str) -> bool {
+    match expr {
+        Expr::Call { name: call_name, args } => {
+            if call_name == name {
+                return true;
+            }
+            args.iter().any(|a| has_stage_in_expr(&a.value, name))
+        }
         _ => false,
     }
 }
@@ -497,6 +828,7 @@ mod tests {
                 name: "main".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(stages),
@@ -696,6 +1028,7 @@ mod tests {
                     name: "a".into(),
                     opts: vec![],
                     memory: None,
+                    opacity: None,
                     cast: None,
                     blend: BlendMode::Add,
                     body: LayerBody::Pipeline(vec![
@@ -713,6 +1046,7 @@ mod tests {
                     name: "b".into(),
                     opts: vec![],
                     memory: None,
+                    opacity: None,
                     cast: None,
                     blend: BlendMode::Add,
                     body: LayerBody::Pipeline(vec![
@@ -881,6 +1215,7 @@ mod tests {
                 name: "bg".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
@@ -892,6 +1227,7 @@ mod tests {
                 name: "fx".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Screen,
                 body: LayerBody::Pipeline(vec![Stage {
@@ -914,6 +1250,7 @@ mod tests {
                 name: "bg".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
@@ -925,6 +1262,7 @@ mod tests {
                 name: "fx".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Multiply,
                 body: LayerBody::Pipeline(vec![Stage {
@@ -947,6 +1285,7 @@ mod tests {
                 name: "bg".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
@@ -958,6 +1297,7 @@ mod tests {
                 name: "fx".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Overlay,
                 body: LayerBody::Pipeline(vec![Stage {
@@ -971,5 +1311,148 @@ mod tests {
             output.contains("mix(hi, lo, step("),
             "GLSL overlay uses mix+step: {output}"
         );
+    }
+
+    #[test]
+    fn glsl_union_emits_min() {
+        let cin = make_cinematic(vec![
+            Stage {
+                name: "union".into(),
+                args: vec![
+                    Arg {
+                        name: None,
+                        value: Expr::Call {
+                            name: "circle".into(),
+                            args: vec![Arg {
+                                name: None,
+                                value: Expr::Number(0.3),
+                            }],
+                        },
+                    },
+                    Arg {
+                        name: None,
+                        value: Expr::Call {
+                            name: "box".into(),
+                            args: vec![
+                                Arg {
+                                    name: None,
+                                    value: Expr::Number(0.2),
+                                },
+                                Arg {
+                                    name: None,
+                                    value: Expr::Number(0.4),
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(output.contains("sdf_circle"), "emits circle sub-sdf");
+        assert!(output.contains("sdf_box"), "emits box sub-sdf");
+        assert!(output.contains("min(sdf_a, sdf_b)"), "union = min");
+        assert!(!output.contains("vec2<f32>"), "must NOT have WGSL types");
+    }
+
+    #[test]
+    fn glsl_smooth_union_emits_smin() {
+        let cin = make_cinematic(vec![
+            Stage {
+                name: "smooth_union".into(),
+                args: vec![
+                    Arg {
+                        name: None,
+                        value: Expr::Call {
+                            name: "circle".into(),
+                            args: vec![Arg {
+                                name: None,
+                                value: Expr::Number(0.3),
+                            }],
+                        },
+                    },
+                    Arg {
+                        name: None,
+                        value: Expr::Call {
+                            name: "box".into(),
+                            args: vec![
+                                Arg {
+                                    name: None,
+                                    value: Expr::Number(0.2),
+                                },
+                                Arg {
+                                    name: None,
+                                    value: Expr::Number(0.4),
+                                },
+                            ],
+                        },
+                    },
+                    Arg {
+                        name: None,
+                        value: Expr::Number(0.1),
+                    },
+                ],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(output.contains("float smin("), "GLSL smin helper");
+        assert!(output.contains("smin(sdf_a, sdf_b,"), "smooth union uses smin");
+    }
+
+    #[test]
+    fn glsl_repeat_uses_mod() {
+        let cin = make_cinematic(vec![
+            Stage {
+                name: "repeat".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "circle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(output.contains("mod(p.x"), "GLSL repeat uses mod()");
+    }
+
+    #[test]
+    fn glsl_new_primitives() {
+        let cin = make_cinematic(vec![
+            Stage {
+                name: "triangle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(output.contains("float sdf_triangle(vec2 p"), "GLSL C-style triangle helper");
+
+        let cin2 = make_cinematic(vec![
+            Stage {
+                name: "spiral".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+        ]);
+        let output2 = generate_fragment(&cin2, &[]);
+        assert!(output2.contains("float sp_r = length(p)"), "spiral code emitted");
     }
 }

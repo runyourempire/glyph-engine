@@ -1058,3 +1058,90 @@ fn parse_layer_default_blend_is_add() {
         crate::ast::BlendMode::Add
     );
 }
+
+// ===================================================================
+// Layer with opacity
+// ===================================================================
+
+#[test]
+fn parse_layer_with_opacity() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("main".into())),
+        s(Token::Opacity),
+        s(Token::Colon),
+        s(Token::Float(0.75)),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::Float(0.2)),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse opacity");
+    assert_eq!(prog.cinematics[0].layers[0].opacity, Some(0.75));
+}
+
+#[test]
+fn parse_layer_opacity_and_memory() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("main".into())),
+        s(Token::Memory),
+        s(Token::Colon),
+        s(Token::Float(0.95)),
+        s(Token::Opacity),
+        s(Token::Colon),
+        s(Token::Float(0.5)),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse memory + opacity");
+    assert_eq!(prog.cinematics[0].layers[0].memory, Some(0.95));
+    assert_eq!(prog.cinematics[0].layers[0].opacity, Some(0.5));
+}
+
+#[test]
+fn parse_layer_no_opacity_default() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("main".into())),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse without opacity");
+    assert_eq!(prog.cinematics[0].layers[0].opacity, None);
+}

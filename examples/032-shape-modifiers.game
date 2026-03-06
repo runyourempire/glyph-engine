@@ -1,0 +1,23 @@
+// Shape Modifiers — transform SDF values after shape evaluation.
+// Round, shell, and onion unlock new visual vocabularies.
+
+// Rounded box — soften hard edges
+cinematic "rounded-box" {
+  layer main {
+    box(0.25, 0.15) | round(0.05) | glow(2.0) | tint(0.6, 0.8, 1.0)
+  }
+}
+
+// Concentric onion rings
+cinematic "onion-rings" {
+  layer rings {
+    circle(0.35) | onion(4, 0.015) | glow(2.0) | tint(0.83, 0.69, 0.22)
+  }
+}
+
+// Shell — hollow star
+cinematic "hollow-star" {
+  layer main {
+    star(5, 0.3, 0.15) | shell(0.015) | glow(2.5) | tint(1.0, 0.4, 0.1)
+  }
+}

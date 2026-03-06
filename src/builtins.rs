@@ -292,6 +292,166 @@ static RADIAL_FADE_PARAMS: &[BuiltinParam] = &[
 
 static POLAR_PARAMS: &[BuiltinParam] = &[];
 
+// ── SDF Boolean operations ──────────────────────────────
+// These take sub-expressions as args; params are empty here
+// because validation is handled specially in stages.rs.
+
+static BOOL_OP_PARAMS: &[BuiltinParam] = &[];
+static SMOOTH_BOOL_OP_PARAMS: &[BuiltinParam] = &[];
+
+// ── Spatial operations ──────────────────────────────────
+
+static REPEAT_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "spacing_x",
+        default: Some(0.5),
+    },
+    BuiltinParam {
+        name: "spacing_y",
+        default: Some(0.5),
+    },
+];
+
+static MIRROR_PARAMS: &[BuiltinParam] = &[];
+
+static RADIAL_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "count",
+    default: Some(6.0),
+}];
+
+// ── Shape modifiers ─────────────────────────────────────
+
+static ROUND_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "radius",
+    default: Some(0.02),
+}];
+
+static SHELL_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "width",
+    default: Some(0.02),
+}];
+
+static ONION_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "count",
+        default: Some(3.0),
+    },
+    BuiltinParam {
+        name: "width",
+        default: Some(0.02),
+    },
+];
+
+static OUTLINE_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "width",
+    default: Some(0.01),
+}];
+
+// ── New SDF primitives ──────────────────────────────────
+
+static LINE_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "x1",
+        default: Some(-0.2),
+    },
+    BuiltinParam {
+        name: "y1",
+        default: Some(0.0),
+    },
+    BuiltinParam {
+        name: "x2",
+        default: Some(0.2),
+    },
+    BuiltinParam {
+        name: "y2",
+        default: Some(0.0),
+    },
+    BuiltinParam {
+        name: "width",
+        default: Some(0.01),
+    },
+];
+
+static CAPSULE_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "length",
+        default: Some(0.3),
+    },
+    BuiltinParam {
+        name: "radius",
+        default: Some(0.05),
+    },
+];
+
+static TRIANGLE_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "size",
+    default: Some(0.3),
+}];
+
+static ARC_SDF_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "radius",
+        default: Some(0.3),
+    },
+    BuiltinParam {
+        name: "angle",
+        default: Some(1.5),
+    },
+    BuiltinParam {
+        name: "width",
+        default: Some(0.02),
+    },
+];
+
+static CROSS_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "size",
+        default: Some(0.3),
+    },
+    BuiltinParam {
+        name: "arm_width",
+        default: Some(0.08),
+    },
+];
+
+static HEART_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "size",
+    default: Some(0.3),
+}];
+
+static EGG_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "radius",
+        default: Some(0.2),
+    },
+    BuiltinParam {
+        name: "k",
+        default: Some(0.1),
+    },
+];
+
+static SPIRAL_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "turns",
+        default: Some(3.0),
+    },
+    BuiltinParam {
+        name: "width",
+        default: Some(0.02),
+    },
+];
+
+static GRID_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "spacing",
+        default: Some(0.2),
+    },
+    BuiltinParam {
+        name: "width",
+        default: Some(0.005),
+    },
+];
+
 // ── Registry ─────────────────────────────────────────────
 
 static BUILTINS: &[BuiltinFn] = &[
@@ -443,6 +603,148 @@ static BUILTINS: &[BuiltinFn] = &[
         input: ShaderState::Sdf,
         output: ShaderState::Color,
     },
+    // ── SDF Boolean operations: Position -> Sdf ─────────
+    BuiltinFn {
+        name: "union",
+        params: BOOL_OP_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "subtract",
+        params: BOOL_OP_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "intersect",
+        params: BOOL_OP_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "smooth_union",
+        params: SMOOTH_BOOL_OP_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "smooth_subtract",
+        params: SMOOTH_BOOL_OP_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "smooth_intersect",
+        params: SMOOTH_BOOL_OP_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "xor",
+        params: BOOL_OP_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    // ── Spatial operations: Position -> Position ────────
+    BuiltinFn {
+        name: "repeat",
+        params: REPEAT_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Position,
+    },
+    BuiltinFn {
+        name: "mirror",
+        params: MIRROR_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Position,
+    },
+    BuiltinFn {
+        name: "radial",
+        params: RADIAL_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Position,
+    },
+    // ── Shape modifiers: Sdf -> Sdf ────────────────────
+    BuiltinFn {
+        name: "round",
+        params: ROUND_PARAMS,
+        input: ShaderState::Sdf,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "shell",
+        params: SHELL_PARAMS,
+        input: ShaderState::Sdf,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "onion",
+        params: ONION_PARAMS,
+        input: ShaderState::Sdf,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "outline",
+        params: OUTLINE_PARAMS,
+        input: ShaderState::Color,
+        output: ShaderState::Color,
+    },
+    // ── New SDF primitives: Position -> Sdf ────────────
+    BuiltinFn {
+        name: "line",
+        params: LINE_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "capsule",
+        params: CAPSULE_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "triangle",
+        params: TRIANGLE_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "arc_sdf",
+        params: ARC_SDF_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "cross",
+        params: CROSS_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "heart",
+        params: HEART_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "egg",
+        params: EGG_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "spiral",
+        params: SPIRAL_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
+    BuiltinFn {
+        name: "grid",
+        params: GRID_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Sdf,
+    },
 ];
 
 /// Look up a built-in function by name.
@@ -486,6 +788,33 @@ mod tests {
             "voronoi",
             "radial_fade",
             "palette",
+            // SDF boolean operations
+            "union",
+            "subtract",
+            "intersect",
+            "smooth_union",
+            "smooth_subtract",
+            "smooth_intersect",
+            "xor",
+            // Spatial operations
+            "repeat",
+            "mirror",
+            "radial",
+            // Shape modifiers
+            "round",
+            "shell",
+            "onion",
+            "outline",
+            // New SDF primitives
+            "line",
+            "capsule",
+            "triangle",
+            "arc_sdf",
+            "cross",
+            "heart",
+            "egg",
+            "spiral",
+            "grid",
         ] {
             assert!(lookup(name).is_some(), "missing builtin: {name}");
         }

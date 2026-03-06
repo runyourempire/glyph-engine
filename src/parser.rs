@@ -330,6 +330,15 @@ impl Parser {
             None
         };
 
+        // Optional `opacity : <float>`
+        let opacity = if matches!(self.peek(), Some(Token::Opacity)) {
+            self.advance(); // consume `opacity`
+            self.expect(&Token::Colon)?;
+            Some(self.expect_number()?)
+        } else {
+            None
+        };
+
         // Phase-1: optional `cast <ident>`
         let cast = if matches!(self.peek(), Some(Token::Cast)) {
             self.advance(); // consume `cast`
@@ -367,6 +376,7 @@ impl Parser {
             name,
             opts,
             memory,
+            opacity,
             cast,
             blend,
             body,

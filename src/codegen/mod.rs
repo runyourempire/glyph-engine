@@ -129,6 +129,11 @@ fn collect_all_params(cinematic: &Cinematic) -> Vec<&Param> {
         .collect()
 }
 
+/// Public accessor for extracting uniform info from a cinematic (used by dev server).
+pub fn extract_uniforms_public(cinematic: &Cinematic) -> Vec<UniformInfo> {
+    extract_uniforms(cinematic)
+}
+
 /// Generate shaders for a single cinematic.
 pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
     validate(cinematic)?;
@@ -249,6 +254,7 @@ mod tests {
                 name: "main".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(stages),
@@ -321,6 +327,7 @@ mod tests {
                 name: "config".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Params(vec![Param {
@@ -354,6 +361,7 @@ mod tests {
                 name: "main".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: Some("sdf".into()),
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
@@ -382,6 +390,7 @@ mod tests {
                 name: "main".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: Some("sdf".into()),
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
@@ -417,6 +426,7 @@ mod tests {
                 name: "main".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
@@ -460,6 +470,7 @@ mod tests {
                 name: "main".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
@@ -521,6 +532,7 @@ mod tests {
                 name: "main".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
@@ -566,6 +578,7 @@ mod tests {
                 name: "main".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
@@ -613,6 +626,7 @@ mod tests {
                 name: "main".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![
@@ -672,6 +686,7 @@ mod tests {
                 name: "bg".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
@@ -712,6 +727,7 @@ mod tests {
                 name: "bg".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {
@@ -754,6 +770,7 @@ mod tests {
                 name: "bg".into(),
                 opts: vec![],
                 memory: None,
+                opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
                 body: LayerBody::Pipeline(vec![Stage {

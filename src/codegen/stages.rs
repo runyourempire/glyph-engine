@@ -148,4 +148,80 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), ShaderState::Color);
     }
+
+    #[test]
+    fn boolean_union_pipeline() {
+        let stages = vec![stage("union"), stage("glow"), stage("tint")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn smooth_union_pipeline() {
+        let stages = vec![stage("smooth_union"), stage("glow")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn spatial_repeat_circle_pipeline() {
+        let stages = vec![stage("repeat"), stage("circle"), stage("glow")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn mirror_radial_pipeline() {
+        let stages = vec![stage("mirror"), stage("radial"), stage("circle"), stage("glow")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn shape_modifier_round_pipeline() {
+        let stages = vec![stage("box"), stage("round"), stage("glow")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn shape_modifier_shell_pipeline() {
+        let stages = vec![stage("circle"), stage("shell"), stage("glow")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn shape_modifier_onion_pipeline() {
+        let stages = vec![stage("circle"), stage("onion"), stage("glow")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn new_primitives_pipeline() {
+        for prim in [
+            "line", "capsule", "triangle", "arc_sdf", "cross", "heart", "egg", "spiral", "grid",
+        ] {
+            let stages = vec![stage(prim), stage("glow")];
+            let result = validate_pipeline(&stages);
+            assert!(result.is_ok(), "primitive '{prim}' should produce Sdf");
+            assert_eq!(result.unwrap(), ShaderState::Color);
+        }
+    }
+
+    #[test]
+    fn outline_is_color_to_color() {
+        let stages = vec![stage("circle"), stage("glow"), stage("outline")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
 }

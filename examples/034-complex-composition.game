@@ -1,0 +1,43 @@
+// Complex Composition — combining SDF algebra with existing features.
+// Boolean ops + spatial ops + temporal operators + memory = emergence.
+
+cinematic "living-mandala" {
+  layer config {
+    pulse: 0.5
+    rotation_speed: 0.3
+    bloom_amount: 0.0
+  }
+
+  // Rotating hexagonal lattice
+  layer lattice memory: 0.9 {
+    rotate(rotation_speed) | radial(6) | translate(0.25, 0.0) |
+    circle(0.06) | glow(2.0) | tint(0.83, 0.69, 0.22)
+  }
+
+  // Inner core — smooth union of rotating shapes
+  layer core {
+    rotate(0.5) |
+    smooth_union(
+      circle(0.12),
+      box(0.08, 0.15),
+      0.08
+    ) | glow(3.0) | tint(1.0, 0.5, 0.2)
+  }
+
+  // Outer boundary ring
+  layer boundary {
+    ring(0.4, 0.01) | glow(1.0) | tint(0.4, 0.4, 0.5)
+  }
+
+  // Growth animation
+  arc {
+    pulse: 0.0 -> 1.0 over 4s ease_in_out
+    bloom_amount: 0.0 -> 0.5 over 6s ease_out
+  }
+
+  // Parametric coupling
+  resonate {
+    pulse -> core.scale * 0.3
+    pulse -> lattice.brightness * 0.4
+  }
+}
