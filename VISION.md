@@ -10,17 +10,22 @@ GAME eliminates this tradeoff. A declarative DSL that reads like describing a pa
 
 ---
 
-## Current State: v0.3.0
+## Current State: v0.6.0
 
-- 13,690 lines of clean Rust (logos lexer, hand-written recursive descent parser)
+- 17,683 lines of Rust (logos lexer, hand-written recursive descent parser)
 - Full pipeline: `.game` source → Lex → Parse → Validate → Codegen → Runtime
 - Dual-target: WGSL (WebGPU primary) + GLSL ES 3.0 (WebGL2 fallback)
-- 43 built-in functions across 3 shader states (Position, SDF, Color)
+- 43+ built-in functions across 3 shader states (Position, SDF, Color)
 - SDF algebra: boolean ops, spatial ops, shape modifiers, 9 new primitives
+- v0.4 Language: fn defs, conditionals (if/else), morph blending, file/stdlib imports, named palettes, comparison operators
+- v0.5 Composition: post-processing passes, scene sequencing, layer feedback, cinematic-use, Art Blocks output
+- v0.6 Matrix Generation: IFS fractals (compute shader), L-systems (turtle→SDF), cellular automata (compute shader)
 - 15+ synthesis techniques: temporal operators, audio DSP, voice synthesis, musical timelines, genetic composition, N-body gravity, reaction-diffusion, physarum stigmergy, vector field advection
+- Standard library: shapes.game, palettes.game, patterns.game (embedded via include_str)
+- LSP API surface: Diagnostic types, completion items, state-aware next-stage suggestions
 - Live preview: `game dev` with HTTP server, file watcher, hot reload, parameter sliders
 - Scaffolding: `game new` with 5 templates
-- 34 example `.game` files, 234 passing tests
+- 34 example `.game` files (27 compiling), 311 passing tests
 - 9 components deployed in production (4DA)
 
 ---
