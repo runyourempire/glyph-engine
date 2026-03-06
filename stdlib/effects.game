@@ -1,0 +1,29 @@
+// GAME Standard Library — effects.game
+// Reusable visual effect functions.
+// All functions are complete pipelines (SDF generator → bridge → color).
+
+fn neon_dot(r, g, b) {
+  circle(0.1) | glow(4.0) | tint(r, g, b)
+}
+
+fn ember_orb(radius) {
+  circle(radius) | glow(3.0) | tint(1.0, 0.4, 0.1)
+}
+
+fn ice_orb(radius) {
+  circle(radius) | glow(3.0) | tint(0.5, 0.8, 1.0)
+}
+
+fn gold_ring(radius, width) {
+  ring(radius, width) | glow(2.5) | tint(0.83, 0.69, 0.22)
+}
+
+fn soft_star(radius) {
+  star(5, radius, radius * 0.4) | glow(3.0) | tint(0.95, 0.95, 0.9)
+}
+
+fn warped_noise(sc, oct, str) {
+  warp(scale: sc, octaves: oct, strength: str)
+  | fbm(scale: sc, octaves: oct)
+  | glow(1.5)
+}

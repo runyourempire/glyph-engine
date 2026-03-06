@@ -19,6 +19,8 @@ fn resolve_stdlib(path: &str) -> Option<String> {
         "shapes" => Some(include_str!("../stdlib/shapes.game").to_string()),
         "palettes" => Some(include_str!("../stdlib/palettes.game").to_string()),
         "patterns" => Some(include_str!("../stdlib/patterns.game").to_string()),
+        "effects" => Some(include_str!("../stdlib/effects.game").to_string()),
+        "motion" => Some(include_str!("../stdlib/motion.game").to_string()),
         _ => None,
     }
 }
@@ -180,9 +182,9 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
         });
     }
 
-    // Scene blocks produce JS timeline controllers
+    // Scene blocks produce full Web Component orchestrators
     for scene_block in &program.scenes {
-        let js = codegen::scene::generate_scene_js(scene_block);
+        let js = codegen::scene::generate_scene_component(scene_block);
         if !js.is_empty() {
             outputs.push(CompileOutput {
                 name: scene_block.name.clone(),
@@ -324,6 +326,9 @@ mod tests {
         let outputs = compile(source, &default_config()).unwrap();
         assert_eq!(outputs.len(), 2); // cinematic + scene
         assert!(outputs[1].js.contains("GameSceneTimeline"));
+        // Scene now produces a full Web Component
+        assert!(outputs[1].js.contains("customElements.define"));
+        assert!(outputs[1].js.contains("game-scene-show"));
     }
 
     #[test]
@@ -982,6 +987,392 @@ mod tests {
         // SDF boolean + memory + passes
         assert!(outputs[0].js.contains("_initMemory"));
         assert!(outputs[0].js.contains("PASS_WGSL_0"));
+    }
+
+    #[test]
+    fn e2e_scene_component_has_child_elements() {
+        let source = r#"
+            cinematic "a" {
+                layer bg { circle(0.3) | glow(1.0) }
+            }
+            cinematic "b" {
+                layer bg { circle(0.2) | glow(2.0) }
+            }
+            scene "demo" {
+                play "a" for 5s
+                transition dissolve over 2s
+                play "b" for 5s
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 3); // 2 cinematics + 1 scene
+        let scene_js = &outputs[2].js;
+        assert!(scene_js.contains("SCENE_CINEMATICS"));
+        assert!(scene_js.contains("game-scene-demo"));
+        assert!(scene_js.contains("GameSceneTimeline"));
+        assert!(scene_js.contains("style.opacity"));
+    }
+
+    #[test]
+    fn e2e_scene_with_transitions() {
+        let source = r#"
+            cinematic "x" {
+                layer bg { circle(0.3) | glow(1.0) }
+            }
+            cinematic "y" {
+                layer bg { circle(0.2) | glow(2.0) }
+            }
+            scene "show" {
+                play "x" for 10s
+                transition fade over 3s
+                play "y" for 10s
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let scene_js = &outputs[2].js;
+        assert!(scene_js.contains("kind: 'fade'"));
+        assert!(scene_js.contains("blend"));
+    }
+
+    #[test]
+    fn e2e_stdlib_effects_import() {
+        let source = r#"
+            use "std:effects"
+            cinematic "test" {
+                layer bg { ember_orb(0.2) }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+        assert!(outputs[0].wgsl.is_some());
+    }
+
+    #[test]
+    fn e2e_stdlib_motion_import() {
+        let source = r#"
+            use "std:motion"
+            cinematic "test" {
+                layer bg { wobble(4.0, 0.5, 0.3) | circle(0.2) | glow(2.0) | tint(1.0, 0.5, 0.2) }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_error_suggests_typo() {
+        let source = r#"
+            cinematic "test" {
+                layer bg { circl(0.3) | glow(1.0) }
+            }
+        "#;
+        let result = compile(source, &default_config());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Did you mean 'circle'?"), "got: {err}");
+    }
+
+    #[test]
+    fn e2e_error_suggests_bridge() {
+        let source = r#"
+            cinematic "test" {
+                layer bg { circle(0.3) | tint(1.0, 0.5, 0.2) }
+            }
+        "#;
+        let result = compile(source, &default_config());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("glow") || err.contains("shade"), "got: {err}");
+    }
+
+    #[test]
+    fn e2e_example_043_scene_sequence() {
+        let source = std::fs::read_to_string("examples/043-scene-sequence.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 043 should compile: {:?}", result.err());
+        let outputs = result.unwrap();
+        // 3 cinematics + 1 scene component
+        assert_eq!(outputs.len(), 4);
+        assert!(outputs[3].js.contains("game-scene-day-cycle"));
+    }
+
+    #[test]
+    fn e2e_multiple_scenes() {
+        let source = r#"
+            cinematic "a" { layer bg { circle(0.1) | glow(1.0) } }
+            cinematic "b" { layer bg { circle(0.2) | glow(2.0) } }
+            scene "s1" { play "a" for 5s }
+            scene "s2" { play "b" for 5s }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 4); // 2 cinematics + 2 scenes
+    }
+
+    #[test]
+    fn e2e_arc_resonate_memory_pass_combined() {
+        let source = r#"
+            cinematic "full" {
+                layer config { growth: 0.0 }
+                layer core memory: 0.95 {
+                    circle(0.1) | glow(3.0) | tint(1.0, 0.5, 0.2)
+                }
+                layer ring_layer {
+                    ring(0.3, 0.02) | glow(1.5) | tint(0.5, 0.5, 0.8)
+                }
+                arc { growth: 0.0 -> 1.0 over 5s ease-out }
+                resonate { growth -> core.scale * 0.3 }
+                pass v { vignette(0.5) }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+        let js = &outputs[0].js;
+        assert!(js.contains("GameArcTimeline"));
+        assert!(js.contains("GameResonanceNetwork"));
+        assert!(js.contains("_initMemory"));
+        assert!(js.contains("PASS_WGSL_0"));
+    }
+
+    #[test]
+    fn e2e_feedback_layer_compiles() {
+        let source = r#"
+            cinematic "fb" {
+                layer trail feedback: true {
+                    circle(0.05) | glow(2.0) | tint(1.0, 0.3, 0.1)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert!(outputs[0].js.contains("_initMemory"));
+    }
+
+    #[test]
+    fn e2e_warp_fbm_palette_pipeline() {
+        let source = r#"
+            cinematic "test" {
+                layer main {
+                    warp(scale: 2.0, octaves: 4, strength: 0.3)
+                    | fbm(scale: 3.0, octaves: 5)
+                    | palette(
+                        a_r: 0.5, a_g: 0.5, a_b: 0.5,
+                        b_r: 0.5, b_g: 0.5, b_b: 0.5,
+                        c_r: 1.0, c_g: 1.0, c_b: 1.0,
+                        d_r: 0.0, d_g: 0.33, d_b: 0.67
+                    )
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert!(outputs[0].wgsl.as_ref().unwrap().contains("warp"));
+    }
+
+    #[test]
+    fn e2e_polar_distort_pipeline() {
+        let source = r#"
+            cinematic "test" {
+                layer main {
+                    polar | simplex(6.0) | glow(1.5) | tint(0.6, 0.8, 1.0)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_subtract_boolean() {
+        let source = r#"
+            cinematic "test" {
+                layer main {
+                    subtract(circle(0.3), box(0.12, 0.12))
+                    | glow(2.5) | tint(1.0, 0.4, 0.2)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_intersect_boolean() {
+        let source = r#"
+            cinematic "test" {
+                layer main {
+                    intersect(ring(0.3, 0.08), star(5, 0.35, 0.15))
+                    | glow(2.0) | tint(0.9, 0.8, 0.3)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_blend_mode_layers() {
+        let source = r#"
+            cinematic "test" {
+                layer a {
+                    circle(0.2) | glow(2.0) | tint(1.0, 0.0, 0.0)
+                }
+                layer b blend: screen {
+                    circle(0.15) | glow(1.5) | tint(0.0, 0.0, 1.0)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_opacity_layer() {
+        let source = r#"
+            cinematic "test" {
+                layer bg opacity: 0.5 {
+                    circle(0.3) | glow(2.0) | tint(1.0, 1.0, 1.0)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_new_primitives() {
+        for prim in ["line", "capsule", "triangle", "arc_sdf", "cross", "heart", "egg", "spiral", "grid"] {
+            let source = format!(
+                "cinematic \"test\" {{ layer bg {{ {prim}() | glow(1.0) }} }}"
+            );
+            let result = compile(&source, &default_config());
+            assert!(result.is_ok(), "primitive '{}' should compile: {:?}", prim, result.err());
+        }
+    }
+
+    #[test]
+    fn e2e_shape_modifiers() {
+        for modifier in ["round", "shell", "onion"] {
+            let source = format!(
+                "cinematic \"test\" {{ layer bg {{ circle(0.2) | {modifier}(0.01) | glow(1.0) }} }}"
+            );
+            let result = compile(&source, &default_config());
+            assert!(result.is_ok(), "modifier '{}' should compile: {:?}", modifier, result.err());
+        }
+    }
+
+    #[test]
+    fn e2e_spatial_ops() {
+        for op in ["repeat", "mirror", "radial"] {
+            let source = format!(
+                "cinematic \"test\" {{ layer bg {{ {op}(4) | circle(0.05) | glow(1.0) }} }}"
+            );
+            let result = compile(&source, &default_config());
+            assert!(result.is_ok(), "spatial op '{}' should compile: {:?}", op, result.err());
+        }
+    }
+
+    #[test]
+    fn e2e_all_pass_types() {
+        for pass_type in ["blur(2.0)", "threshold(0.5)", "invert", "blend_add", "vignette(0.5)"] {
+            let source = format!(
+                "cinematic \"test\" {{ layer bg {{ circle(0.3) | glow(1.0) }} pass p {{ {pass_type} }} }}"
+            );
+            let result = compile(&source, &default_config());
+            assert!(result.is_ok(), "pass type '{}' should compile: {:?}", pass_type, result.err());
+        }
+    }
+
+    #[test]
+    fn e2e_named_palette_variants() {
+        for name in ["fire", "ocean", "neon", "aurora", "sunset", "ice"] {
+            let source = format!(
+                "cinematic \"test\" {{ layer bg {{ circle(0.3) | palette({name}) }} }}"
+            );
+            let result = compile(&source, &default_config());
+            assert!(result.is_ok(), "palette '{}' should compile: {:?}", name, result.err());
+        }
+    }
+
+    #[test]
+    fn e2e_multiple_stdlib_imports() {
+        let source = r#"
+            use "std:shapes"
+            use "std:patterns"
+            cinematic "test" {
+                layer a { dot(0.1) }
+                layer b { soft_circle(0.2, 1.0, 0.5, 0.2) }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_multi_layer_blend_modes() {
+        let source = r#"
+            cinematic "test" {
+                layer a { circle(0.2) | glow(2.0) | tint(1.0, 0.0, 0.0) }
+                layer b blend: screen { circle(0.15) | glow(1.5) | tint(0.0, 1.0, 0.0) }
+                layer c blend: multiply { circle(0.1) | glow(1.0) | tint(0.0, 0.0, 1.0) }
+                layer d blend: overlay { ring(0.3, 0.01) | glow(1.0) | tint(1.0, 1.0, 1.0) }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_conditional_with_audio() {
+        let source = r#"
+            cinematic "test" {
+                layer bg {
+                    if audio.beat > 0.5 {
+                        circle(0.3) | glow(3.0) | tint(1.0, 0.5, 0.2)
+                    } else {
+                        circle(0.15) | glow(1.0) | tint(0.5, 0.5, 0.8)
+                    }
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+        assert!(outputs[0].wgsl.as_ref().unwrap().contains("select"));
+    }
+
+    #[test]
+    fn e2e_html_output_with_passes() {
+        let source = r#"
+            cinematic "test" {
+                layer bg { circle(0.3) | glow(1.0) }
+                pass blur { blur(2.0) }
+            }
+        "#;
+        let config = CompileConfig {
+            output_format: OutputFormat::Html,
+            target: ShaderTarget::Both,
+            seed: None,
+        };
+        let outputs = compile(source, &config).unwrap();
+        assert!(outputs[0].html.is_some());
+        let html = outputs[0].html.as_ref().unwrap();
+        assert!(html.contains("PASS_WGSL_0"));
+    }
+
+    #[test]
+    fn e2e_artblocks_with_memory() {
+        let source = r#"
+            cinematic "gen" {
+                layer trail memory: 0.95 {
+                    circle(0.1) | glow(2.0) | tint(1.0, 0.5, 0.2)
+                }
+            }
+        "#;
+        let config = CompileConfig {
+            output_format: OutputFormat::ArtBlocks,
+            target: ShaderTarget::Both,
+            seed: Some(42),
+        };
+        let outputs = compile(source, &config).unwrap();
+        assert!(outputs[0].html.is_some());
+        let html = outputs[0].html.as_ref().unwrap();
+        assert!(html.contains("fxhash"));
+        assert!(html.contains("_initMemory"));
     }
 
     #[test]

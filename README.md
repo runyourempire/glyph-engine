@@ -126,6 +126,7 @@ palette(...)                    // Cosine palette (12 params: a,b,c,d RGB)
 tint(0.83, 0.69, 0.22)         // Multiply by RGB color
 bloom(0.3, 2.0)                // High-pass bloom, threshold + strength
 grain(0.05)                    // Film grain noise
+outline(0.5, 0.8, 1.0, 0.02)  // Edge outline, RGB + width
 ```
 
 ### Transforms
@@ -200,6 +201,64 @@ cinematic "layered" {
 ```
 
 Blend modes: `add` (default), `screen`, `multiply`, `overlay`.
+
+### Scene Composition
+
+Sequence cinematics with timed transitions:
+
+```game
+cinematic "dawn" { ... }
+cinematic "noon" { ... }
+cinematic "dusk" { ... }
+
+scene "day-cycle" {
+  play "dawn" for 10s
+  transition dissolve over 2s
+  play "noon" for 15s
+  transition fade over 3s
+  play "dusk" for 10s
+}
+```
+
+Compiles to a `<game-scene-day-cycle>` Web Component that creates child cinematic elements and crossfades between them via CSS opacity transitions.
+
+### User-Defined Functions
+
+```game
+fn neon_dot(r, g, b) {
+  circle(0.1) | glow(4.0) | tint(r, g, b)
+}
+
+cinematic "dots" {
+  layer main {
+    neon_dot(1.0, 0.3, 0.8)
+  }
+}
+```
+
+### Standard Library
+
+Import reusable functions from the stdlib:
+
+```game
+import "std:shapes"    // dot, petal, gear, bullseye, halo, badge, blob, pill
+import "std:palettes"  // ocean, fire, forest, neon, sunset, aurora, cyber
+import "std:patterns"  // checker, dots, stripes
+import "std:effects"   // neon_dot, ember_orb, ice_orb, gold_ring, soft_star, warped_noise
+import "std:motion"    // orbit, pulse_ring, spin, wobble
+```
+
+### Conditionals
+
+```game
+layer main {
+  if energy > 0.5 {
+    star(5, 0.3, 0.15) | glow(3.0) | tint(1.0, 0.5, 0.1)
+  } else {
+    circle(0.2) | glow(2.0) | tint(0.3, 0.5, 1.0)
+  }
+}
+```
 
 ### Memory (Visual Persistence)
 
@@ -399,7 +458,7 @@ el.setAudioData({ bass: 0.5, mid: 0.3, treble: 0.1, energy: 0.3, beat: 0 });
 
 ```
 .game source → Lexer (logos) → Parser (recursive descent) → AST
-  → Validate (pipeline state machine)
+  → Validate (pipeline state machine with typed stages)
   → Codegen (WGSL + GLSL + JS modules)
   → Runtime (Web Component wrapper)
   → Output (.js + .wgsl + .frag + .html)
@@ -409,10 +468,13 @@ el.setAudioData({ bass: 0.5, mid: 0.3, treble: 0.1, energy: 0.3, beat: 0 });
 - **WebGL2** automatic fallback (older browsers)
 - **ResizeObserver** for responsive canvas
 - Shaders use periodic time `fract(t/120)*120` to avoid float precision issues
+- Pipeline state machine: Position → Sdf → Color with typed transitions
+- "Did you mean?" error suggestions for typos and missing bridge stages
+- ~19,700 lines of Rust, 47 builtins, 400 tests
 
 ## Examples
 
-See the `examples/` directory for 29+ reference `.game` files covering every feature.
+See the `examples/` directory for 43 reference `.game` files covering every feature.
 
 ## License
 

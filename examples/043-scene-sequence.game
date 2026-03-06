@@ -1,0 +1,56 @@
+// Scene Sequencing — cinematics play in order with dissolve transitions.
+// The scene component creates child elements and crossfades between them.
+
+cinematic "dawn" {
+  layer sky {
+    radial_fade(inner: 0.0, outer: 0.8)
+    | palette(
+        a_r: 0.5, a_g: 0.3, a_b: 0.2,
+        b_r: 0.5, b_g: 0.3, b_b: 0.3,
+        c_r: 1.0, c_g: 0.8, c_b: 0.5,
+        d_r: 0.0, d_g: 0.1, d_b: 0.3
+      )
+  }
+  layer sun {
+    circle(0.08) | glow(4.0) | tint(1.0, 0.9, 0.5)
+  }
+}
+
+cinematic "noon" {
+  layer field {
+    warp(scale: 2.0, octaves: 3, strength: 0.2)
+    | simplex(4.0)
+    | palette(
+        a_r: 0.5, a_g: 0.5, a_b: 0.5,
+        b_r: 0.5, b_g: 0.5, b_b: 0.5,
+        c_r: 1.0, c_g: 1.0, c_b: 1.0,
+        d_r: 0.0, d_g: 0.33, d_b: 0.67
+      )
+  }
+  layer orb {
+    circle(0.12) | glow(3.0) | tint(1.0, 1.0, 0.8)
+  }
+}
+
+cinematic "dusk" {
+  layer gradient {
+    radial_fade(inner: 0.0, outer: 1.0)
+    | palette(
+        a_r: 0.2, a_g: 0.1, a_b: 0.3,
+        b_r: 0.3, b_g: 0.2, b_b: 0.4,
+        c_r: 0.8, c_g: 0.5, c_b: 0.3,
+        d_r: 0.7, d_g: 0.2, d_b: 0.0
+      )
+  }
+  layer star {
+    star(5, 0.05, 0.02) | glow(3.0) | tint(0.8, 0.6, 0.9)
+  }
+}
+
+scene "day-cycle" {
+  play "dawn" for 8s
+  transition dissolve over 3s
+  play "noon" for 8s
+  transition fade over 3s
+  play "dusk" for 8s
+}

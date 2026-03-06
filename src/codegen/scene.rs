@@ -135,6 +135,164 @@ pub fn generate_scene_js(block: &SceneBlock) -> String {
     s
 }
 
+/// Extract unique cinematic names referenced by a scene's play entries.
+pub fn extract_cinematics(block: &SceneBlock) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for entry in &block.entries {
+        if let SceneEntry::Play { cinematic, .. } = entry {
+            if seen.insert(cinematic.clone()) {
+                names.push(cinematic.clone());
+            }
+        }
+    }
+    names
+}
+
+/// Convert a cinematic name to its kebab-case tag form.
+fn to_kebab(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if c.is_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
+}
+
+fn to_pascal(s: &str) -> String {
+    s.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(|w| {
+            let mut chars = w.chars();
+            match chars.next() {
+                Some(c) => {
+                    let mut s = c.to_uppercase().to_string();
+                    s.extend(chars);
+                    s
+                }
+                None => String::new(),
+            }
+        })
+        .collect()
+}
+
+/// Generate a full Web Component for a scene block.
+///
+/// The component creates child `<game-xxx>` elements for each referenced
+/// cinematic and orchestrates crossfade transitions via CSS opacity.
+pub fn generate_scene_component(block: &SceneBlock) -> String {
+    if block.entries.is_empty() {
+        return String::new();
+    }
+
+    let tag = to_kebab(&block.name);
+    let class = format!("GameScene{}", to_pascal(&block.name));
+    let cinematics = extract_cinematics(block);
+
+    let mut s = String::with_capacity(4096);
+
+    s.push_str(&format!(
+        "// GAME Scene Component: {tag} — auto-generated, do not edit.\n"
+    ));
+    s.push_str("(function(){\n\n");
+
+    // Emit the timeline class
+    s.push_str(&generate_scene_js(block));
+    s.push_str("\n");
+
+    // Cinematic tag names referenced by this scene
+    let cinematics_json: Vec<String> = cinematics
+        .iter()
+        .map(|c| format!("'{}'", to_kebab(c)))
+        .collect();
+    s.push_str(&format!(
+        "const SCENE_CINEMATICS = [{}];\n\n",
+        cinematics_json.join(", ")
+    ));
+
+    // Scene Web Component
+    s.push_str(&format!("class {class} extends HTMLElement {{\n"));
+    s.push_str("  constructor() {\n");
+    s.push_str("    super();\n");
+    s.push_str("    this.attachShadow({ mode: 'open' });\n");
+    s.push_str(&format!(
+        "    this._timeline = new GameSceneTimeline_{}();\n",
+        block.name.replace('-', "_")
+    ));
+    s.push_str("    this._children = {};\n");
+    s.push_str("    this._animFrame = null;\n");
+    s.push_str("    this._startTime = null;\n");
+    s.push_str("  }\n\n");
+
+    s.push_str("  connectedCallback() {\n");
+    s.push_str("    const style = document.createElement('style');\n");
+    s.push_str("    style.textContent = `\n");
+    s.push_str("      :host { display: block; width: 100%; height: 100%; position: relative; overflow: hidden; }\n");
+    s.push_str("      .scene-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; }\n");
+    s.push_str("    `;\n");
+    s.push_str("    this.shadowRoot.appendChild(style);\n\n");
+
+    s.push_str("    for (const tag of SCENE_CINEMATICS) {\n");
+    s.push_str("      const el = document.createElement('game-' + tag);\n");
+    s.push_str("      el.classList.add('scene-layer');\n");
+    s.push_str("      this.shadowRoot.appendChild(el);\n");
+    s.push_str("      this._children[tag] = el;\n");
+    s.push_str("    }\n\n");
+
+    s.push_str("    this._startTime = performance.now() / 1000;\n");
+    s.push_str("    this._tick();\n");
+    s.push_str("  }\n\n");
+
+    s.push_str("  disconnectedCallback() {\n");
+    s.push_str("    if (this._animFrame) cancelAnimationFrame(this._animFrame);\n");
+    s.push_str("  }\n\n");
+
+    s.push_str("  _tick() {\n");
+    s.push_str("    const elapsed = performance.now() / 1000 - this._startTime;\n");
+    s.push_str("    const state = this._timeline.evaluate(elapsed);\n\n");
+
+    // Convert cinematic name to tag
+    s.push_str("    const toTag = n => n ? n.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : null;\n");
+    s.push_str("    const curTag = toTag(state.current);\n");
+    s.push_str("    const nextTag = toTag(state.next);\n\n");
+
+    // Update opacity of all children
+    s.push_str("    for (const [tag, el] of Object.entries(this._children)) {\n");
+    s.push_str("      if (tag === curTag && !nextTag) {\n");
+    s.push_str("        el.style.opacity = '1';\n");
+    s.push_str("      } else if (tag === curTag && nextTag) {\n");
+    s.push_str("        el.style.opacity = String(1 - state.blend);\n");
+    s.push_str("      } else if (tag === nextTag) {\n");
+    s.push_str("        el.style.opacity = String(state.blend);\n");
+    s.push_str("      } else {\n");
+    s.push_str("        el.style.opacity = '0';\n");
+    s.push_str("      }\n");
+    s.push_str("    }\n\n");
+
+    s.push_str("    if (!this._timeline.isComplete(elapsed)) {\n");
+    s.push_str("      this._animFrame = requestAnimationFrame(() => this._tick());\n");
+    s.push_str("    }\n");
+    s.push_str("  }\n\n");
+
+    // Public API
+    s.push_str("  reset() { this._timeline.reset(); this._startTime = performance.now() / 1000; this._tick(); }\n");
+    s.push_str("  get progress() { return this._timeline.progress(performance.now() / 1000 - this._startTime); }\n");
+
+    s.push_str("}\n\n");
+
+    s.push_str(&format!(
+        "customElements.define('game-scene-{tag}', {class});\n"
+    ));
+    s.push_str("})();\n");
+
+    s
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,5 +383,120 @@ mod tests {
         };
         let js = generate_scene_js(&block);
         assert!(js.contains("duration: 2.5"));
+    }
+
+    #[test]
+    fn extract_cinematics_deduplicates() {
+        let block = SceneBlock {
+            name: "show".into(),
+            entries: vec![
+                SceneEntry::Play {
+                    cinematic: "a".into(),
+                    duration: Duration::Seconds(5.0),
+                },
+                SceneEntry::Transition {
+                    kind: TransitionKind::Dissolve,
+                    duration: Duration::Seconds(2.0),
+                },
+                SceneEntry::Play {
+                    cinematic: "b".into(),
+                    duration: Duration::Seconds(5.0),
+                },
+                SceneEntry::Transition {
+                    kind: TransitionKind::Fade,
+                    duration: Duration::Seconds(1.0),
+                },
+                SceneEntry::Play {
+                    cinematic: "a".into(),
+                    duration: Duration::Seconds(5.0),
+                },
+            ],
+        };
+        let names = extract_cinematics(&block);
+        assert_eq!(names, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn scene_component_has_custom_element() {
+        let block = SceneBlock {
+            name: "show".into(),
+            entries: vec![
+                SceneEntry::Play {
+                    cinematic: "intro".into(),
+                    duration: Duration::Seconds(5.0),
+                },
+                SceneEntry::Play {
+                    cinematic: "main".into(),
+                    duration: Duration::Seconds(10.0),
+                },
+            ],
+        };
+        let js = generate_scene_component(&block);
+        assert!(js.contains("customElements.define('game-scene-show'"));
+        assert!(js.contains("class GameSceneShow extends HTMLElement"));
+    }
+
+    #[test]
+    fn scene_component_creates_child_elements() {
+        let block = SceneBlock {
+            name: "demo".into(),
+            entries: vec![
+                SceneEntry::Play {
+                    cinematic: "a".into(),
+                    duration: Duration::Seconds(5.0),
+                },
+                SceneEntry::Transition {
+                    kind: TransitionKind::Dissolve,
+                    duration: Duration::Seconds(2.0),
+                },
+                SceneEntry::Play {
+                    cinematic: "b".into(),
+                    duration: Duration::Seconds(10.0),
+                },
+            ],
+        };
+        let js = generate_scene_component(&block);
+        assert!(js.contains("SCENE_CINEMATICS"));
+        assert!(js.contains("'a'"));
+        assert!(js.contains("'b'"));
+        assert!(js.contains("createElement('game-' + tag)"));
+    }
+
+    #[test]
+    fn scene_component_has_timeline() {
+        let block = SceneBlock {
+            name: "perf".into(),
+            entries: vec![SceneEntry::Play {
+                cinematic: "x".into(),
+                duration: Duration::Seconds(5.0),
+            }],
+        };
+        let js = generate_scene_component(&block);
+        assert!(js.contains("GameSceneTimeline_perf"));
+        assert!(js.contains("this._timeline.evaluate(elapsed)"));
+        assert!(js.contains("style.opacity"));
+    }
+
+    #[test]
+    fn scene_component_has_public_api() {
+        let block = SceneBlock {
+            name: "test".into(),
+            entries: vec![SceneEntry::Play {
+                cinematic: "a".into(),
+                duration: Duration::Seconds(5.0),
+            }],
+        };
+        let js = generate_scene_component(&block);
+        assert!(js.contains("reset()"));
+        assert!(js.contains("get progress()"));
+    }
+
+    #[test]
+    fn empty_scene_component_is_empty() {
+        let block = SceneBlock {
+            name: "test".into(),
+            entries: vec![],
+        };
+        assert!(generate_scene_component(&block).is_empty());
     }
 }

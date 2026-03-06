@@ -1,0 +1,18 @@
+// GAME Standard Library — motion.game
+// Motion and transformation presets.
+
+fn orbit(radius, speed) {
+  translate(radius, 0.0) | rotate(speed)
+}
+
+fn pulse_ring(radius, width) {
+  ring(radius, width) | glow(2.0) | tint(1.0, 1.0, 1.0)
+}
+
+fn spin(speed, r, g, b) {
+  rotate(speed) | circle(0.2) | glow(2.0) | tint(r, g, b)
+}
+
+fn wobble(sc, spd, str) {
+  distort(scale: sc, speed: spd, strength: str)
+}

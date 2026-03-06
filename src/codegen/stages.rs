@@ -4,6 +4,63 @@ use crate::ast::{Arg, Expr, FnDef, Stage};
 use crate::builtins::{self, ShaderState};
 use crate::error::CompileError;
 
+/// Find the closest matching builtin or user fn name for "did you mean?" suggestions.
+fn suggest_name(unknown: &str, fns: &[FnDef]) -> Option<String> {
+    let builtin_names: Vec<String> = builtins::all_names().map(|s| s.to_string()).collect();
+    let fn_names: Vec<String> = fns.iter().map(|f| f.name.clone()).collect();
+
+    let mut best: Option<(String, usize)> = None;
+    for name in builtin_names.iter().chain(fn_names.iter()) {
+        let d = edit_distance(unknown, name);
+        // Only suggest if edit distance is small relative to name length
+        if d <= 2 || (d <= 3 && unknown.len() > 5) {
+            if best.is_none() || d < best.as_ref().unwrap().1 {
+                best = Some((name.clone(), d));
+            }
+        }
+    }
+    best.map(|(name, _)| name)
+}
+
+/// Simple Levenshtein edit distance.
+fn edit_distance(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let (m, n) = (a.len(), b.len());
+    let mut dp = vec![vec![0usize; n + 1]; m + 1];
+    for i in 0..=m {
+        dp[i][0] = i;
+    }
+    for j in 0..=n {
+        dp[0][j] = j;
+    }
+    for i in 1..=m {
+        for j in 1..=n {
+            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
+            dp[i][j] = (dp[i - 1][j] + 1)
+                .min(dp[i][j - 1] + 1)
+                .min(dp[i - 1][j - 1] + cost);
+        }
+    }
+    dp[m][n]
+}
+
+/// Suggest the missing Sdf→Color bridge when a color stage follows an SDF generator.
+fn suggest_bridge(stage_name: &str, state: ShaderState) -> Option<String> {
+    if state == ShaderState::Sdf {
+        if let Some(builtin) = builtins::lookup(stage_name) {
+            if builtin.input == ShaderState::Color {
+                return Some(format!(
+                    "stage '{}' expects Color input but pipeline is in Sdf state. \
+                     Did you mean to add 'glow()' or 'shade()' before '{}'?",
+                    stage_name, stage_name
+                ));
+            }
+        }
+    }
+    None
+}
+
 /// Resolve an argument value to a float string for shader emission.
 pub fn resolve_arg(arg: &Arg, idx: usize, builtin_name: &str) -> String {
     match &arg.value {
@@ -57,6 +114,10 @@ pub fn validate_pipeline_with_fns(
         // Try builtin first
         if let Some(builtin) = builtins::lookup(&stage.name) {
             if builtin.input != state {
+                // Check for common Sdf→Color bridge mistake
+                if let Some(hint) = suggest_bridge(&stage.name, state) {
+                    return Err(CompileError::validation(hint));
+                }
                 return Err(CompileError::validation(format!(
                     "stage '{}' expects {:?} input but pipeline is in {:?} state",
                     stage.name, builtin.input, state
@@ -82,10 +143,11 @@ pub fn validate_pipeline_with_fns(
             }
             state = fn_output;
         } else {
-            return Err(CompileError::validation(format!(
-                "unknown stage function: '{}'",
-                stage.name
-            )));
+            let mut msg = format!("unknown stage function: '{}'", stage.name);
+            if let Some(suggestion) = suggest_name(&stage.name, fns) {
+                msg.push_str(&format!(". Did you mean '{suggestion}'?"));
+            }
+            return Err(CompileError::validation(msg));
         }
     }
 
@@ -311,5 +373,74 @@ mod tests {
         let result = validate_pipeline(&stages);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    // ── Error message tests ─────────────────────────────────
+
+    #[test]
+    fn unknown_stage_suggests_typo_fix() {
+        let stages = vec![stage("circl")]; // typo for "circle"
+        let result = validate_pipeline(&stages);
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Did you mean 'circle'?"), "got: {err}");
+    }
+
+    #[test]
+    fn unknown_stage_suggests_close_match() {
+        let stages = vec![stage("glo")]; // typo for "glow"
+        let result = validate_pipeline(&stages);
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Did you mean 'glow'?"), "got: {err}");
+    }
+
+    #[test]
+    fn unknown_stage_suggests_user_fn() {
+        let fns = vec![FnDef {
+            name: "my_shape".into(),
+            params: vec![],
+            body: vec![stage("circle"), stage("glow")],
+        }];
+        let stages = vec![stage("my_shap")]; // typo for user fn
+        let result = validate_pipeline_with_fns(&stages, &fns);
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Did you mean 'my_shape'?"), "got: {err}");
+    }
+
+    #[test]
+    fn bridge_hint_when_tint_follows_sdf() {
+        // circle() produces Sdf, tint() expects Color
+        let stages = vec![stage("circle"), stage("tint")];
+        let result = validate_pipeline(&stages);
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("glow") || err.contains("shade"),
+            "should suggest bridge stage, got: {err}"
+        );
+    }
+
+    #[test]
+    fn no_suggestion_for_very_different_name() {
+        let stages = vec![stage("zzzzzzzzz")];
+        let result = validate_pipeline(&stages);
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("unknown stage function"));
+        assert!(!err.contains("Did you mean"), "should not suggest for very different name: {err}");
+    }
+
+    #[test]
+    fn edit_distance_identical() {
+        assert_eq!(edit_distance("circle", "circle"), 0);
+    }
+
+    #[test]
+    fn edit_distance_one_char() {
+        assert_eq!(edit_distance("glow", "glo"), 1);
+        assert_eq!(edit_distance("tint", "tit"), 1);
+    }
+
+    #[test]
+    fn edit_distance_two_chars() {
+        assert_eq!(edit_distance("circle", "circl"), 1);
+        assert_eq!(edit_distance("voronoi", "voronei"), 1);
     }
 }

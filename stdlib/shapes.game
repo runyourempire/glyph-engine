@@ -20,3 +20,17 @@ fn bullseye(r1, r2) {
 fn halo(radius) {
   ring(radius, 0.01) | glow(3.0) | tint(1.0, 0.9, 0.7)
 }
+
+fn badge(size) {
+  intersect(ring(size, size * 0.25), star(5, size * 1.1, size * 0.5))
+  | glow(2.0) | tint(0.9, 0.8, 0.3)
+}
+
+fn blob(size, k) {
+  smooth_union(circle(size), circle(size), k)
+  | glow(2.0) | tint(1.0, 1.0, 1.0)
+}
+
+fn pill(w, h) {
+  capsule(w, h) | glow(2.0) | tint(1.0, 1.0, 1.0)
+}
