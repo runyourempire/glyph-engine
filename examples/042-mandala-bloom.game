@@ -1,0 +1,61 @@
+// Mandala Bloom — radial symmetry + SDF booleans + memory + passes.
+// Demonstrates how multiple GAME features compose into one visual.
+
+cinematic "mandala" {
+  layer config {
+    bloom_amount: 0.0
+    spin: 0.2
+    breath: 0.0
+  }
+
+  // Central jewel — boolean subtraction creates cutout
+  layer jewel {
+    subtract(circle(0.12), box(0.05, 0.05))
+    | glow(3.0) | tint(0.83, 0.69, 0.22)
+  }
+
+  // Inner ring with memory trails
+  layer inner_ring memory: 0.93 {
+    ring(0.2, 0.015) | glow(2.0) | tint(1.0, 0.5, 0.3)
+  }
+
+  // Middle ring — smooth union of ring and star
+  layer middle {
+    smooth_union(
+      ring(0.3, 0.01),
+      star(6, 0.32, 0.28),
+      0.04
+    ) | glow(1.5) | tint(0.5, 0.3, 0.9)
+  }
+
+  // Outer noise corona
+  layer corona memory: 0.85 {
+    polar
+    | simplex(10.0)
+    | glow(1.0)
+    | tint(0.2, 0.6, 0.8)
+  }
+
+  // Boundary
+  layer edge {
+    ring(0.45, 0.003) | glow(0.8) | tint(0.3, 0.3, 0.35)
+  }
+
+  arc {
+    bloom_amount: 0.0 -> 0.6 over 8s ease-in-out
+    spin: 0.2 -> 0.6 over 6s ease-out
+    breath: 0.0 -> 0.5 over 4s ease-in-out
+  }
+
+  resonate {
+    bloom_amount -> jewel.brightness * 0.5
+    bloom_amount -> middle.brightness * 0.3
+    spin -> inner_ring.scale * 0.2
+    breath -> corona.intensity * 0.4
+    breath -> jewel.scale * 0.15
+  }
+
+  // Post-processing: blur for bloom effect, vignette for focus
+  pass bloom { blur(2.0) }
+  pass vignette { vignette(0.5) }
+}

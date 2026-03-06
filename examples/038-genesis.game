@@ -1,0 +1,65 @@
+// Genesis — organic growth from nothing.
+// Memory trails create persistence. Arc drives growth over time.
+// Resonate creates breathing feedback loops between layers.
+// Domain warp gives everything an organic, living feel.
+
+cinematic "genesis" {
+  layer config {
+    growth: 0.0
+    pulse: 0.0
+    breath: 0.0
+  }
+
+  // Deep space background — warped noise for nebula texture
+  layer nebula {
+    warp(scale: 1.5, octaves: 4, strength: 0.25)
+    | fbm(scale: 3.0, octaves: 5)
+    | palette(
+        a_r: 0.02, a_g: 0.01, a_b: 0.05,
+        b_r: 0.1, b_g: 0.05, b_b: 0.15,
+        c_r: 1.0, c_g: 0.8, c_b: 0.6,
+        d_r: 0.0, d_g: 0.2, d_b: 0.4
+      )
+  }
+
+  // Central seed — bright core with long trails
+  layer seed memory: 0.96 {
+    circle(0.08) | glow(4.0) | tint(1.0, 0.6, 0.2)
+  }
+
+  // Growing membrane — expands outward with trails
+  layer membrane memory: 0.90 {
+    ring(0.25, 0.02) | glow(2.0) | tint(0.8, 0.4, 0.9)
+  }
+
+  // Outer tendrils — noise field that intensifies with growth
+  layer tendrils memory: 0.85 {
+    distort(scale: 5.0, speed: 0.3, strength: 0.2)
+    | simplex(8.0) | glow(1.5) | tint(0.3, 0.9, 0.5)
+  }
+
+  // Boundary ring — subtle containment
+  layer boundary {
+    ring(0.42, 0.005) | glow(1.0) | tint(0.3, 0.3, 0.4)
+  }
+
+  // Growth arc: organism develops from seed to full form
+  arc {
+    growth: 0.0 -> 1.0 over 10s ease-in-out
+    pulse: 0.0 -> 0.7 over 4s ease-out
+    breath: 0.0 -> 0.4 over 6s ease-in-out
+  }
+
+  // Parametric resonance: growth drives everything
+  resonate {
+    growth -> seed.scale * 0.5
+    growth -> membrane.scale * 0.8
+    growth -> tendrils.intensity * 0.6
+    pulse -> seed.brightness * 0.4
+    breath -> membrane.brightness * 0.3
+    breath -> boundary.scale * 0.2
+  }
+
+  // Post-processing: vignette to focus attention on center
+  pass focus { vignette(0.5) }
+}

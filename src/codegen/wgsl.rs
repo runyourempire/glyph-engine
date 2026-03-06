@@ -2018,6 +2018,101 @@ mod tests {
     }
 
     #[test]
+    fn pass_vignette_generates_correct_code() {
+        let pass = PassBlock {
+            name: "v".into(),
+            body: vec![Stage {
+                name: "vignette".into(),
+                args: vec![Arg {
+                    name: None,
+                    value: Expr::Number(0.6),
+                }],
+            }],
+        };
+        let wgsl = generate_pass_fragment(&pass);
+        assert!(wgsl.contains("vign"), "vignette uses vign variable");
+        assert!(wgsl.contains("0.6"), "vignette strength parameter");
+        assert!(wgsl.contains("length(uv - 0.5)"), "vignette uses distance from center");
+    }
+
+    #[test]
+    fn pass_threshold_generates_luminance_check() {
+        let pass = PassBlock {
+            name: "t".into(),
+            body: vec![Stage {
+                name: "threshold".into(),
+                args: vec![Arg {
+                    name: None,
+                    value: Expr::Number(0.3),
+                }],
+            }],
+        };
+        let wgsl = generate_pass_fragment(&pass);
+        assert!(wgsl.contains("0.299"), "uses luminance coefficients");
+        assert!(wgsl.contains("select"), "uses select for threshold");
+    }
+
+    #[test]
+    fn pass_invert_flips_rgb() {
+        let pass = PassBlock {
+            name: "inv".into(),
+            body: vec![Stage {
+                name: "invert".into(),
+                args: vec![],
+            }],
+        };
+        let wgsl = generate_pass_fragment(&pass);
+        assert!(wgsl.contains("1.0 - color_result.rgb"), "invert subtracts from 1.0");
+    }
+
+    #[test]
+    fn pass_blend_add_clamps_output() {
+        let pass = PassBlock {
+            name: "add".into(),
+            body: vec![Stage {
+                name: "blend_add".into(),
+                args: vec![],
+            }],
+        };
+        let wgsl = generate_pass_fragment(&pass);
+        assert!(wgsl.contains("min(pixel.rgb + color_result.rgb"), "blend_add uses min to clamp");
+    }
+
+    #[test]
+    fn pass_multi_stage_chain() {
+        let pass = PassBlock {
+            name: "fx".into(),
+            body: vec![
+                Stage {
+                    name: "blur".into(),
+                    args: vec![Arg { name: None, value: Expr::Number(2.0) }],
+                },
+                Stage {
+                    name: "vignette".into(),
+                    args: vec![Arg { name: None, value: Expr::Number(0.5) }],
+                },
+            ],
+        };
+        let wgsl = generate_pass_fragment(&pass);
+        // Both stages should be present in order
+        assert!(wgsl.contains("blurred"), "blur stage emitted");
+        assert!(wgsl.contains("vign"), "vignette stage emitted");
+    }
+
+    #[test]
+    fn pass_unknown_stage_comments_through() {
+        let pass = PassBlock {
+            name: "custom".into(),
+            body: vec![Stage {
+                name: "nonexistent_effect".into(),
+                args: vec![],
+            }],
+        };
+        let wgsl = generate_pass_fragment(&pass);
+        assert!(wgsl.contains("// unknown pass stage: nonexistent_effect"));
+    }
+
+    #[test]
     fn substitute_fn_args_works() {
         let stage = Stage {
             name: "circle".into(),

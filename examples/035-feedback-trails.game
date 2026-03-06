@@ -1,0 +1,35 @@
+// Feedback Trails — visual proof that memory ping-pong works.
+// Circles leave persistent glowing trails via memory decay.
+// Each layer uses different decay rates for varied persistence.
+
+cinematic "feedback-trails" {
+  layer config {
+    orbit_speed: 0.4
+    trail_hue: 0.0
+  }
+
+  // Fast-moving emitter with long persistence
+  layer emitter memory: 0.97 {
+    translate(audio.bass * 0.3, 0.0) |
+    circle(0.04) | glow(3.0) | tint(1.0, 0.4, 0.1)
+  }
+
+  // Orbiting satellite with medium persistence
+  layer satellite memory: 0.92 {
+    circle(0.025) | glow(2.5) | tint(0.3, 0.7, 1.0)
+  }
+
+  // Subtle background noise field — no memory, just ambient texture
+  layer field {
+    fbm(3.0, 4, 0.5, 2.0) | glow(0.5) | tint(0.05, 0.05, 0.1)
+  }
+
+  arc {
+    orbit_speed: 0.0 -> 1.0 over 5s ease-in-out
+  }
+
+  resonate {
+    orbit_speed -> satellite.scale * 0.3
+    orbit_speed -> emitter.brightness * 0.5
+  }
+}

@@ -1,0 +1,52 @@
+// Swarm + Flow — two compute systems in separate cinematics.
+// Physarum creates organic transport networks.
+// Curl noise flow creates smoke-like particle motion.
+
+// Dense physarum network with high persistence
+cinematic "mycelium" {
+  layer bg {
+    circle(0.5) | glow(1.5) | tint(0.0, 0.0, 0.0, 1.0)
+  }
+
+  swarm {
+    agents: 150000
+    sensor_angle: 30
+    sensor_dist: 7.0
+    turn_angle: 30
+    step: 0.8
+    deposit: 6.0
+    decay: 0.97
+    diffuse: 2
+    bounds: wrap
+  }
+}
+
+// Turbulent curl noise flow field
+cinematic "stellar-wind" {
+  layer bg {
+    circle(0.5) | glow(1.5) | tint(0.01, 0.0, 0.02, 1.0)
+  }
+
+  flow {
+    type: curl
+    scale: 4.0
+    speed: 0.4
+    octaves: 5
+    strength: 1.5
+  }
+}
+
+// Vortex flow with rotation center
+cinematic "black-hole" {
+  layer bg {
+    circle(0.5) | glow(1.5) | tint(0.0, 0.0, 0.0, 1.0)
+  }
+
+  flow {
+    type: vortex
+    scale: 2.0
+    speed: 0.2
+    octaves: 4
+    strength: 2.0
+  }
+}

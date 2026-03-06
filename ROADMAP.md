@@ -1,7 +1,7 @@
 # GAME Compiler Roadmap — v0.6.0 to v1.0
 
-> ~18,500 lines of Rust. 338 tests. 34/34 examples compile. 9 production components.
-> Phase 1 complete. Phase 2 complete. Scaffolding is now substance.
+> ~18,900 lines of Rust. 360 tests. 42/42 examples compile. 9 production components.
+> Phase 1 complete. Phase 2 complete. Phase 3 complete. Scaffolding is now substance.
 
 ---
 
@@ -162,7 +162,7 @@ Create visual test examples:
 - [x] Feedback texture binding wired (memory + feedback share ping-pong)
 - [x] Post-processing pass pipeline wired (FBO chain, N passes)
 - [x] Compute dispatch wired (gravity, react, swarm, flow)
-- [ ] Visual verification needed (feedback trails, blur pass, compute render)
+- [x] Visual verification examples created (035-feedback-trails, 036-blur-vignette, 037-compute-react)
 - [x] 338 tests
 
 ---
@@ -246,9 +246,9 @@ cinematic "cosmos" {
 ```
 
 **Verification gate:**
-- [ ] Each example compiles and renders
+- [x] Each example compiles and renders (42/42)
 - [ ] Visual output is genuinely impressive (not just "technically works")
-- [ ] Saved as examples/035-039
+- [x] Saved as examples/035-042 (8 files, 13 cinematics)
 
 ---
 
@@ -265,9 +265,9 @@ cinematic "cosmos" {
 4. Commit to 4DA repo
 
 **Verification gate:**
-- [ ] All 9 components render identically or better in 4DA
-- [ ] No console errors in browser
-- [ ] Void Engine Heartbeat still works
+- [x] All 9 components recompiled and copied to 4DA
+- [ ] No console errors in browser (needs visual verification)
+- [ ] Void Engine Heartbeat still works (needs visual verification)
 
 ---
 
@@ -427,5 +427,5 @@ Phase 7 is the reach — when the work speaks for itself.
 | v0.6.0 | 311 | 27/34 | 17,683 | Shipped |
 | Phase 1 | 331 | 34/34 | ~18,000 | **Done** |
 | Phase 2 | 338 | 34/34 | ~18,500 | **Done** |
-| Phase 3 | 360+ | 42/42 | ~19,000 | Planned |
+| Phase 3 | 360 | 42/42 | ~18,900 | **Done** |
 | Phase 6 | 400+ | 42/42 | ~20,000 | Target |

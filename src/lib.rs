@@ -710,6 +710,281 @@ mod tests {
     }
 
     #[test]
+    fn e2e_memory_plus_passes_combined() {
+        let source = r#"
+            cinematic "test" {
+                layer trail memory: 0.95 {
+                    circle(0.1) | glow(2.0) | tint(1.0, 0.5, 0.2)
+                }
+                pass soften { blur(2.0) }
+                pass frame { vignette(0.5) }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+        // Should have memory bindings in fragment shader
+        let wgsl = outputs[0].wgsl.as_ref().unwrap();
+        assert!(wgsl.contains("prev_frame"));
+        // JS should have pass shaders and memory init
+        let js = &outputs[0].js;
+        assert!(js.contains("PASS_WGSL_0"));
+        assert!(js.contains("PASS_WGSL_1"));
+        assert!(js.contains("_initMemory"));
+    }
+
+    #[test]
+    fn e2e_multi_layer_memory_decay() {
+        let source = r#"
+            cinematic "test" {
+                layer fast memory: 0.97 {
+                    circle(0.05) | glow(3.0) | tint(1.0, 0.3, 0.1)
+                }
+                layer slow memory: 0.85 {
+                    ring(0.3, 0.02) | glow(1.5) | tint(0.3, 0.7, 1.0)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let wgsl = outputs[0].wgsl.as_ref().unwrap();
+        // Both decay values should appear in the shader
+        assert!(wgsl.contains("0.970000"));
+        assert!(wgsl.contains("0.850000"));
+    }
+
+    #[test]
+    fn e2e_pass_blur_has_struct_defs() {
+        let source = r#"
+            cinematic "test" {
+                layer bg { circle(0.3) | glow(1.0) }
+                pass blur_pass { blur(3.0) }
+            }
+        "#;
+        let config = CompileConfig {
+            output_format: OutputFormat::Component,
+            target: ShaderTarget::Both,
+            seed: None,
+        };
+        let outputs = compile(source, &config).unwrap();
+        let js = &outputs[0].js;
+        // Pass WGSL should contain self-contained struct definitions
+        assert!(js.contains("struct Uniforms"));
+        assert!(js.contains("PASS_WGSL_0"));
+    }
+
+    #[test]
+    fn e2e_pass_vignette_generates() {
+        let source = r#"
+            cinematic "test" {
+                layer bg { circle(0.3) | glow(1.0) }
+                pass v { vignette(0.6) }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let js = &outputs[0].js;
+        assert!(js.contains("PASS_WGSL_0"));
+        assert!(js.contains("vign"));
+    }
+
+    #[test]
+    fn e2e_pass_chain_three_stages() {
+        let source = r#"
+            cinematic "test" {
+                layer bg { circle(0.3) | glow(1.0) }
+                pass a { blur(2.0) }
+                pass b { threshold(0.5) }
+                pass c { vignette(0.4) }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let js = &outputs[0].js;
+        assert!(js.contains("PASS_WGSL_0"));
+        assert!(js.contains("PASS_WGSL_1"));
+        assert!(js.contains("PASS_WGSL_2"));
+        assert!(js.contains("PASS_SHADERS"));
+    }
+
+    #[test]
+    fn e2e_react_compute_output() {
+        let source = r#"
+            cinematic "test" {
+                layer bg {
+                    circle(0.5) | glow(1.5) | tint(0.01, 0.01, 0.03, 1.0)
+                }
+                react {
+                    feed: 0.055
+                    kill: 0.062
+                    diffuse_a: 1.0
+                    diffuse_b: 0.5
+                    seed: center(0.15)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let js = &outputs[0].js;
+        assert!(js.contains("REACT_WGSL"));
+        assert!(js.contains("GameReactionField"));
+    }
+
+    #[test]
+    fn e2e_swarm_compute_output() {
+        let source = r#"
+            cinematic "test" {
+                layer bg {
+                    circle(0.5) | glow(1.5) | tint(0.0, 0.0, 0.0, 1.0)
+                }
+                swarm {
+                    agents: 100000
+                    sensor_angle: 45
+                    sensor_dist: 9.0
+                    turn_angle: 45
+                    step: 1.0
+                    deposit: 5.0
+                    decay: 0.95
+                    diffuse: 1
+                    bounds: wrap
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let js = &outputs[0].js;
+        assert!(js.contains("SWARM_AGENT_WGSL"));
+        assert!(js.contains("SWARM_TRAIL_WGSL"));
+        assert!(js.contains("GameSwarmSim"));
+    }
+
+    #[test]
+    fn e2e_flow_compute_output() {
+        let source = r#"
+            cinematic "test" {
+                layer bg {
+                    circle(0.5) | glow(1.5) | tint(0.01, 0.0, 0.02, 1.0)
+                }
+                flow {
+                    type: curl
+                    scale: 3.0
+                    speed: 0.5
+                    octaves: 4
+                    strength: 1.0
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let js = &outputs[0].js;
+        assert!(js.contains("FLOW_WGSL"));
+        assert!(js.contains("GameFlowField"));
+    }
+
+    #[test]
+    fn e2e_gravity_compute_output() {
+        let source = r#"
+            cinematic "test" {
+                gravity {
+                    damping: 0.995,
+                    bounds: reflect
+                }
+                layer stars {
+                    circle(0.005) | glow(1.0) | tint(0.8, 0.9, 1.0)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let js = &outputs[0].js;
+        assert!(js.contains("COMPUTE_WGSL"));
+        assert!(js.contains("GameGravitySim"));
+    }
+
+    #[test]
+    fn e2e_domain_warp_with_palette() {
+        let source = r#"
+            cinematic "test" {
+                layer main {
+                    warp(scale: 3.0, octaves: 4, strength: 0.3)
+                    | voronoi(5.0)
+                    | palette(
+                        a_r: 0.5, a_g: 0.5, a_b: 0.5,
+                        b_r: 0.5, b_g: 0.5, b_b: 0.5,
+                        c_r: 1.0, c_g: 1.0, c_b: 1.0,
+                        d_r: 0.0, d_g: 0.33, d_b: 0.67
+                    )
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let wgsl = outputs[0].wgsl.as_ref().unwrap();
+        assert!(wgsl.contains("warp"));
+        assert!(wgsl.contains("voronoi"));
+    }
+
+    #[test]
+    fn e2e_sdf_boolean_smooth_union() {
+        let source = r#"
+            cinematic "test" {
+                layer main {
+                    smooth_union(
+                        circle(0.1),
+                        ring(0.18, 0.03),
+                        0.06
+                    ) | glow(2.0) | tint(1.0, 0.85, 0.5)
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        let wgsl = outputs[0].wgsl.as_ref().unwrap();
+        assert!(wgsl.contains("smin"));
+    }
+
+    #[test]
+    fn e2e_example_035_feedback_trails() {
+        let source = std::fs::read_to_string("examples/035-feedback-trails.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 035 should compile: {:?}", result.err());
+    }
+
+    #[test]
+    fn e2e_example_036_blur_vignette() {
+        let source = std::fs::read_to_string("examples/036-blur-vignette.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 036 should compile: {:?}", result.err());
+        let outputs = result.unwrap();
+        // Should have pass shaders
+        assert!(outputs[0].js.contains("PASS_WGSL_0"));
+    }
+
+    #[test]
+    fn e2e_example_038_genesis() {
+        let source = std::fs::read_to_string("examples/038-genesis.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 038 should compile: {:?}", result.err());
+        let outputs = result.unwrap();
+        // Should have memory (3 layers use it) and vignette pass
+        assert!(outputs[0].js.contains("_initMemory"));
+        assert!(outputs[0].js.contains("PASS_WGSL_0"));
+    }
+
+    #[test]
+    fn e2e_example_039_cosmos() {
+        let source = std::fs::read_to_string("examples/039-cosmos.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 039 should compile: {:?}", result.err());
+        let outputs = result.unwrap();
+        // Memory + passes + SDF boolean
+        assert!(outputs[0].js.contains("_initMemory"));
+        assert!(outputs[0].js.contains("PASS_WGSL_0"));
+        assert!(outputs[0].js.contains("PASS_WGSL_1"));
+    }
+
+    #[test]
+    fn e2e_example_042_mandala_bloom() {
+        let source = std::fs::read_to_string("examples/042-mandala-bloom.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 042 should compile: {:?}", result.err());
+        let outputs = result.unwrap();
+        // SDF boolean + memory + passes
+        assert!(outputs[0].js.contains("_initMemory"));
+        assert!(outputs[0].js.contains("PASS_WGSL_0"));
+    }
+
+    #[test]
     fn e2e_component_output_format() {
         let source = r#"
             cinematic "test" {

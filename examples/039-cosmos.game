@@ -1,0 +1,74 @@
+// Cosmos — the kitchen sink. Every major GAME feature in one composition.
+// Multi-layer: domain warp + palettes + memory + SDF booleans + passes.
+// This is what GAME's composition thesis looks like when you push it.
+
+cinematic "cosmos" {
+  layer config {
+    expansion: 0.0
+    energy: 0.0
+    rotation: 0.3
+  }
+
+  // Deep field — warped voronoi cells as distant star clusters
+  layer deep_field {
+    warp(scale: 2.0, octaves: 5, persistence: 0.5, strength: 0.3)
+    | voronoi(12.0)
+    | palette(
+        a_r: 0.5, a_g: 0.5, a_b: 0.5,
+        b_r: 0.5, b_g: 0.5, b_b: 0.5,
+        c_r: 1.0, c_g: 1.0, c_b: 1.0,
+        d_r: 0.0, d_g: 0.1, d_b: 0.2
+      )
+  }
+
+  // Central star — smooth union of circle and ring creates a stellar core
+  layer star memory: 0.94 {
+    smooth_union(
+      circle(0.1),
+      ring(0.18, 0.03),
+      0.06
+    ) | glow(3.5) | tint(1.0, 0.85, 0.5)
+  }
+
+  // Accretion disk — rotating ring with distortion
+  layer accretion memory: 0.88 {
+    distort(scale: 6.0, speed: 0.4, strength: 0.15)
+    | ring(0.3, 0.02)
+    | glow(2.0)
+    | tint(0.9, 0.4, 0.2)
+  }
+
+  // Outer halo — subtle noise shell
+  layer halo {
+    polar
+    | simplex(4.0)
+    | glow(1.0)
+    | tint(0.2, 0.15, 0.4)
+  }
+
+  // Energy particle ring
+  layer particles {
+    ring(0.35, 0.008) | glow(1.5) | tint(0.5, 0.8, 1.0)
+  }
+
+  // Expansion over time — universe inflates
+  arc {
+    expansion: 0.0 -> 1.0 over 12s ease-in-out
+    energy: 0.0 -> 0.8 over 6s ease-out
+    rotation: 0.3 -> 0.8 over 8s ease-in-out
+  }
+
+  // Resonance: expansion drives scale, energy drives brightness
+  resonate {
+    expansion -> star.scale * 0.4
+    expansion -> accretion.scale * 0.6
+    expansion -> halo.scale * 0.3
+    energy -> star.brightness * 0.5
+    energy -> particles.brightness * 0.7
+    rotation -> accretion.brightness * 0.2
+  }
+
+  // Post-processing chain: blur for glow, vignette for framing
+  pass glow { blur(2.0) }
+  pass frame { vignette(0.4) }
+}

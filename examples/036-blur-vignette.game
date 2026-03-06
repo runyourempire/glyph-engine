@@ -1,0 +1,26 @@
+// Blur + Vignette Pass — visual proof that post-processing pipeline works.
+// Sharp geometry rendered first, then softened by blur pass, framed by vignette.
+
+cinematic "soft-glow" {
+  // Bright geometric core
+  layer core {
+    circle(0.15) | glow(4.0) | tint(1.0, 0.8, 0.3)
+  }
+
+  // Orbiting ring elements
+  layer rings {
+    ring(0.3, 0.015) | glow(2.0) | tint(0.6, 0.4, 1.0)
+  }
+
+  // Noise field for texture
+  layer texture {
+    warp(scale: 2.0, octaves: 3, strength: 0.2)
+    | voronoi(8.0)
+    | glow(0.8)
+    | tint(0.15, 0.1, 0.25)
+  }
+
+  // Post-processing: blur softens everything, vignette frames it
+  pass soften { blur(3.0) }
+  pass frame { vignette(0.6) }
+}
