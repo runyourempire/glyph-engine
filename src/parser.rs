@@ -108,6 +108,58 @@ impl Parser {
         }
     }
 
+    /// Accept an identifier OR a keyword that can appear as a name in certain contexts
+    /// (e.g., field names after `.`, parameter names, etc.)
+    fn expect_ident_or_keyword(&mut self) -> Result<String, CompileError> {
+        let (line, col) = self.current_pos();
+        match self.advance() {
+            Some(Token::Ident(s)) => Ok(s),
+            // Keywords that are valid as field/variable names
+            Some(Token::Opacity) => Ok("opacity".into()),
+            Some(Token::Blend) => Ok("blend".into()),
+            Some(Token::Memory) => Ok("memory".into()),
+            Some(Token::Cast) => Ok("cast".into()),
+            Some(Token::Score) => Ok("score".into()),
+            Some(Token::Flow) => Ok("flow".into()),
+            Some(Token::React) => Ok("react".into()),
+            Some(Token::Swarm) => Ok("swarm".into()),
+            Some(Token::Gravity) => Ok("gravity".into()),
+            Some(Token::Voice) => Ok("voice".into()),
+            Some(Token::Listen) => Ok("listen".into()),
+            Some(Token::Feedback) => Ok("feedback".into()),
+            Some(Token::Play) => Ok("play".into()),
+            Some(Token::Pass) => Ok("pass".into()),
+            Some(tok) => Err(CompileError::ParseError {
+                message: format!("expected identifier, found `{tok}`"),
+                line,
+                col,
+            }),
+            None => Err(CompileError::ParseError {
+                message: "expected identifier, found end of input".into(),
+                line,
+                col,
+            }),
+        }
+    }
+
+    /// Parse an easing function name that may contain hyphens (e.g., "ease-out", "ease-in-out").
+    fn expect_easing(&mut self) -> Result<String, CompileError> {
+        let mut name = self.expect_ident()?;
+        // Consume hyphenated continuations: ease-out, ease-in-out
+        while matches!(self.peek(), Some(Token::Minus)) {
+            // Look ahead: is there an ident after the minus?
+            if self.tokens.get(self.pos + 1).map(|(t, _, _)| matches!(t, Token::Ident(_))).unwrap_or(false) {
+                self.advance(); // consume minus
+                let part = self.expect_ident()?;
+                name.push('-');
+                name.push_str(&part);
+            } else {
+                break;
+            }
+        }
+        Ok(name)
+    }
+
     fn expect_string(&mut self) -> Result<String, CompileError> {
         let (line, col) = self.current_pos();
         match self.advance() {
@@ -630,6 +682,14 @@ impl Parser {
             (Some((Token::Ident(_), _, _)), Some((Token::LParen, _, _))) => {
                 self.parse_stage_pipeline()
             }
+            (Some((Token::Ident(_), _, _)), Some((Token::Pipe, _, _))) => {
+                // Pipeline starting with parameterless stage: `polar | simplex(6.0)`
+                self.parse_stage_pipeline()
+            }
+            (Some((Token::Ident(_), _, _)), Some((Token::RBrace, _, _))) => {
+                // Single bare stage: `layer x { polar }`
+                self.parse_stage_pipeline()
+            }
             _ => {
                 // Could be a single-token expression param or error --
                 // try params first, fall back to error.
@@ -738,9 +798,14 @@ impl Parser {
 
     pub fn parse_stage(&mut self) -> Result<Stage, CompileError> {
         let name = self.expect_ident()?;
-        self.expect(&Token::LParen)?;
-        let args = self.parse_arg_list()?;
-        self.expect(&Token::RParen)?;
+        let args = if matches!(self.peek(), Some(Token::LParen)) {
+            self.advance(); // consume (
+            let a = self.parse_arg_list()?;
+            self.expect(&Token::RParen)?;
+            a
+        } else {
+            vec![]
+        };
         Ok(Stage { name, args })
     }
 
@@ -801,7 +866,7 @@ impl Parser {
         self.expect(&Token::Over)?;
         let duration = self.parse_duration()?;
         let easing = if matches!(self.peek(), Some(Token::Ident(_))) {
-            Some(self.expect_ident()?)
+            Some(self.expect_easing()?)
         } else {
             None
         };
@@ -818,7 +883,7 @@ impl Parser {
         let mut s = self.expect_ident()?;
         while matches!(self.peek(), Some(Token::Dot)) {
             self.advance();
-            let part = self.expect_ident()?;
+            let part = self.expect_ident_or_keyword()?;
             s.push('.');
             s.push_str(&part);
         }
@@ -879,7 +944,7 @@ impl Parser {
         self.expect(&Token::Arrow)?;
         let target = self.expect_ident()?;
         self.expect(&Token::Dot)?;
-        let field = self.expect_ident()?;
+        let field = self.expect_ident_or_keyword()?;
         self.expect(&Token::Star)?;
         let weight = self.parse_expr()?;
         Ok(ResonateEntry {

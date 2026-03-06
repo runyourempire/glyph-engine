@@ -1862,3 +1862,232 @@ fn parse_feedback_layer() {
     let prog = p.parse().expect("should parse feedback layer");
     assert!(prog.cinematics[0].layers[0].feedback);
 }
+
+// ===================================================================
+// Phase 1 fixes: keyword-as-field-name, easing, parameterless stages
+// ===================================================================
+
+#[test]
+fn parse_keyword_as_field_name_in_resonate() {
+    // bass -> outer_ring.opacity * 0.7
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::Resonate),
+        s(Token::LBrace),
+        s(Token::Ident("bass".into())),
+        s(Token::Arrow),
+        s(Token::Ident("outer_ring".into())),
+        s(Token::Dot),
+        s(Token::Opacity), // keyword used as field name
+        s(Token::Star),
+        s(Token::Float(0.7)),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse keyword as field name");
+    assert_eq!(prog.cinematics[0].resonates[0].entries[0].field, "opacity");
+}
+
+#[test]
+fn parse_keyword_blend_as_field_name() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::Resonate),
+        s(Token::LBrace),
+        s(Token::Ident("src".into())),
+        s(Token::Arrow),
+        s(Token::Ident("tgt".into())),
+        s(Token::Dot),
+        s(Token::Blend), // keyword used as field name
+        s(Token::Star),
+        s(Token::Float(0.5)),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse blend as field name");
+    assert_eq!(prog.cinematics[0].resonates[0].entries[0].field, "blend");
+}
+
+#[test]
+fn parse_hyphenated_easing_ease_out() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Arc),
+        s(Token::LBrace),
+        s(Token::Ident("scale".into())),
+        s(Token::Colon),
+        s(Token::Float(0.1)),
+        s(Token::Arrow),
+        s(Token::Float(1.0)),
+        s(Token::Over),
+        s(Token::Seconds(5.0)),
+        s(Token::Ident("ease".into())),
+        s(Token::Minus),
+        s(Token::Ident("out".into())),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse ease-out");
+    assert_eq!(
+        prog.cinematics[0].arcs[0].entries[0].easing.as_deref(),
+        Some("ease-out")
+    );
+}
+
+#[test]
+fn parse_hyphenated_easing_ease_in_out() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Arc),
+        s(Token::LBrace),
+        s(Token::Ident("scale".into())),
+        s(Token::Colon),
+        s(Token::Float(0.0)),
+        s(Token::Arrow),
+        s(Token::Float(1.0)),
+        s(Token::Over),
+        s(Token::Seconds(8.0)),
+        s(Token::Ident("ease".into())),
+        s(Token::Minus),
+        s(Token::Ident("in".into())),
+        s(Token::Minus),
+        s(Token::Ident("out".into())),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse ease-in-out");
+    assert_eq!(
+        prog.cinematics[0].arcs[0].entries[0].easing.as_deref(),
+        Some("ease-in-out")
+    );
+}
+
+#[test]
+fn parse_parameterless_stage_in_pipeline() {
+    // layer main { polar | glow(1.5) }
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("main".into())),
+        s(Token::LBrace),
+        s(Token::Ident("polar".into())),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::Float(1.5)),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse parameterless stage");
+    match &prog.cinematics[0].layers[0].body {
+        LayerBody::Pipeline(stages) => {
+            assert_eq!(stages.len(), 2);
+            assert_eq!(stages[0].name, "polar");
+            assert!(stages[0].args.is_empty());
+            assert_eq!(stages[1].name, "glow");
+        }
+        _ => panic!("expected Pipeline"),
+    }
+}
+
+#[test]
+fn parse_single_bare_stage() {
+    // layer main { polar }
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("main".into())),
+        s(Token::LBrace),
+        s(Token::Ident("polar".into())),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse single bare stage");
+    match &prog.cinematics[0].layers[0].body {
+        LayerBody::Pipeline(stages) => {
+            assert_eq!(stages.len(), 1);
+            assert_eq!(stages[0].name, "polar");
+            assert!(stages[0].args.is_empty());
+        }
+        _ => panic!("expected Pipeline"),
+    }
+}
+
+#[test]
+fn parse_mixed_parameterless_and_normal_stages() {
+    // layer main { distort | circle(0.3) | glow(2.0) }
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("main".into())),
+        s(Token::LBrace),
+        s(Token::Ident("distort".into())),
+        s(Token::Pipe),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::Float(0.3)),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::Float(2.0)),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse mixed stages");
+    match &prog.cinematics[0].layers[0].body {
+        LayerBody::Pipeline(stages) => {
+            assert_eq!(stages.len(), 3);
+            assert_eq!(stages[0].name, "distort");
+            assert!(stages[0].args.is_empty());
+            assert_eq!(stages[1].name, "circle");
+            assert_eq!(stages[1].args.len(), 1);
+        }
+        _ => panic!("expected Pipeline"),
+    }
+}

@@ -577,4 +577,152 @@ mod tests {
         assert!(prog.lsystem_blocks.is_empty());
         assert!(prog.automaton_blocks.is_empty());
     }
+
+    #[test]
+    fn e2e_resonate_keyword_field() {
+        let source = r#"
+            cinematic "test" {
+                layer bg {
+                    circle(0.3) | glow(1.5)
+                }
+                resonate {
+                    bass -> bg.opacity * 0.7
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_arc_with_easing() {
+        let source = r#"
+            cinematic "test" {
+                layer bg {
+                    circle(0.3) | glow(1.5)
+                }
+                arc {
+                    scale: 0.1 -> 1.0 over 5s ease-out
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_arc_ease_in_out() {
+        let source = r#"
+            cinematic "test" {
+                layer bg {
+                    circle(0.3) | glow(1.5)
+                }
+                arc {
+                    growth: 0.0 -> 1.0 over 8s ease-in-out
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+    }
+
+    #[test]
+    fn e2e_parameterless_stage() {
+        let source = r#"
+            cinematic "test" {
+                layer main {
+                    polar | circle(0.3) | glow(2.0) | tint(0.6, 0.8, 1.0)
+                }
+            }
+        "#;
+        // This should parse but may fail validation (polar is not a registered builtin)
+        // The important thing is it parses without error
+        let ast = compile_to_ast(source);
+        assert!(ast.is_ok());
+    }
+
+    #[test]
+    fn e2e_example_015_resonate_network() {
+        let source = std::fs::read_to_string("examples/015-resonate-network.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 015 should compile: {:?}", result.err());
+    }
+
+    #[test]
+    fn e2e_example_016_arc_evolution() {
+        let source = std::fs::read_to_string("examples/016-arc-evolution.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 016 should compile: {:?}", result.err());
+    }
+
+    #[test]
+    fn e2e_example_018_react_turing() {
+        let source = std::fs::read_to_string("examples/018-react-turing.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 018 should compile: {:?}", result.err());
+    }
+
+    #[test]
+    fn e2e_example_023_polar_distort() {
+        let source = std::fs::read_to_string("examples/023-polar-distort.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 023 should compile: {:?}", result.err());
+    }
+
+    #[test]
+    fn e2e_example_017_living_organism() {
+        let source = std::fs::read_to_string("examples/017-living-organism.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 017 should compile: {:?}", result.err());
+    }
+
+    #[test]
+    fn e2e_example_019_swarm() {
+        let source = std::fs::read_to_string("examples/019-swarm-physarum.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 019 should compile: {:?}", result.err());
+    }
+
+    #[test]
+    fn e2e_example_020_flow() {
+        let source = std::fs::read_to_string("examples/020-flow-fields.game").unwrap();
+        let result = compile(&source, &default_config());
+        assert!(result.is_ok(), "example 020 should compile: {:?}", result.err());
+    }
+
+    #[test]
+    fn e2e_all_examples_compile() {
+        let mut failures = Vec::new();
+        for entry in std::fs::read_dir("examples").unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().map_or(false, |e| e == "game") {
+                let source = std::fs::read_to_string(&path).unwrap();
+                if compile(&source, &default_config()).is_err() {
+                    failures.push(path.display().to_string());
+                }
+            }
+        }
+        assert!(
+            failures.is_empty(),
+            "These examples failed to compile: {:?}",
+            failures
+        );
+    }
+
+    #[test]
+    fn e2e_component_output_format() {
+        let source = r#"
+            cinematic "test" {
+                layer bg { circle(0.3) | glow(1.5) }
+            }
+        "#;
+        let config = CompileConfig {
+            output_format: OutputFormat::Component,
+            target: ShaderTarget::Both,
+            seed: None,
+        };
+        let outputs = compile(source, &config).unwrap();
+        assert!(outputs[0].html.is_none()); // Component mode has no HTML
+        assert!(!outputs[0].js.is_empty());
+    }
 }

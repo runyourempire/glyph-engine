@@ -115,6 +115,7 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     s.push_str("    const dpr = window.devicePixelRatio || 1;\n");
     s.push_str("    this._canvas.width = Math.round(rect.width * dpr);\n");
     s.push_str("    this._canvas.height = Math.round(rect.height * dpr);\n");
+    s.push_str("    if (this._renderer?._resizeMemory) this._renderer._resizeMemory();\n");
     s.push_str("  }\n\n");
 
     s.push_str("  setParam(name, value) { this._renderer?.setParam(name, value); }\n");
