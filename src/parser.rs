@@ -177,11 +177,30 @@ impl Parser {
         let mut cinematics = Vec::new();
         let mut breeds = Vec::new();
         let mut projects = Vec::new();
+        let mut fns = Vec::new();
+        let mut scenes = Vec::new();
+        let mut ifs_blocks = Vec::new();
+        let mut lsystem_blocks = Vec::new();
+        let mut automaton_blocks = Vec::new();
 
         while !self.at_end() {
             match self.peek() {
                 Some(Token::Import) => match self.parse_import() {
                     Ok(imp) => imports.push(imp),
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
+                },
+                Some(Token::Use) => match self.parse_use_import() {
+                    Ok(imp) => imports.push(imp),
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
+                },
+                Some(Token::Fn) => match self.parse_fn_def() {
+                    Ok(f) => fns.push(f),
                     Err(e) => {
                         self.skip_to_recovery();
                         return Err(e);
@@ -208,12 +227,41 @@ impl Parser {
                         return Err(e);
                     }
                 },
+                Some(Token::Scene) => match self.parse_scene() {
+                    Ok(sc) => scenes.push(sc),
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
+                },
+                // Contextual keywords for v0.6 blocks
+                Some(Token::Ident(s)) if s == "ifs" => match self.parse_ifs_block() {
+                    Ok(b) => ifs_blocks.push(b),
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
+                },
+                Some(Token::Ident(s)) if s == "lsystem" => match self.parse_lsystem_block() {
+                    Ok(b) => lsystem_blocks.push(b),
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
+                },
+                Some(Token::Ident(s)) if s == "automaton" => match self.parse_automaton_block() {
+                    Ok(b) => automaton_blocks.push(b),
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
+                },
                 Some(_) => {
                     let (line, col) = self.current_pos();
                     let tok = self.advance();
                     return Err(CompileError::ParseError {
                         message: format!(
-                            "expected `import`, `cinematic`, `breed`, or `project` at top level, found `{}`",
+                            "expected `import`, `use`, `fn`, `cinematic`, `breed`, `project`, `scene`, `ifs`, `lsystem`, or `automaton` at top level, found `{}`",
                             tok.map_or("EOF".into(), |t| t.to_string())
                         ),
                         line,
@@ -229,7 +277,60 @@ impl Parser {
             cinematics,
             breeds,
             projects,
+            fns,
+            scenes,
+            ifs_blocks,
+            lsystem_blocks,
+            automaton_blocks,
         })
+    }
+
+    // ======================================================================
+    // fn name(params) { pipeline }
+    // ======================================================================
+
+    fn parse_fn_def(&mut self) -> Result<FnDef, CompileError> {
+        self.expect(&Token::Fn)?;
+        let name = self.expect_ident()?;
+        self.expect(&Token::LParen)?;
+        let mut params = Vec::new();
+        if !self.check(&Token::RParen) {
+            params.push(self.expect_ident()?);
+            while matches!(self.peek(), Some(Token::Comma)) {
+                self.advance();
+                params.push(self.expect_ident()?);
+            }
+        }
+        self.expect(&Token::RParen)?;
+        self.expect(&Token::LBrace)?;
+        let mut body = Vec::new();
+        body.push(self.parse_stage()?);
+        while matches!(self.peek(), Some(Token::Pipe)) {
+            self.advance();
+            body.push(self.parse_stage()?);
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(FnDef { name, params, body })
+    }
+
+    // ======================================================================
+    // use "path.game"
+    // ======================================================================
+
+    fn parse_use_import(&mut self) -> Result<Import, CompileError> {
+        self.expect(&Token::Use)?;
+        let path = self.expect_string()?;
+        // Derive alias from filename: "shapes.game" -> "shapes"
+        let alias = path
+            .rsplit('/')
+            .next()
+            .unwrap_or(&path)
+            .rsplit('\\')
+            .next()
+            .unwrap_or(&path)
+            .trim_end_matches(".game")
+            .to_string();
+        Ok(Import { path, alias })
     }
 
     // ======================================================================
@@ -242,6 +343,96 @@ impl Parser {
         self.expect(&Token::As)?;
         let alias = self.expect_ident()?;
         Ok(Import { path, alias })
+    }
+
+    // ======================================================================
+    // pass name { pipeline } — inside cinematic
+    // ======================================================================
+
+    fn parse_pass_block(&mut self) -> Result<PassBlock, CompileError> {
+        self.expect(&Token::Pass)?;
+        let name = self.expect_ident()?;
+        self.expect(&Token::LBrace)?;
+        let mut body = Vec::new();
+        body.push(self.parse_stage()?);
+        while matches!(self.peek(), Some(Token::Pipe)) {
+            self.advance();
+            body.push(self.parse_stage()?);
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(PassBlock { name, body })
+    }
+
+    // ======================================================================
+    // use "cinematic-name" as alias — inside cinematic
+    // ======================================================================
+
+    fn parse_cinematic_use(&mut self) -> Result<CinematicUse, CompileError> {
+        self.expect(&Token::Use)?;
+        let source = self.expect_string()?;
+        self.expect(&Token::As)?;
+        let alias = self.expect_ident()?;
+        Ok(CinematicUse { source, alias })
+    }
+
+    // ======================================================================
+    // scene "name" { play/transition entries }
+    // ======================================================================
+
+    fn parse_scene(&mut self) -> Result<SceneBlock, CompileError> {
+        self.expect(&Token::Scene)?;
+        let name = self.expect_string()?;
+        self.expect(&Token::LBrace)?;
+
+        let mut entries = Vec::new();
+        while !self.at_end() && !self.check(&Token::RBrace) {
+            match self.peek() {
+                Some(Token::Play) => {
+                    self.advance();
+                    let cinematic = self.expect_string()?;
+                    self.expect(&Token::For)?;
+                    let duration = self.parse_duration()?;
+                    entries.push(SceneEntry::Play {
+                        cinematic,
+                        duration,
+                    });
+                }
+                Some(Token::Transition) => {
+                    self.advance();
+                    let kind_str = self.expect_ident()?;
+                    let kind = match kind_str.as_str() {
+                        "dissolve" => TransitionKind::Dissolve,
+                        "fade" => TransitionKind::Fade,
+                        "wipe" => TransitionKind::Wipe,
+                        "morph" => TransitionKind::Morph,
+                        _ => {
+                            return Err(CompileError::validation(format!(
+                                "unknown transition '{kind_str}', expected: dissolve, fade, wipe, morph"
+                            )));
+                        }
+                    };
+                    self.expect(&Token::Over)?;
+                    let duration = self.parse_duration()?;
+                    entries.push(SceneEntry::Transition { kind, duration });
+                }
+                Some(Token::Pipe) => {
+                    self.advance(); // skip pipe separators
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message: format!(
+                            "expected `play` or `transition` in scene, found `{}`",
+                            self.peek().map_or("EOF".into(), |t| t.to_string())
+                        ),
+                        line,
+                        col,
+                    });
+                }
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(SceneBlock { name, entries })
     }
 
     // ======================================================================
@@ -263,6 +454,8 @@ impl Parser {
         let mut react = None;
         let mut swarm = None;
         let mut flow = None;
+        let mut passes = Vec::new();
+        let mut cinematic_uses = Vec::new();
 
         while !self.at_end() && !self.check(&Token::RBrace) {
             match self.peek() {
@@ -276,11 +469,13 @@ impl Parser {
                 Some(Token::React) => react = Some(self.parse_react()?),
                 Some(Token::Swarm) => swarm = Some(self.parse_swarm()?),
                 Some(Token::Flow) => flow = Some(self.parse_flow()?),
+                Some(Token::Pass) => passes.push(self.parse_pass_block()?),
+                Some(Token::Use) => cinematic_uses.push(self.parse_cinematic_use()?),
                 _ => {
                     let (line, col) = self.current_pos();
                     return Err(CompileError::ParseError {
                         message: format!(
-                            "expected `layer`, `arc`, `resonate`, `listen`, `voice`, `score`, `gravity`, `react`, `swarm`, or `flow` inside cinematic, found `{}`",
+                            "expected `layer`, `arc`, `resonate`, `listen`, `voice`, `score`, `gravity`, `react`, `swarm`, `flow`, `pass`, or `use` inside cinematic, found `{}`",
                             self.peek().map_or("EOF".into(), |t| t.to_string())
                         ),
                         line,
@@ -303,6 +498,8 @@ impl Parser {
             react,
             swarm,
             flow,
+            passes,
+            cinematic_uses,
         })
     }
 
@@ -368,6 +565,16 @@ impl Parser {
             BlendMode::Add
         };
 
+        // Optional `feedback: true`
+        let feedback = if matches!(self.peek(), Some(Token::Feedback)) {
+            self.advance(); // consume `feedback`
+            self.expect(&Token::Colon)?;
+            let val = self.expect_ident()?;
+            val == "true"
+        } else {
+            false
+        };
+
         self.expect(&Token::LBrace)?;
         let body = self.parse_layer_body()?;
         self.expect(&Token::RBrace)?;
@@ -379,6 +586,7 @@ impl Parser {
             opacity,
             cast,
             blend,
+            feedback,
             body,
         })
     }
@@ -407,9 +615,14 @@ impl Parser {
     // -- layer body: params OR pipe stages ---------------------------------
 
     fn parse_layer_body(&mut self) -> Result<LayerBody, CompileError> {
-        // Decide by lookahead: IDENT COLON => params, IDENT LPAREN => stages
+        // Decide by lookahead: IDENT COLON => params, IDENT LPAREN => stages, IF => conditional
         if self.at_end() || self.check(&Token::RBrace) {
             return Ok(LayerBody::Params(Vec::new()));
+        }
+
+        // Conditional: if expr { pipeline } else { pipeline }
+        if matches!(self.peek(), Some(Token::If)) {
+            return self.parse_conditional_body();
         }
 
         match (self.tokens.get(self.pos), self.tokens.get(self.pos + 1)) {
@@ -423,6 +636,33 @@ impl Parser {
                 self.parse_param_list()
             }
         }
+    }
+
+    fn parse_conditional_body(&mut self) -> Result<LayerBody, CompileError> {
+        self.expect(&Token::If)?;
+        let condition = self.parse_expr()?;
+        self.expect(&Token::LBrace)?;
+        let mut then_branch = Vec::new();
+        then_branch.push(self.parse_stage()?);
+        while matches!(self.peek(), Some(Token::Pipe)) {
+            self.advance();
+            then_branch.push(self.parse_stage()?);
+        }
+        self.expect(&Token::RBrace)?;
+        self.expect(&Token::Else)?;
+        self.expect(&Token::LBrace)?;
+        let mut else_branch = Vec::new();
+        else_branch.push(self.parse_stage()?);
+        while matches!(self.peek(), Some(Token::Pipe)) {
+            self.advance();
+            else_branch.push(self.parse_stage()?);
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(LayerBody::Conditional {
+            condition,
+            then_branch,
+            else_branch,
+        })
     }
 
     fn parse_param_list(&mut self) -> Result<LayerBody, CompileError> {
@@ -1234,12 +1474,42 @@ impl Parser {
     // ======================================================================
 
     pub fn parse_expr(&mut self) -> Result<Expr, CompileError> {
+        let mut left = self.parse_additive()?;
+        while matches!(
+            self.peek(),
+            Some(Token::Gt)
+                | Some(Token::Lt)
+                | Some(Token::Gte)
+                | Some(Token::Lte)
+                | Some(Token::EqEq)
+                | Some(Token::NotEq)
+        ) {
+            let op = match self.advance() {
+                Some(Token::Gt) => BinOp::Gt,
+                Some(Token::Lt) => BinOp::Lt,
+                Some(Token::Gte) => BinOp::Gte,
+                Some(Token::Lte) => BinOp::Lte,
+                Some(Token::EqEq) => BinOp::Eq,
+                Some(Token::NotEq) => BinOp::NotEq,
+                _ => unreachable!(),
+            };
+            let right = self.parse_additive()?;
+            left = Expr::BinOp {
+                op,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+        Ok(left)
+    }
+
+    fn parse_additive(&mut self) -> Result<Expr, CompileError> {
         let mut left = self.parse_term()?;
         while matches!(self.peek(), Some(Token::Plus) | Some(Token::Minus)) {
             let op = match self.advance() {
                 Some(Token::Plus) => BinOp::Add,
                 Some(Token::Minus) => BinOp::Sub,
-                _ => unreachable!(), // guarded by matches! above
+                _ => unreachable!(),
             };
             let right = self.parse_term()?;
             left = Expr::BinOp {
@@ -1367,6 +1637,275 @@ impl Parser {
             }),
             None => Err(CompileError::ParseError {
                 message: "unexpected end of input in expression".into(),
+                line,
+                col,
+            }),
+        }
+    }
+
+    // ======================================================================
+    // ifs "name" { transform "t1" [a,b,c,d,e,f] weight w | iterations N | color mode }
+    // ======================================================================
+
+    fn parse_ifs_block(&mut self) -> Result<IfsBlock, CompileError> {
+        self.advance(); // consume "ifs" ident
+        self.expect(&Token::LBrace)?;
+
+        let mut transforms = Vec::new();
+        let mut iterations = 100000u32;
+        let mut color_mode = IfsColorMode::Transform;
+
+        while !self.check(&Token::RBrace) {
+            match self.peek() {
+                Some(Token::Ident(s)) if s == "transform" => {
+                    self.advance();
+                    let name = self.expect_ident()?;
+                    self.expect(&Token::LBracket)?;
+                    let mut matrix = [0.0f64; 6];
+                    for i in 0..6 {
+                        if i > 0 {
+                            self.expect(&Token::Comma)?;
+                        }
+                        matrix[i] = self.parse_number_value()?;
+                    }
+                    self.expect(&Token::RBracket)?;
+
+                    // weight
+                    let mut weight = 1.0;
+                    if let Some(Token::Ident(s)) = self.peek() {
+                        if s == "weight" {
+                            self.advance();
+                            weight = self.parse_number_value()?;
+                        }
+                    }
+                    transforms.push(IfsTransform {
+                        name,
+                        matrix,
+                        weight,
+                    });
+                }
+                Some(Token::Ident(s)) if s == "iterations" => {
+                    self.advance();
+                    iterations = self.parse_number_value()? as u32;
+                }
+                Some(Token::Ident(s)) if s == "color" => {
+                    self.advance();
+                    let mode = self.expect_ident()?;
+                    color_mode = match mode.as_str() {
+                        "depth" => IfsColorMode::Depth,
+                        "position" => IfsColorMode::Position,
+                        _ => IfsColorMode::Transform,
+                    };
+                }
+                Some(Token::Pipe) => {
+                    self.advance();
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message: "expected `transform`, `iterations`, or `color` in ifs block"
+                            .into(),
+                        line,
+                        col,
+                    });
+                }
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(IfsBlock {
+            transforms,
+            iterations,
+            color_mode,
+        })
+    }
+
+    // ======================================================================
+    // lsystem "name" { axiom "F" | rule F -> "F+F" | angle 60 | iterations 4 | step 0.01 }
+    // ======================================================================
+
+    fn parse_lsystem_block(&mut self) -> Result<LsystemBlock, CompileError> {
+        self.advance(); // consume "lsystem" ident
+        self.expect(&Token::LBrace)?;
+
+        let mut axiom = String::new();
+        let mut rules = Vec::new();
+        let mut angle = 90.0f64;
+        let mut iterations = 4u32;
+        let mut step = 0.01f64;
+
+        while !self.check(&Token::RBrace) {
+            match self.peek() {
+                Some(Token::Ident(s)) if s == "axiom" => {
+                    self.advance();
+                    if let Some(Token::StringLit(s)) = self.peek().cloned() {
+                        self.advance();
+                        axiom = s;
+                    } else {
+                        axiom = self.expect_ident()?;
+                    }
+                }
+                Some(Token::Ident(s)) if s == "rule" => {
+                    self.advance();
+                    let symbol_str = self.expect_ident()?;
+                    let symbol = symbol_str.chars().next().unwrap_or('F');
+                    self.expect(&Token::Arrow)?;
+                    let replacement = if let Some(Token::StringLit(s)) = self.peek().cloned() {
+                        self.advance();
+                        s
+                    } else {
+                        self.expect_ident()?
+                    };
+                    rules.push(LsystemRule {
+                        symbol,
+                        replacement,
+                    });
+                }
+                Some(Token::Ident(s)) if s == "angle" => {
+                    self.advance();
+                    angle = self.parse_number_value()?;
+                }
+                Some(Token::Ident(s)) if s == "iterations" => {
+                    self.advance();
+                    iterations = self.parse_number_value()? as u32;
+                }
+                Some(Token::Ident(s)) if s == "step" => {
+                    self.advance();
+                    step = self.parse_number_value()?;
+                }
+                Some(Token::Pipe) => {
+                    self.advance();
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message:
+                            "expected `axiom`, `rule`, `angle`, `iterations`, or `step` in lsystem block"
+                                .into(),
+                        line,
+                        col,
+                    });
+                }
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(LsystemBlock {
+            axiom,
+            rules,
+            angle,
+            iterations,
+            step,
+        })
+    }
+
+    // ======================================================================
+    // automaton { states 2 | neighborhood moore | rule "B3/S23" | seed random 0.5 | speed 10 }
+    // ======================================================================
+
+    fn parse_automaton_block(&mut self) -> Result<AutomatonBlock, CompileError> {
+        self.advance(); // consume "automaton" ident
+        self.expect(&Token::LBrace)?;
+
+        let mut states = 2u32;
+        let mut neighborhood = Neighborhood::Moore;
+        let mut rule = "B3/S23".to_string();
+        let mut seed = AutomatonSeed::Random(0.5);
+        let mut speed = 10u32;
+
+        while !self.check(&Token::RBrace) {
+            match self.peek() {
+                Some(Token::Ident(s)) if s == "states" => {
+                    self.advance();
+                    states = self.parse_number_value()? as u32;
+                }
+                Some(Token::Ident(s)) if s == "neighborhood" => {
+                    self.advance();
+                    let kind = self.expect_ident()?;
+                    neighborhood = match kind.as_str() {
+                        "vonneumann" | "von_neumann" => Neighborhood::VonNeumann,
+                        _ => Neighborhood::Moore,
+                    };
+                }
+                Some(Token::Ident(s)) if s == "rule" => {
+                    self.advance();
+                    if let Some(Token::StringLit(s)) = self.peek().cloned() {
+                        self.advance();
+                        rule = s;
+                    } else {
+                        rule = self.expect_ident()?;
+                    }
+                }
+                Some(Token::Ident(s)) if s == "seed" => {
+                    self.advance();
+                    let kind = self.expect_ident()?;
+                    seed = match kind.as_str() {
+                        "center" => AutomatonSeed::Center,
+                        "pattern" => {
+                            if let Some(Token::StringLit(s)) = self.peek().cloned() {
+                                self.advance();
+                                AutomatonSeed::Pattern(s)
+                            } else {
+                                AutomatonSeed::Center
+                            }
+                        }
+                        _ => {
+                            // "random" with optional density
+                            let density = if let Some(Token::Float(_) | Token::Integer(_)) =
+                                self.peek()
+                            {
+                                self.parse_number_value()?
+                            } else {
+                                0.5
+                            };
+                            AutomatonSeed::Random(density)
+                        }
+                    };
+                }
+                Some(Token::Ident(s)) if s == "speed" => {
+                    self.advance();
+                    speed = self.parse_number_value()? as u32;
+                }
+                Some(Token::Pipe) => {
+                    self.advance();
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message:
+                            "expected `states`, `neighborhood`, `rule`, `seed`, or `speed` in automaton block"
+                                .into(),
+                        line,
+                        col,
+                    });
+                }
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(AutomatonBlock {
+            states,
+            neighborhood,
+            rule,
+            seed,
+            speed,
+        })
+    }
+
+    /// Parse a numeric literal (float or int) and return as f64.
+    fn parse_number_value(&mut self) -> Result<f64, CompileError> {
+        let (line, col) = self.current_pos();
+        match self.advance() {
+            Some(Token::Float(v)) => Ok(v),
+            Some(Token::Integer(v)) => Ok(v as f64),
+            Some(Token::Minus) => {
+                let val = self.parse_number_value()?;
+                Ok(-val)
+            }
+            Some(tok) => Err(CompileError::ParseError {
+                message: format!("expected number, found `{tok}`"),
+                line,
+                col,
+            }),
+            None => Err(CompileError::ParseError {
+                message: "expected number, found end of input".into(),
                 line,
                 col,
             }),

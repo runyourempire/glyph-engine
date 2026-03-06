@@ -59,6 +59,26 @@ enum LexToken {
     Swarm,
     #[token("flow")]
     Flow,
+    #[token("fn")]
+    Fn,
+    #[token("if")]
+    If,
+    #[token("else")]
+    Else,
+    #[token("use")]
+    Use,
+    #[token("pass")]
+    Pass,
+    #[token("scene")]
+    Scene,
+    #[token("play")]
+    Play,
+    #[token("transition")]
+    Transition,
+    #[token("for")]
+    For,
+    #[token("feedback")]
+    Feedback,
     #[token("true")]
     True,
     #[token("false")]
@@ -101,6 +121,18 @@ enum LexToken {
     DotDot,
     #[token("->")]
     Arrow,
+    #[token(">=")]
+    Gte,
+    #[token("<=")]
+    Lte,
+    #[token("==")]
+    EqEq,
+    #[token("!=")]
+    NotEq,
+    #[token(">")]
+    Gt,
+    #[token("<")]
+    Lt,
 
     // ── Single-char operators ────────────────────────────
     #[token("|")]
@@ -193,6 +225,16 @@ fn convert(lt: LexToken, slice: &str) -> Result<Token, CompileError> {
         LexToken::React => Token::React,
         LexToken::Swarm => Token::Swarm,
         LexToken::Flow => Token::Flow,
+        LexToken::Fn => Token::Fn,
+        LexToken::If => Token::If,
+        LexToken::Else => Token::Else,
+        LexToken::Use => Token::Use,
+        LexToken::Pass => Token::Pass,
+        LexToken::Scene => Token::Scene,
+        LexToken::Play => Token::Play,
+        LexToken::Transition => Token::Transition,
+        LexToken::For => Token::For,
+        LexToken::Feedback => Token::Feedback,
         LexToken::True => Token::Ident("true".into()),
         LexToken::False => Token::Ident("false".into()),
 
@@ -242,6 +284,12 @@ fn convert(lt: LexToken, slice: &str) -> Result<Token, CompileError> {
         LexToken::BangBang => Token::BangBang,
         LexToken::DotDot => Token::DotDot,
         LexToken::Arrow => Token::Arrow,
+        LexToken::Gte => Token::Gte,
+        LexToken::Lte => Token::Lte,
+        LexToken::EqEq => Token::EqEq,
+        LexToken::NotEq => Token::NotEq,
+        LexToken::Gt => Token::Gt,
+        LexToken::Lt => Token::Lt,
         LexToken::Pipe => Token::Pipe,
         LexToken::Tilde => Token::Tilde,
         LexToken::Plus => Token::Plus,

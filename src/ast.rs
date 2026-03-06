@@ -5,6 +5,19 @@ pub struct Program {
     pub cinematics: Vec<Cinematic>,
     pub breeds: Vec<BreedBlock>,
     pub projects: Vec<ProjectBlock>,
+    pub fns: Vec<FnDef>,
+    pub scenes: Vec<SceneBlock>,
+    pub ifs_blocks: Vec<IfsBlock>,
+    pub lsystem_blocks: Vec<LsystemBlock>,
+    pub automaton_blocks: Vec<AutomatonBlock>,
+}
+
+/// `fn name(params) { pipeline }`
+#[derive(Debug, Clone)]
+pub struct FnDef {
+    pub name: String,
+    pub params: Vec<String>,
+    pub body: Vec<Stage>,
 }
 
 /// `import "path" as alias`
@@ -28,6 +41,24 @@ pub struct Cinematic {
     pub react: Option<ReactBlock>,
     pub swarm: Option<SwarmBlock>,
     pub flow: Option<FlowBlock>,
+    /// Post-processing passes within this cinematic.
+    pub passes: Vec<PassBlock>,
+    /// References to other cinematics used as texture inputs.
+    pub cinematic_uses: Vec<CinematicUse>,
+}
+
+/// `pass name { pipeline }` — post-processing pass within a cinematic.
+#[derive(Debug, Clone)]
+pub struct PassBlock {
+    pub name: String,
+    pub body: Vec<Stage>,
+}
+
+/// `use "cinematic-name" as alias` inside a cinematic block.
+#[derive(Debug, Clone)]
+pub struct CinematicUse {
+    pub source: String,
+    pub alias: String,
 }
 
 /// Layer blend mode for multi-layer compositing.
@@ -39,7 +70,7 @@ pub enum BlendMode {
     Overlay,
 }
 
-/// `layer ident [(opts)] [memory: f] [opacity: f] [cast kind] [blend mode] { body }`
+/// `layer ident [(opts)] [memory: f] [opacity: f] [cast kind] [blend mode] [feedback: bool] { body }`
 #[derive(Debug, Clone)]
 pub struct Layer {
     pub name: String,
@@ -48,14 +79,20 @@ pub struct Layer {
     pub opacity: Option<f64>,
     pub cast: Option<String>,
     pub blend: BlendMode,
+    pub feedback: bool,
     pub body: LayerBody,
 }
 
-/// A layer body is either a list of named params or a stage pipeline.
+/// A layer body is either a list of named params, a stage pipeline, or a conditional.
 #[derive(Debug, Clone)]
 pub enum LayerBody {
     Params(Vec<Param>),
     Pipeline(Vec<Stage>),
+    Conditional {
+        condition: Expr,
+        then_branch: Vec<Stage>,
+        else_branch: Vec<Stage>,
+    },
 }
 
 /// `name: value [~ modulation] [temporal_ops]*`
@@ -141,6 +178,12 @@ pub enum BinOp {
     Mul,
     Div,
     Pow,
+    Gt,
+    Lt,
+    Gte,
+    Lte,
+    Eq,
+    NotEq,
 }
 
 /// Expression tree.
@@ -350,4 +393,106 @@ pub enum FlowType {
     Perlin,
     Simplex,
     Vortex,
+}
+
+// ── Phase v0.6: Matrix Generation ────────────────────────
+
+/// `ifs { transforms, iterations, color_mode }`
+/// Iterated Function System — chaos game fractal generation.
+#[derive(Debug, Clone)]
+pub struct IfsBlock {
+    pub transforms: Vec<IfsTransform>,
+    pub iterations: u32,
+    pub color_mode: IfsColorMode,
+}
+
+/// A single affine transform in an IFS.
+#[derive(Debug, Clone)]
+pub struct IfsTransform {
+    pub name: String,
+    pub matrix: [f64; 6],
+    pub weight: f64,
+}
+
+/// How to color the IFS fractal.
+#[derive(Debug, Clone, PartialEq)]
+pub enum IfsColorMode {
+    Transform,
+    Depth,
+    Position,
+}
+
+/// `lsystem { axiom, rules, angle, iterations, step }`
+/// L-system string rewriting for generative geometry.
+#[derive(Debug, Clone)]
+pub struct LsystemBlock {
+    pub axiom: String,
+    pub rules: Vec<LsystemRule>,
+    pub angle: f64,
+    pub iterations: u32,
+    pub step: f64,
+}
+
+/// A single L-system rewriting rule.
+#[derive(Debug, Clone)]
+pub struct LsystemRule {
+    pub symbol: char,
+    pub replacement: String,
+}
+
+/// `automaton { states, neighborhood, rule, seed, speed }`
+/// Cellular automaton on a 2D grid.
+#[derive(Debug, Clone)]
+pub struct AutomatonBlock {
+    pub states: u32,
+    pub neighborhood: Neighborhood,
+    pub rule: String,
+    pub seed: AutomatonSeed,
+    pub speed: u32,
+}
+
+/// Neighborhood type for cellular automata.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Neighborhood {
+    Moore,
+    VonNeumann,
+}
+
+/// Initial seed pattern for cellular automata.
+#[derive(Debug, Clone, PartialEq)]
+pub enum AutomatonSeed {
+    Random(f64),
+    Center,
+    Pattern(String),
+}
+
+// ── Phase v0.5: Scene sequencing ─────────────────────────
+
+/// `scene "name" { play/transition entries }`
+#[derive(Debug, Clone)]
+pub struct SceneBlock {
+    pub name: String,
+    pub entries: Vec<SceneEntry>,
+}
+
+/// A scene timeline entry — either play a cinematic or transition between them.
+#[derive(Debug, Clone)]
+pub enum SceneEntry {
+    Play {
+        cinematic: String,
+        duration: Duration,
+    },
+    Transition {
+        kind: TransitionKind,
+        duration: Duration,
+    },
+}
+
+/// Transition visual effect between cinematics.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TransitionKind {
+    Dissolve,
+    Fade,
+    Wipe,
+    Morph,
 }

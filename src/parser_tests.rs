@@ -1145,3 +1145,720 @@ fn parse_layer_no_opacity_default() {
     let prog = p.parse().expect("should parse without opacity");
     assert_eq!(prog.cinematics[0].layers[0].opacity, None);
 }
+
+// ===================================================================
+// v0.4 — fn definitions
+// ===================================================================
+
+#[test]
+fn parse_fn_def_simple() {
+    // fn petal(size) { circle(size) | glow(2.0) }
+    let tokens = vec![
+        s(Token::Fn),
+        s(Token::Ident("petal".into())),
+        s(Token::LParen),
+        s(Token::Ident("size".into())),
+        s(Token::RParen),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::Ident("size".into())),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::Float(2.0)),
+        s(Token::RParen),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse fn def");
+    assert_eq!(prog.fns.len(), 1);
+    assert_eq!(prog.fns[0].name, "petal");
+    assert_eq!(prog.fns[0].params, vec!["size"]);
+    assert_eq!(prog.fns[0].body.len(), 2);
+    assert_eq!(prog.fns[0].body[0].name, "circle");
+    assert_eq!(prog.fns[0].body[1].name, "glow");
+}
+
+#[test]
+fn parse_fn_def_multi_params() {
+    // fn tinted(r, g, b) { circle(0.3) | tint(r, g, b) }
+    let tokens = vec![
+        s(Token::Fn),
+        s(Token::Ident("tinted".into())),
+        s(Token::LParen),
+        s(Token::Ident("r".into())),
+        s(Token::Comma),
+        s(Token::Ident("g".into())),
+        s(Token::Comma),
+        s(Token::Ident("b".into())),
+        s(Token::RParen),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::Float(0.3)),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("tint".into())),
+        s(Token::LParen),
+        s(Token::Ident("r".into())),
+        s(Token::Comma),
+        s(Token::Ident("g".into())),
+        s(Token::Comma),
+        s(Token::Ident("b".into())),
+        s(Token::RParen),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse fn with multi params");
+    assert_eq!(prog.fns[0].params, vec!["r", "g", "b"]);
+    assert_eq!(prog.fns[0].body[1].args.len(), 3);
+}
+
+#[test]
+fn parse_fn_no_params() {
+    // fn dot() { circle(0.1) }
+    let tokens = vec![
+        s(Token::Fn),
+        s(Token::Ident("dot".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::Float(0.1)),
+        s(Token::RParen),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse fn with no params");
+    assert_eq!(prog.fns[0].params.len(), 0);
+    assert_eq!(prog.fns[0].body.len(), 1);
+}
+
+// ===================================================================
+// v0.4 — conditional layers
+// ===================================================================
+
+#[test]
+fn parse_conditional_layer() {
+    // cinematic "t" { layer x { if bass > 0.5 { circle() } else { ring() } } }
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("x".into())),
+        s(Token::LBrace),
+        s(Token::If),
+        s(Token::Ident("bass".into())),
+        s(Token::Gt),
+        s(Token::Float(0.5)),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::Else),
+        s(Token::LBrace),
+        s(Token::Ident("ring".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse conditional layer");
+    let layer = &prog.cinematics[0].layers[0];
+    match &layer.body {
+        LayerBody::Conditional {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
+            assert_eq!(then_branch.len(), 1);
+            assert_eq!(then_branch[0].name, "circle");
+            assert_eq!(else_branch.len(), 1);
+            assert_eq!(else_branch[0].name, "ring");
+            // Check condition is a BinOp::Gt
+            match condition {
+                Expr::BinOp { op, .. } => assert_eq!(*op, BinOp::Gt),
+                _ => panic!("expected BinOp condition"),
+            }
+        }
+        _ => panic!("expected Conditional body"),
+    }
+}
+
+#[test]
+fn parse_conditional_multi_stage_branches() {
+    // if energy > 0.8 { circle() | glow() | tint() } else { ring() | glow() | tint() }
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("a".into())),
+        s(Token::LBrace),
+        s(Token::If),
+        s(Token::Ident("energy".into())),
+        s(Token::Gt),
+        s(Token::Float(0.8)),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("tint".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::Else),
+        s(Token::LBrace),
+        s(Token::Ident("ring".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("glow".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::Pipe),
+        s(Token::Ident("tint".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse multi-stage conditional");
+    match &prog.cinematics[0].layers[0].body {
+        LayerBody::Conditional {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            assert_eq!(then_branch.len(), 3);
+            assert_eq!(else_branch.len(), 3);
+        }
+        _ => panic!("expected Conditional body"),
+    }
+}
+
+// ===================================================================
+// v0.4 — use imports
+// ===================================================================
+
+#[test]
+fn parse_use_import_basic() {
+    // use "shapes.game"
+    let tokens = vec![
+        s(Token::Use),
+        s(Token::StringLit("shapes.game".into())),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse use import");
+    assert_eq!(prog.imports.len(), 1);
+    assert_eq!(prog.imports[0].path, "shapes.game");
+    assert_eq!(prog.imports[0].alias, "shapes");
+}
+
+#[test]
+fn parse_use_import_with_path() {
+    // use "lib/palettes.game"
+    let tokens = vec![
+        s(Token::Use),
+        s(Token::StringLit("lib/palettes.game".into())),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse use import with path");
+    assert_eq!(prog.imports[0].alias, "palettes");
+}
+
+// ===================================================================
+// v0.4 — comparison operators in expressions
+// ===================================================================
+
+#[test]
+fn parse_comparison_operators() {
+    // Expression: x > 0.5
+    let tokens = vec![
+        s(Token::Fn),
+        s(Token::Ident("test".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::Ident("x".into())),
+        s(Token::Gt),
+        s(Token::Float(0.5)),
+        s(Token::RParen),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse comparison in arg");
+    let arg = &prog.fns[0].body[0].args[0].value;
+    match arg {
+        Expr::BinOp { op, .. } => assert_eq!(*op, BinOp::Gt),
+        _ => panic!("expected BinOp"),
+    }
+}
+
+#[test]
+fn parse_all_comparison_ops() {
+    // Test each operator parses correctly
+    for (tok, expected_op) in [
+        (Token::Gt, BinOp::Gt),
+        (Token::Lt, BinOp::Lt),
+        (Token::Gte, BinOp::Gte),
+        (Token::Lte, BinOp::Lte),
+        (Token::EqEq, BinOp::Eq),
+        (Token::NotEq, BinOp::NotEq),
+    ] {
+        let tokens = vec![
+            s(Token::Fn),
+            s(Token::Ident("t".into())),
+            s(Token::LParen),
+            s(Token::RParen),
+            s(Token::LBrace),
+            s(Token::Ident("circle".into())),
+            s(Token::LParen),
+            s(Token::Ident("a".into())),
+            s(tok),
+            s(Token::Float(1.0)),
+            s(Token::RParen),
+            s(Token::RBrace),
+        ];
+        let mut p = Parser::new(tokens);
+        let prog = p.parse().expect("should parse comparison");
+        match &prog.fns[0].body[0].args[0].value {
+            Expr::BinOp { op, .. } => assert_eq!(*op, expected_op),
+            _ => panic!("expected BinOp"),
+        }
+    }
+}
+
+// ===================================================================
+// v0.4 — fn + cinematic together
+// ===================================================================
+
+#[test]
+fn parse_fn_and_cinematic() {
+    // fn dot() { circle(0.1) }
+    // cinematic "t" { layer main { dot() } }
+    let tokens = vec![
+        s(Token::Fn),
+        s(Token::Ident("dot".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::Float(0.1)),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::Cinematic),
+        s(Token::StringLit("t".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("main".into())),
+        s(Token::LBrace),
+        s(Token::Ident("dot".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse fn + cinematic");
+    assert_eq!(prog.fns.len(), 1);
+    assert_eq!(prog.cinematics.len(), 1);
+    assert_eq!(prog.cinematics[0].layers[0].name, "main");
+    match &prog.cinematics[0].layers[0].body {
+        LayerBody::Pipeline(stages) => {
+            assert_eq!(stages[0].name, "dot");
+        }
+        _ => panic!("expected Pipeline"),
+    }
+}
+
+// ===================================================================
+// IFS block parsing
+// ===================================================================
+
+#[test]
+fn parse_ifs_block_basic() {
+    let tokens = vec![
+        s(Token::Ident("ifs".into())),
+        s(Token::LBrace),
+        s(Token::Ident("transform".into())),
+        s(Token::Ident("t1".into())),
+        s(Token::LBracket),
+        s(Token::Float(0.5)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::Comma),
+        s(Token::Float(0.5)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::RBracket),
+        s(Token::Ident("weight".into())),
+        s(Token::Float(0.33)),
+        s(Token::Pipe),
+        s(Token::Ident("iterations".into())),
+        s(Token::Integer(50000)),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse ifs block");
+    assert_eq!(prog.ifs_blocks.len(), 1);
+    assert_eq!(prog.ifs_blocks[0].transforms.len(), 1);
+    assert_eq!(prog.ifs_blocks[0].transforms[0].name, "t1");
+    assert!((prog.ifs_blocks[0].transforms[0].weight - 0.33).abs() < 0.01);
+    assert_eq!(prog.ifs_blocks[0].iterations, 50000);
+}
+
+#[test]
+fn parse_ifs_color_mode() {
+    let tokens = vec![
+        s(Token::Ident("ifs".into())),
+        s(Token::LBrace),
+        s(Token::Ident("color".into())),
+        s(Token::Ident("depth".into())),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse ifs color mode");
+    assert_eq!(prog.ifs_blocks[0].color_mode, IfsColorMode::Depth);
+}
+
+#[test]
+fn parse_ifs_multiple_transforms() {
+    let tokens = vec![
+        s(Token::Ident("ifs".into())),
+        s(Token::LBrace),
+        s(Token::Ident("transform".into())),
+        s(Token::Ident("a".into())),
+        s(Token::LBracket),
+        s(Token::Float(0.5)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::Comma),
+        s(Token::Float(0.5)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::RBracket),
+        s(Token::Pipe),
+        s(Token::Ident("transform".into())),
+        s(Token::Ident("b".into())),
+        s(Token::LBracket),
+        s(Token::Float(0.5)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::Comma),
+        s(Token::Float(0.0)),
+        s(Token::Comma),
+        s(Token::Float(0.5)),
+        s(Token::Comma),
+        s(Token::Float(0.25)),
+        s(Token::Comma),
+        s(Token::Float(0.5)),
+        s(Token::RBracket),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse multiple transforms");
+    assert_eq!(prog.ifs_blocks[0].transforms.len(), 2);
+    assert_eq!(prog.ifs_blocks[0].transforms[1].name, "b");
+}
+
+// ===================================================================
+// L-system block parsing
+// ===================================================================
+
+#[test]
+fn parse_lsystem_block_basic() {
+    let tokens = vec![
+        s(Token::Ident("lsystem".into())),
+        s(Token::LBrace),
+        s(Token::Ident("axiom".into())),
+        s(Token::StringLit("F".into())),
+        s(Token::Pipe),
+        s(Token::Ident("rule".into())),
+        s(Token::Ident("F".into())),
+        s(Token::Arrow),
+        s(Token::StringLit("F+F-F-F+F".into())),
+        s(Token::Pipe),
+        s(Token::Ident("angle".into())),
+        s(Token::Integer(90)),
+        s(Token::Pipe),
+        s(Token::Ident("iterations".into())),
+        s(Token::Integer(4)),
+        s(Token::Pipe),
+        s(Token::Ident("step".into())),
+        s(Token::Float(0.01)),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse lsystem block");
+    assert_eq!(prog.lsystem_blocks.len(), 1);
+    assert_eq!(prog.lsystem_blocks[0].axiom, "F");
+    assert_eq!(prog.lsystem_blocks[0].rules.len(), 1);
+    assert_eq!(prog.lsystem_blocks[0].rules[0].symbol, 'F');
+    assert_eq!(prog.lsystem_blocks[0].rules[0].replacement, "F+F-F-F+F");
+    assert!((prog.lsystem_blocks[0].angle - 90.0).abs() < 0.01);
+    assert_eq!(prog.lsystem_blocks[0].iterations, 4);
+}
+
+#[test]
+fn parse_lsystem_multiple_rules() {
+    let tokens = vec![
+        s(Token::Ident("lsystem".into())),
+        s(Token::LBrace),
+        s(Token::Ident("axiom".into())),
+        s(Token::StringLit("A".into())),
+        s(Token::Pipe),
+        s(Token::Ident("rule".into())),
+        s(Token::Ident("A".into())),
+        s(Token::Arrow),
+        s(Token::StringLit("AB".into())),
+        s(Token::Pipe),
+        s(Token::Ident("rule".into())),
+        s(Token::Ident("B".into())),
+        s(Token::Arrow),
+        s(Token::StringLit("A".into())),
+        s(Token::Pipe),
+        s(Token::Ident("angle".into())),
+        s(Token::Integer(60)),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse multiple rules");
+    assert_eq!(prog.lsystem_blocks[0].rules.len(), 2);
+    assert_eq!(prog.lsystem_blocks[0].rules[0].symbol, 'A');
+    assert_eq!(prog.lsystem_blocks[0].rules[1].symbol, 'B');
+}
+
+// ===================================================================
+// Automaton block parsing
+// ===================================================================
+
+#[test]
+fn parse_automaton_block_basic() {
+    let tokens = vec![
+        s(Token::Ident("automaton".into())),
+        s(Token::LBrace),
+        s(Token::Ident("states".into())),
+        s(Token::Integer(2)),
+        s(Token::Pipe),
+        s(Token::Ident("neighborhood".into())),
+        s(Token::Ident("moore".into())),
+        s(Token::Pipe),
+        s(Token::Ident("rule".into())),
+        s(Token::StringLit("B3/S23".into())),
+        s(Token::Pipe),
+        s(Token::Ident("seed".into())),
+        s(Token::Ident("random".into())),
+        s(Token::Float(0.3)),
+        s(Token::Pipe),
+        s(Token::Ident("speed".into())),
+        s(Token::Integer(10)),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse automaton block");
+    assert_eq!(prog.automaton_blocks.len(), 1);
+    assert_eq!(prog.automaton_blocks[0].states, 2);
+    assert_eq!(prog.automaton_blocks[0].neighborhood, Neighborhood::Moore);
+    assert_eq!(prog.automaton_blocks[0].rule, "B3/S23");
+    assert_eq!(prog.automaton_blocks[0].speed, 10);
+}
+
+#[test]
+fn parse_automaton_vonneumann() {
+    let tokens = vec![
+        s(Token::Ident("automaton".into())),
+        s(Token::LBrace),
+        s(Token::Ident("neighborhood".into())),
+        s(Token::Ident("vonneumann".into())),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse vonneumann");
+    assert_eq!(
+        prog.automaton_blocks[0].neighborhood,
+        Neighborhood::VonNeumann
+    );
+}
+
+#[test]
+fn parse_automaton_seed_center() {
+    let tokens = vec![
+        s(Token::Ident("automaton".into())),
+        s(Token::LBrace),
+        s(Token::Ident("seed".into())),
+        s(Token::Ident("center".into())),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse center seed");
+    assert_eq!(prog.automaton_blocks[0].seed, AutomatonSeed::Center);
+}
+
+#[test]
+fn parse_automaton_seed_pattern() {
+    let tokens = vec![
+        s(Token::Ident("automaton".into())),
+        s(Token::LBrace),
+        s(Token::Ident("seed".into())),
+        s(Token::Ident("pattern".into())),
+        s(Token::StringLit("glider".into())),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse pattern seed");
+    assert_eq!(
+        prog.automaton_blocks[0].seed,
+        AutomatonSeed::Pattern("glider".into())
+    );
+}
+
+// ===================================================================
+// End-to-end: mixed v0.6 blocks with cinematics
+// ===================================================================
+
+#[test]
+fn parse_mixed_cinematic_and_ifs() {
+    let tokens = vec![
+        // cinematic
+        s(Token::Cinematic),
+        s(Token::StringLit("test".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+        // ifs
+        s(Token::Ident("ifs".into())),
+        s(Token::LBrace),
+        s(Token::Ident("iterations".into())),
+        s(Token::Integer(10000)),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse cinematic + ifs");
+    assert_eq!(prog.cinematics.len(), 1);
+    assert_eq!(prog.ifs_blocks.len(), 1);
+}
+
+// ===================================================================
+// Scene block with pipe separators
+// ===================================================================
+
+#[test]
+fn parse_scene_with_pipe_separators() {
+    let tokens = vec![
+        s(Token::Scene),
+        s(Token::StringLit("show".into())),
+        s(Token::LBrace),
+        s(Token::Play),
+        s(Token::StringLit("intro".into())),
+        s(Token::For),
+        s(Token::Seconds(5.0)),
+        s(Token::Pipe),
+        s(Token::Transition),
+        s(Token::Ident("dissolve".into())),
+        s(Token::Over),
+        s(Token::Seconds(2.0)),
+        s(Token::Pipe),
+        s(Token::Play),
+        s(Token::StringLit("main".into())),
+        s(Token::For),
+        s(Token::Seconds(10.0)),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse scene with pipes");
+    assert_eq!(prog.scenes.len(), 1);
+    assert_eq!(prog.scenes[0].entries.len(), 3);
+}
+
+// ===================================================================
+// Pass block in cinematic
+// ===================================================================
+
+#[test]
+fn parse_pass_block_in_cinematic() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("fx".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::Pass),
+        s(Token::Ident("blur_pass".into())),
+        s(Token::LBrace),
+        s(Token::Ident("blur".into())),
+        s(Token::LParen),
+        s(Token::Float(2.0)),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse pass block");
+    assert_eq!(prog.cinematics[0].passes.len(), 1);
+    assert_eq!(prog.cinematics[0].passes[0].name, "blur_pass");
+    assert_eq!(prog.cinematics[0].passes[0].body.len(), 1);
+}
+
+// ===================================================================
+// Feedback layer
+// ===================================================================
+
+#[test]
+fn parse_feedback_layer() {
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("trail".into())),
+        s(Token::LBrace),
+        s(Token::Layer),
+        s(Token::Ident("bg".into())),
+        s(Token::Feedback),
+        s(Token::Colon),
+        s(Token::Ident("true".into())),
+        s(Token::LBrace),
+        s(Token::Ident("circle".into())),
+        s(Token::LParen),
+        s(Token::RParen),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse feedback layer");
+    assert!(prog.cinematics[0].layers[0].feedback);
+}

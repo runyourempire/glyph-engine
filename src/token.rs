@@ -28,6 +28,16 @@ pub enum Token {
     React,
     Swarm,
     Flow,
+    Fn,
+    If,
+    Else,
+    Use,
+    Pass,
+    Scene,
+    Play,
+    Transition,
+    For,
+    Feedback,
 
     // --- punctuation ---
     Pipe,       // |
@@ -52,6 +62,12 @@ pub enum Token {
     Diamond,    // <>
     BangBang,   // !!
     DotDot,     // ..
+    Gt,         // >
+    Lt,         // <
+    Gte,        // >=
+    Lte,        // <=
+    EqEq,       // ==
+    NotEq,      // !=
 
     // --- literals ---
     Float(f64),
@@ -96,6 +112,16 @@ impl std::fmt::Display for Token {
             Token::React => write!(f, "react"),
             Token::Swarm => write!(f, "swarm"),
             Token::Flow => write!(f, "flow"),
+            Token::Fn => write!(f, "fn"),
+            Token::If => write!(f, "if"),
+            Token::Else => write!(f, "else"),
+            Token::Use => write!(f, "use"),
+            Token::Pass => write!(f, "pass"),
+            Token::Scene => write!(f, "scene"),
+            Token::Play => write!(f, "play"),
+            Token::Transition => write!(f, "transition"),
+            Token::For => write!(f, "for"),
+            Token::Feedback => write!(f, "feedback"),
             Token::Pipe => write!(f, "|"),
             Token::Tilde => write!(f, "~"),
             Token::LBrace => write!(f, "{{"),
@@ -118,6 +144,12 @@ impl std::fmt::Display for Token {
             Token::Diamond => write!(f, "<>"),
             Token::BangBang => write!(f, "!!"),
             Token::DotDot => write!(f, ".."),
+            Token::Gt => write!(f, ">"),
+            Token::Lt => write!(f, "<"),
+            Token::Gte => write!(f, ">="),
+            Token::Lte => write!(f, "<="),
+            Token::EqEq => write!(f, "=="),
+            Token::NotEq => write!(f, "!="),
             Token::Float(v) => write!(f, "{v}"),
             Token::Integer(v) => write!(f, "{v}"),
             Token::StringLit(s) => write!(f, "\"{s}\""),

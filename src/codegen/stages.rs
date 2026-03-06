@@ -1,6 +1,6 @@
 //! Stage pipeline state machine for shader codegen.
 
-use crate::ast::{Arg, Expr, Stage};
+use crate::ast::{Arg, Expr, FnDef, Stage};
 use crate::builtins::{self, ShaderState};
 use crate::error::CompileError;
 
@@ -43,21 +43,50 @@ pub fn get_arg(args: &[Arg], name: &str, pos: usize, stage_name: &str) -> String
 
 /// Validate a pipeline of stages — returns error if state transitions are invalid.
 pub fn validate_pipeline(stages: &[Stage]) -> Result<ShaderState, CompileError> {
+    validate_pipeline_with_fns(stages, &[])
+}
+
+/// Validate a pipeline with user-defined function awareness.
+pub fn validate_pipeline_with_fns(
+    stages: &[Stage],
+    fns: &[FnDef],
+) -> Result<ShaderState, CompileError> {
     let mut state = ShaderState::Position;
 
     for stage in stages {
-        let builtin = builtins::lookup(&stage.name).ok_or_else(|| {
-            CompileError::validation(format!("unknown stage function: '{}'", stage.name))
-        })?;
+        // Try builtin first
+        if let Some(builtin) = builtins::lookup(&stage.name) {
+            if builtin.input != state {
+                return Err(CompileError::validation(format!(
+                    "stage '{}' expects {:?} input but pipeline is in {:?} state",
+                    stage.name, builtin.input, state
+                )));
+            }
+            state = builtin.output;
+        }
+        // Try user-defined fn
+        else if let Some(fn_def) = fns.iter().find(|f| f.name == stage.name) {
+            let fn_output = validate_pipeline_with_fns(&fn_def.body, fns)?;
+            let fn_input = fn_def
+                .body
+                .first()
+                .and_then(|s| builtins::lookup(&s.name))
+                .map(|b| b.input)
+                .unwrap_or(ShaderState::Position);
 
-        if builtin.input != state {
+            if fn_input != state {
+                return Err(CompileError::validation(format!(
+                    "function '{}' expects {:?} input but pipeline is in {:?} state",
+                    stage.name, fn_input, state
+                )));
+            }
+            state = fn_output;
+        } else {
             return Err(CompileError::validation(format!(
-                "stage '{}' expects {:?} input but pipeline is in {:?} state",
-                stage.name, builtin.input, state
+                "unknown stage function: '{}'",
+                stage.name
             )));
         }
-
-        state = builtin.output;
     }
 
     Ok(state)
@@ -220,6 +249,65 @@ mod tests {
     #[test]
     fn outline_is_color_to_color() {
         let stages = vec![stage("circle"), stage("glow"), stage("outline")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    // v0.4 — user-defined fn validation
+
+    #[test]
+    fn fn_pipeline_validates() {
+        let fns = vec![FnDef {
+            name: "dot".into(),
+            params: vec![],
+            body: vec![stage("circle"), stage("glow"), stage("tint")],
+        }];
+        let stages = vec![stage("dot")];
+        let result = validate_pipeline_with_fns(&stages, &fns);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn fn_wrong_input_state_rejected() {
+        // fn that expects Position but pipeline already in Sdf state
+        let fns = vec![FnDef {
+            name: "post".into(),
+            params: vec![],
+            body: vec![stage("circle"), stage("glow")],
+        }];
+        // circle produces Sdf, then "post" expects Position input
+        let stages = vec![stage("circle"), stage("post")];
+        let result = validate_pipeline_with_fns(&stages, &fns);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn fn_chained_with_builtins() {
+        // fn sdf_shape() { circle() } → pipeline: sdf_shape | glow | tint
+        let fns = vec![FnDef {
+            name: "sdf_shape".into(),
+            params: vec![],
+            body: vec![stage("circle")],
+        }];
+        let stages = vec![stage("sdf_shape"), stage("glow"), stage("tint")];
+        let result = validate_pipeline_with_fns(&stages, &fns);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn unknown_fn_rejected() {
+        let stages = vec![stage("nonexistent_fn")];
+        let result = validate_pipeline_with_fns(&stages, &[]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("unknown stage function"));
+    }
+
+    #[test]
+    fn morph_validates_as_sdf() {
+        let stages = vec![stage("morph"), stage("glow")];
         let result = validate_pipeline(&stages);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), ShaderState::Color);
