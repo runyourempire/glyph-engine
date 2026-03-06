@@ -161,6 +161,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![]),
             },
             Layer {
@@ -170,6 +171,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![]),
             },
         ];
@@ -185,6 +187,7 @@ mod tests {
             opacity: None,
             cast: None,
             blend: BlendMode::Add,
+            feedback: false,
             body: LayerBody::Pipeline(vec![]),
         }];
         assert!(!any_layer_uses_memory(&layers));

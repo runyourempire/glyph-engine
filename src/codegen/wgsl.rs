@@ -5,8 +5,174 @@ use crate::codegen::memory;
 use crate::codegen::stages::get_arg;
 use crate::codegen::UniformInfo;
 
+/// Named color preset definitions (a, b, c, d vectors for cosine palette).
+fn named_palette(name: &str) -> Option<(&str, &str, &str, &str)> {
+    match name {
+        "fire" => Some((
+            "vec3<f32>(0.5, 0.3, 0.1)",
+            "vec3<f32>(0.5, 0.2, 0.1)",
+            "vec3<f32>(1.0, 1.0, 1.0)",
+            "vec3<f32>(0.0, 0.25, 0.25)",
+        )),
+        "ocean" => Some((
+            "vec3<f32>(0.0, 0.3, 0.5)",
+            "vec3<f32>(0.0, 0.3, 0.5)",
+            "vec3<f32>(1.0, 1.0, 1.0)",
+            "vec3<f32>(0.0, 0.1, 0.2)",
+        )),
+        "neon" => Some((
+            "vec3<f32>(0.5, 0.5, 0.5)",
+            "vec3<f32>(0.5, 0.5, 0.5)",
+            "vec3<f32>(1.0, 1.0, 1.0)",
+            "vec3<f32>(0.0, 0.33, 0.67)",
+        )),
+        "aurora" => Some((
+            "vec3<f32>(0.0, 0.5, 0.3)",
+            "vec3<f32>(0.2, 0.5, 0.4)",
+            "vec3<f32>(1.0, 1.0, 1.0)",
+            "vec3<f32>(0.0, 0.1, 0.3)",
+        )),
+        "sunset" => Some((
+            "vec3<f32>(0.5, 0.3, 0.2)",
+            "vec3<f32>(0.5, 0.2, 0.3)",
+            "vec3<f32>(1.0, 1.0, 0.5)",
+            "vec3<f32>(0.8, 0.9, 0.3)",
+        )),
+        "ice" => Some((
+            "vec3<f32>(0.5, 0.7, 0.9)",
+            "vec3<f32>(0.2, 0.2, 0.1)",
+            "vec3<f32>(1.0, 1.0, 1.0)",
+            "vec3<f32>(0.0, 0.05, 0.15)",
+        )),
+        _ => None,
+    }
+}
+
+/// Generate a WGSL fragment shader for a cinematic with user-defined functions.
+pub fn generate_fragment_with_fns(
+    cinematic: &Cinematic,
+    uniforms: &[UniformInfo],
+    fns: &[FnDef],
+) -> String {
+    generate_fragment_inner(cinematic, uniforms, fns)
+}
+
 /// Generate a WGSL fragment shader for a cinematic.
 pub fn generate_fragment(cinematic: &Cinematic, uniforms: &[UniformInfo]) -> String {
+    generate_fragment_inner(cinematic, uniforms, &[])
+}
+
+/// Generate a WGSL post-processing pass fragment shader.
+///
+/// A pass reads from a texture (previous pass output) and writes a processed result.
+/// The pass pipeline operates on UV-sampled color values.
+pub fn generate_pass_fragment(pass: &PassBlock) -> String {
+    let mut s = String::with_capacity(1024);
+
+    s.push_str("// Post-processing pass: ");
+    s.push_str(&pass.name);
+    s.push_str("\n");
+
+    // Bindings: uniforms + input texture
+    s.push_str("@group(0) @binding(0) var<uniform> u: Uniforms;\n");
+    s.push_str("@group(0) @binding(3) var pass_tex: texture_2d<f32>;\n");
+    s.push_str("@group(0) @binding(4) var pass_sampler: sampler;\n\n");
+
+    s.push_str("@fragment\n");
+    s.push_str("fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {\n");
+    s.push_str("    let uv = input.uv;\n");
+    s.push_str("    let pixel = textureSample(pass_tex, pass_sampler, uv);\n");
+    s.push_str("    var color_result = pixel;\n\n");
+
+    // Emit pass pipeline stages (operate on color_result)
+    for stage in &pass.body {
+        emit_pass_stage(&mut s, stage, "    ");
+    }
+
+    s.push_str("    return color_result;\n");
+    s.push_str("}\n");
+
+    s
+}
+
+/// Emit a post-processing stage operating on `color_result` and `pixel`.
+fn emit_pass_stage(s: &mut String, stage: &Stage, indent: &str) {
+    let args = &stage.args;
+    match stage.name.as_str() {
+        "blur" | "gaussian_blur" => {
+            // Simple box blur approximation
+            let radius = if !args.is_empty() {
+                get_arg(args, "radius", 0, "blur")
+            } else {
+                "2.0".to_string()
+            };
+            s.push_str(&format!("{indent}// blur pass\n"));
+            s.push_str(&format!("{indent}var blurred = vec4<f32>(0.0);\n"));
+            s.push_str(&format!("{indent}let texel = 1.0 / u.resolution;\n"));
+            s.push_str(&format!(
+                "{indent}let r = i32({radius});\n"
+            ));
+            s.push_str(&format!("{indent}var count = 0.0;\n"));
+            s.push_str(&format!("{indent}for (var dy = -r; dy <= r; dy++) {{\n"));
+            s.push_str(&format!("{indent}    for (var dx = -r; dx <= r; dx++) {{\n"));
+            s.push_str(&format!("{indent}        let offset = vec2<f32>(f32(dx), f32(dy)) * texel;\n"));
+            s.push_str(&format!("{indent}        blurred += textureSample(pass_tex, pass_sampler, uv + offset);\n"));
+            s.push_str(&format!("{indent}        count += 1.0;\n"));
+            s.push_str(&format!("{indent}    }}\n"));
+            s.push_str(&format!("{indent}}}\n"));
+            s.push_str(&format!("{indent}color_result = blurred / count;\n"));
+        }
+        "threshold" => {
+            let t = if !args.is_empty() {
+                get_arg(args, "value", 0, "threshold")
+            } else {
+                "0.5".to_string()
+            };
+            s.push_str(&format!(
+                "{indent}let lum = dot(color_result.rgb, vec3<f32>(0.299, 0.587, 0.114));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}color_result = select(vec4<f32>(0.0, 0.0, 0.0, 1.0), color_result, lum > {t});\n"
+            ));
+        }
+        "invert" => {
+            s.push_str(&format!(
+                "{indent}color_result = vec4<f32>(1.0 - color_result.rgb, color_result.a);\n"
+            ));
+        }
+        "blend_add" => {
+            s.push_str(&format!(
+                "{indent}color_result = vec4<f32>(min(pixel.rgb + color_result.rgb, vec3<f32>(1.0)), 1.0);\n"
+            ));
+        }
+        "vignette" => {
+            let strength = if !args.is_empty() {
+                get_arg(args, "strength", 0, "vignette")
+            } else {
+                "0.5".to_string()
+            };
+            s.push_str(&format!(
+                "{indent}let vign = 1.0 - {strength} * length(uv - 0.5);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}color_result = vec4<f32>(color_result.rgb * vign, color_result.a);\n"
+            ));
+        }
+        _ => {
+            // Unknown pass stage — passthrough
+            s.push_str(&format!(
+                "{indent}// unknown pass stage: {}\n",
+                stage.name
+            ));
+        }
+    }
+}
+
+fn generate_fragment_inner(
+    cinematic: &Cinematic,
+    uniforms: &[UniformInfo],
+    fns: &[FnDef],
+) -> String {
     let mut s = String::with_capacity(4096);
 
     // Uniform struct
@@ -60,7 +226,7 @@ pub fn generate_fragment(cinematic: &Cinematic, uniforms: &[UniformInfo]) -> Str
     }
 
     for (i, layer) in cinematic.layers.iter().enumerate() {
-        emit_wgsl_layer(&mut s, layer, i, multi_layer);
+        emit_wgsl_layer(&mut s, layer, i, multi_layer, fns);
     }
 
     if multi_layer {
@@ -290,12 +456,7 @@ fn emit_wgsl_palette(s: &mut String) {
     s.push_str("}\n\n");
 }
 
-fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
-    let body = match &layer.body {
-        LayerBody::Pipeline(stages) => stages,
-        _ => return,
-    };
-
+fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: &[FnDef]) {
     s.push_str(&format!("    // ── Layer {idx}: {} ──\n", layer.name));
     if multi {
         s.push_str("    {\n");
@@ -306,9 +467,43 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
         "{indent}var p = vec2<f32>(uv.x * aspect, uv.y);\n"
     ));
 
-    for stage in body {
-        emit_wgsl_stage(s, stage, indent);
-    }
+    match &layer.body {
+        LayerBody::Pipeline(stages) => {
+            for stage in stages {
+                emit_wgsl_stage_with_fns(s, stage, indent, fns);
+            }
+        }
+        LayerBody::Conditional {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
+            // Emit both branches, then select
+            s.push_str(&format!("{indent}var color_result: vec4<f32>;\n"));
+            s.push_str(&format!("{indent}{{\n"));
+            let inner = &format!("{indent}    ");
+            s.push_str(&format!("{inner}var p_then = p;\n"));
+            // We use a fresh `p` for the then branch
+            s.push_str(&format!("{inner}{{ var p = p_then;\n"));
+            for stage in then_branch {
+                emit_wgsl_stage_with_fns(s, stage, inner, fns);
+            }
+            s.push_str(&format!("{inner}var then_color = color_result; }}\n"));
+            // Else branch
+            s.push_str(&format!("{inner}{{ var p = p_then;\n"));
+            for stage in else_branch {
+                emit_wgsl_stage_with_fns(s, stage, inner, fns);
+            }
+            s.push_str(&format!("{inner}var else_color = color_result; }}\n"));
+            // Conditional select
+            let cond_str = emit_wgsl_expr(condition);
+            s.push_str(&format!(
+                "{inner}color_result = select(else_color, then_color, {cond_str});\n"
+            ));
+            s.push_str(&format!("{indent}}}\n"));
+        }
+        LayerBody::Params(_) => return,
+    };
 
     // Memory: mix with previous frame if this layer has memory
     if let Some(decay) = layer.memory {
@@ -354,6 +549,124 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
         s.push_str("    }\n\n");
     } else {
         s.push_str(&format!("{indent}return color_result;\n"));
+    }
+}
+
+/// Emit a WGSL expression string from an AST Expr.
+pub fn emit_wgsl_expr(expr: &Expr) -> String {
+    match expr {
+        Expr::Number(v) => format!("{v:.6}"),
+        Expr::Ident(name) => {
+            match name.as_str() {
+                "time" => "time".to_string(),
+                "bass" => "u.audio_bass".to_string(),
+                "mid" => "u.audio_mid".to_string(),
+                "treble" => "u.audio_treble".to_string(),
+                "energy" => "u.audio_energy".to_string(),
+                "beat" => "u.audio_beat".to_string(),
+                _ => name.clone(),
+            }
+        }
+        Expr::DottedIdent { object, field } => {
+            let obj = match object.as_str() {
+                "audio" => "u.audio_",
+                _ => return format!("{object}_{field}"),
+            };
+            format!("{obj}{field}")
+        }
+        Expr::BinOp { op, left, right } => {
+            let l = emit_wgsl_expr(left);
+            let r = emit_wgsl_expr(right);
+            let op_str = match op {
+                BinOp::Add => "+",
+                BinOp::Sub => "-",
+                BinOp::Mul => "*",
+                BinOp::Div => "/",
+                BinOp::Pow => return format!("pow({l}, {r})"),
+                BinOp::Gt => ">",
+                BinOp::Lt => "<",
+                BinOp::Gte => ">=",
+                BinOp::Lte => "<=",
+                BinOp::Eq => "==",
+                BinOp::NotEq => "!=",
+            };
+            format!("({l} {op_str} {r})")
+        }
+        Expr::Neg(inner) => {
+            let i = emit_wgsl_expr(inner);
+            format!("(-{i})")
+        }
+        Expr::Paren(inner) => {
+            let i = emit_wgsl_expr(inner);
+            format!("({i})")
+        }
+        Expr::Call { name, args } => {
+            let arg_strs: Vec<String> = args.iter().map(|a| emit_wgsl_expr(&a.value)).collect();
+            format!("{}({})", name, arg_strs.join(", "))
+        }
+        _ => "0.0".to_string(),
+    }
+}
+
+/// Emit a stage with fn-inlining support.
+fn emit_wgsl_stage_with_fns(s: &mut String, stage: &Stage, indent: &str, fns: &[FnDef]) {
+    // Check if this is a user-defined fn call
+    if let Some(fn_def) = fns.iter().find(|f| f.name == stage.name) {
+        // Inline the fn body with argument substitution
+        for fn_stage in &fn_def.body {
+            let substituted = substitute_fn_args(fn_stage, &fn_def.params, &stage.args);
+            emit_wgsl_stage(s, &substituted, indent);
+        }
+        return;
+    }
+    emit_wgsl_stage(s, stage, indent);
+}
+
+/// Substitute fn param names with caller's arg values in a stage.
+pub fn substitute_fn_args(stage: &Stage, params: &[String], caller_args: &[Arg]) -> Stage {
+    Stage {
+        name: stage.name.clone(),
+        args: stage
+            .args
+            .iter()
+            .map(|arg| {
+                Arg {
+                    name: arg.name.clone(),
+                    value: substitute_expr(&arg.value, params, caller_args),
+                }
+            })
+            .collect(),
+    }
+}
+
+fn substitute_expr(expr: &Expr, params: &[String], caller_args: &[Arg]) -> Expr {
+    match expr {
+        Expr::Ident(name) => {
+            if let Some(idx) = params.iter().position(|p| p == name) {
+                if let Some(arg) = caller_args.get(idx) {
+                    return arg.value.clone();
+                }
+            }
+            expr.clone()
+        }
+        Expr::BinOp { op, left, right } => Expr::BinOp {
+            op: op.clone(),
+            left: Box::new(substitute_expr(left, params, caller_args)),
+            right: Box::new(substitute_expr(right, params, caller_args)),
+        },
+        Expr::Neg(inner) => Expr::Neg(Box::new(substitute_expr(inner, params, caller_args))),
+        Expr::Paren(inner) => Expr::Paren(Box::new(substitute_expr(inner, params, caller_args))),
+        Expr::Call { name, args } => Expr::Call {
+            name: name.clone(),
+            args: args
+                .iter()
+                .map(|a| Arg {
+                    name: a.name.clone(),
+                    value: substitute_expr(&a.value, params, caller_args),
+                })
+                .collect(),
+        },
+        _ => expr.clone(),
     }
 }
 
@@ -517,21 +830,39 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             ));
         }
         "palette" => {
-            let a_r = get_arg(args, "a_r", 0, "palette");
-            let a_g = get_arg(args, "a_g", 1, "palette");
-            let a_b = get_arg(args, "a_b", 2, "palette");
-            let b_r = get_arg(args, "b_r", 3, "palette");
-            let b_g = get_arg(args, "b_g", 4, "palette");
-            let b_b = get_arg(args, "b_b", 5, "palette");
-            let c_r = get_arg(args, "c_r", 6, "palette");
-            let c_g = get_arg(args, "c_g", 7, "palette");
-            let c_b = get_arg(args, "c_b", 8, "palette");
-            let d_r = get_arg(args, "d_r", 9, "palette");
-            let d_g = get_arg(args, "d_g", 10, "palette");
-            let d_b = get_arg(args, "d_b", 11, "palette");
-            s.push_str(&format!(
-                "{indent}var color_result = vec4<f32>(cosine_palette(sdf_result, vec3<f32>({a_r}, {a_g}, {a_b}), vec3<f32>({b_r}, {b_g}, {b_b}), vec3<f32>({c_r}, {c_g}, {c_b}), vec3<f32>({d_r}, {d_g}, {d_b})), 1.0);\n"
-            ));
+            // Check for named preset: palette(fire), palette(ocean), etc.
+            let preset = args.first().and_then(|a| {
+                if let Expr::Ident(name) = &a.value {
+                    named_palette(name)
+                } else {
+                    None
+                }
+            });
+            if let Some((a, b, c, d)) = preset {
+                s.push_str(&format!(
+                    "{indent}var color_result = vec4<f32>(cosine_palette(sdf_result, {a}, {b}, {c}, {d}), 1.0);\n"
+                ));
+            } else {
+                let a_r = get_arg(args, "a_r", 0, "palette");
+                let a_g = get_arg(args, "a_g", 1, "palette");
+                let a_b = get_arg(args, "a_b", 2, "palette");
+                let b_r = get_arg(args, "b_r", 3, "palette");
+                let b_g = get_arg(args, "b_g", 4, "palette");
+                let b_b = get_arg(args, "b_b", 5, "palette");
+                let c_r = get_arg(args, "c_r", 6, "palette");
+                let c_g = get_arg(args, "c_g", 7, "palette");
+                let c_b = get_arg(args, "c_b", 8, "palette");
+                let d_r = get_arg(args, "d_r", 9, "palette");
+                let d_g = get_arg(args, "d_g", 10, "palette");
+                let d_b = get_arg(args, "d_b", 11, "palette");
+                s.push_str(&format!(
+                    "{indent}var color_result = vec4<f32>(cosine_palette(sdf_result, vec3<f32>({a_r}, {a_g}, {a_b}), vec3<f32>({b_r}, {b_g}, {b_b}), vec3<f32>({c_r}, {c_g}, {c_b}), vec3<f32>({d_r}, {d_g}, {d_b})), 1.0);\n"
+                ));
+            }
+        }
+        // ── SDF Morph ────────────────────────────────────
+        "morph" => {
+            emit_wgsl_morph(s, stage, indent);
         }
         // ── SDF Boolean operations ──────────────────────
         "union" | "subtract" | "intersect" | "xor" => {
@@ -739,6 +1070,21 @@ fn emit_wgsl_sub_sdf(s: &mut String, expr: &Expr, var_name: &str, indent: &str) 
     }
 }
 
+/// Emit WGSL code for SDF morph (interpolation between two SDFs).
+fn emit_wgsl_morph(s: &mut String, stage: &Stage, indent: &str) {
+    let args = &stage.args;
+    if args.len() < 3 {
+        s.push_str(&format!("{indent}var sdf_result = length(p) - 0.2;\n"));
+        return;
+    }
+    emit_wgsl_sub_sdf(s, &args[0].value, "sdf_a", indent);
+    emit_wgsl_sub_sdf(s, &args[1].value, "sdf_b", indent);
+    let t = emit_wgsl_expr(&args[2].value);
+    s.push_str(&format!(
+        "{indent}var sdf_result = mix(sdf_a, sdf_b, {t});\n"
+    ));
+}
+
 /// Emit WGSL code for a boolean SDF operation (union, subtract, intersect, xor).
 fn emit_wgsl_bool_op(s: &mut String, stage: &Stage, indent: &str) {
     let args = &stage.args;
@@ -843,6 +1189,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(stages),
             }],
             arcs: vec![],
@@ -854,6 +1201,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         }
     }
 
@@ -995,6 +1344,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         }
     }
 
@@ -1008,6 +1359,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1020,6 +1372,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Screen,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1043,6 +1396,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1055,6 +1409,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Multiply,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1078,6 +1433,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1090,6 +1446,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Overlay,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1394,5 +1751,250 @@ mod tests {
         ]);
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("max(sdf_a, -sdf_b)"), "subtract = max(a, -b)");
+    }
+
+    // v0.4 — morph
+
+    #[test]
+    fn wgsl_morph_generates_mix() {
+        let cin = make_cinematic(vec![
+            Stage {
+                name: "morph".into(),
+                args: vec![
+                    Arg {
+                        name: None,
+                        value: Expr::Call {
+                            name: "circle".into(),
+                            args: vec![Arg {
+                                name: None,
+                                value: Expr::Number(0.3),
+                            }],
+                        },
+                    },
+                    Arg {
+                        name: None,
+                        value: Expr::Call {
+                            name: "star".into(),
+                            args: vec![],
+                        },
+                    },
+                    Arg {
+                        name: None,
+                        value: Expr::Number(0.5),
+                    },
+                ],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(output.contains("mix(sdf_a, sdf_b,"), "morph uses mix()");
+        assert!(output.contains("sdf_a"), "morph emits sdf_a");
+        assert!(output.contains("sdf_b"), "morph emits sdf_b");
+    }
+
+    // v0.4 — named palettes
+
+    #[test]
+    fn wgsl_named_palette_fire() {
+        let cin = make_cinematic(vec![
+            Stage {
+                name: "circle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "palette".into(),
+                args: vec![Arg {
+                    name: None,
+                    value: Expr::Ident("fire".into()),
+                }],
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(output.contains("cosine_palette"), "palette helper used");
+    }
+
+    #[test]
+    fn wgsl_named_palette_ocean() {
+        let cin = make_cinematic(vec![
+            Stage {
+                name: "circle".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "glow".into(),
+                args: vec![],
+            },
+            Stage {
+                name: "palette".into(),
+                args: vec![Arg {
+                    name: None,
+                    value: Expr::Ident("ocean".into()),
+                }],
+            },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        assert!(output.contains("cosine_palette"), "palette helper used");
+    }
+
+    // v0.4 — fn inlining
+
+    #[test]
+    fn wgsl_fn_inlining() {
+        let fns = vec![FnDef {
+            name: "dot".into(),
+            params: vec!["r".into()],
+            body: vec![
+                Stage {
+                    name: "circle".into(),
+                    args: vec![Arg {
+                        name: None,
+                        value: Expr::Ident("r".into()),
+                    }],
+                },
+                Stage {
+                    name: "glow".into(),
+                    args: vec![],
+                },
+                Stage {
+                    name: "tint".into(),
+                    args: vec![],
+                },
+            ],
+        }];
+        let cin = make_cinematic(vec![Stage {
+            name: "dot".into(),
+            args: vec![Arg {
+                name: None,
+                value: Expr::Number(0.2),
+            }],
+        }]);
+        let output = generate_fragment_with_fns(&cin, &[], &fns);
+        // The fn body should be inlined — circle should appear with substituted arg
+        assert!(output.contains("sdf_circle"), "inlined circle from fn");
+        assert!(output.contains("apply_glow"), "inlined glow from fn");
+    }
+
+    // v0.4 — conditional layer
+
+    #[test]
+    fn wgsl_conditional_generates_select() {
+        let cin = Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                opacity: None,
+                cast: None,
+                blend: BlendMode::Add,
+                feedback: false,
+                body: LayerBody::Conditional {
+                    condition: Expr::BinOp {
+                        op: BinOp::Gt,
+                        left: Box::new(Expr::Ident("bass".into())),
+                        right: Box::new(Expr::Number(0.5)),
+                    },
+                    then_branch: vec![
+                        Stage {
+                            name: "circle".into(),
+                            args: vec![],
+                        },
+                        Stage {
+                            name: "glow".into(),
+                            args: vec![],
+                        },
+                        Stage {
+                            name: "tint".into(),
+                            args: vec![],
+                        },
+                    ],
+                    else_branch: vec![
+                        Stage {
+                            name: "ring".into(),
+                            args: vec![],
+                        },
+                        Stage {
+                            name: "glow".into(),
+                            args: vec![],
+                        },
+                        Stage {
+                            name: "tint".into(),
+                            args: vec![],
+                        },
+                    ],
+                },
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            react: None,
+            swarm: None,
+            flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
+        };
+        let output = generate_fragment(&cin, &[]);
+        assert!(output.contains("select("), "conditional uses select()");
+        assert!(output.contains("then_color"), "then branch result");
+        assert!(output.contains("else_color"), "else branch result");
+    }
+
+    // v0.4 — emit_wgsl_expr
+
+    #[test]
+    fn emit_wgsl_expr_comparison() {
+        let expr = Expr::BinOp {
+            op: BinOp::Gt,
+            left: Box::new(Expr::Ident("bass".into())),
+            right: Box::new(Expr::Number(0.5)),
+        };
+        let result = emit_wgsl_expr(&expr);
+        assert!(result.contains(">"), "greater than emitted");
+        assert!(result.contains("bass"), "left side");
+        assert!(result.contains("0.5"), "right side");
+    }
+
+    #[test]
+    fn emit_wgsl_expr_arithmetic() {
+        let expr = Expr::BinOp {
+            op: BinOp::Mul,
+            left: Box::new(Expr::Ident("time".into())),
+            right: Box::new(Expr::Number(2.0)),
+        };
+        let result = emit_wgsl_expr(&expr);
+        assert!(result.contains("time"), "time ident emitted");
+        assert!(result.contains("*"), "mul operator");
+        assert!(result.contains("2"), "right operand");
+    }
+
+    #[test]
+    fn substitute_fn_args_works() {
+        let stage = Stage {
+            name: "circle".into(),
+            args: vec![Arg {
+                name: None,
+                value: Expr::Ident("size".into()),
+            }],
+        };
+        let params = vec!["size".to_string()];
+        let caller_args = vec![Arg {
+            name: None,
+            value: Expr::Number(0.3),
+        }];
+        let result = substitute_fn_args(&stage, &params, &caller_args);
+        match &result.args[0].value {
+            Expr::Number(v) => assert_eq!(*v, 0.3),
+            _ => panic!("expected Number after substitution"),
+        }
     }
 }

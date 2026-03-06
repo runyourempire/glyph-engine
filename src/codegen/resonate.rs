@@ -148,6 +148,12 @@ fn expr_to_js(e: &Expr) -> String {
                 crate::ast::BinOp::Mul => "*",
                 crate::ast::BinOp::Div => "/",
                 crate::ast::BinOp::Pow => "**",
+                crate::ast::BinOp::Gt => ">",
+                crate::ast::BinOp::Lt => "<",
+                crate::ast::BinOp::Gte => ">=",
+                crate::ast::BinOp::Lte => "<=",
+                crate::ast::BinOp::Eq => "===",
+                crate::ast::BinOp::NotEq => "!==",
             };
             format!("({l} {op_str} {r})")
         }

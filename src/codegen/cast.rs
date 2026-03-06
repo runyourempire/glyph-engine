@@ -31,8 +31,8 @@ pub fn validate_layer_cast(layer: &Layer) -> Result<(), CompileError> {
 
     let pipeline = match &layer.body {
         LayerBody::Pipeline(stages) => stages,
-        LayerBody::Params(_) => {
-            // Params-style layers don't have pipeline state — skip validation
+        LayerBody::Params(_) | LayerBody::Conditional { .. } => {
+            // Params-style and conditional layers — skip cast validation here
             return Ok(());
         }
     };
@@ -77,6 +77,7 @@ mod tests {
             opacity: None,
             cast: Some(cast.into()),
             blend: BlendMode::Add,
+            feedback: false,
             body: LayerBody::Pipeline(stages),
         }
     }
@@ -138,6 +139,7 @@ mod tests {
             opacity: None,
             cast: None,
             blend: BlendMode::Add,
+            feedback: false,
             body: LayerBody::Pipeline(vec![stage("circle"), stage("glow")]),
         };
         assert!(validate_layer_cast(&layer).is_ok());
@@ -177,6 +179,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let err = validate_casts(&cin).unwrap_err();
         assert!(err.to_string().contains("layer 'b'"));

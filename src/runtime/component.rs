@@ -222,6 +222,9 @@ mod tests {
             swarm_agent_wgsl: None,
             swarm_trail_wgsl: None,
             flow_wgsl: None,
+            pass_wgsl: vec![],
+            pass_count: 0,
+            uses_feedback: false,
         };
         let js = generate_component(&shader);
         assert!(js.contains("customElements.define('game-test-viz'"));
@@ -247,6 +250,9 @@ mod tests {
             swarm_agent_wgsl: None,
             swarm_trail_wgsl: None,
             flow_wgsl: None,
+            pass_wgsl: vec![],
+            pass_count: 0,
+            uses_feedback: false,
         };
         let js = generate_component(&shader);
         assert!(js.contains("class GameRenderer"));
@@ -270,6 +276,9 @@ mod tests {
             swarm_agent_wgsl: None,
             swarm_trail_wgsl: None,
             flow_wgsl: None,
+            pass_wgsl: vec![],
+            pass_count: 0,
+            uses_feedback: false,
         };
         let js = generate_component(&shader);
         assert!(js.contains("USES_MEMORY = true"));
@@ -293,6 +302,9 @@ mod tests {
             swarm_agent_wgsl: None,
             swarm_trail_wgsl: None,
             flow_wgsl: None,
+            pass_wgsl: vec![],
+            pass_count: 0,
+            uses_feedback: false,
         };
         let js = generate_component(&shader);
         assert!(js.contains("GameListenPipeline"));
@@ -325,6 +337,9 @@ mod tests {
             swarm_agent_wgsl: None,
             swarm_trail_wgsl: None,
             flow_wgsl: None,
+            pass_wgsl: vec![],
+            pass_count: 0,
+            uses_feedback: false,
         };
         let js = generate_component(&with_fill);
         assert!(js.contains("set progress(v)"), "should have progress alias");
@@ -347,6 +362,9 @@ mod tests {
             swarm_agent_wgsl: None,
             swarm_trail_wgsl: None,
             flow_wgsl: None,
+            pass_wgsl: vec![],
+            pass_count: 0,
+            uses_feedback: false,
         };
         let js = generate_component(&without_fill);
         assert!(!js.contains("set progress(v)"), "should NOT have progress alias");
@@ -371,6 +389,9 @@ mod tests {
             swarm_agent_wgsl: None,
             swarm_trail_wgsl: None,
             flow_wgsl: None,
+            pass_wgsl: vec![],
+            pass_count: 0,
+            uses_feedback: false,
         };
         let js = generate_component(&with_intensity);
         assert!(js.contains("set health(v)"), "should have health alias");
@@ -392,6 +413,9 @@ mod tests {
             swarm_agent_wgsl: None,
             swarm_trail_wgsl: None,
             flow_wgsl: None,
+            pass_wgsl: vec![],
+            pass_count: 0,
+            uses_feedback: false,
         };
         let js = generate_component(&without_intensity);
         assert!(!js.contains("set health(v)"), "should NOT have health alias");
@@ -422,6 +446,9 @@ mod tests {
             swarm_agent_wgsl: None,
             swarm_trail_wgsl: None,
             flow_wgsl: None,
+            pass_wgsl: vec![],
+            pass_count: 0,
+            uses_feedback: false,
         };
         let js = generate_component(&shader);
         // Should have exactly one 'set progress' (the uniform setter), not the alias

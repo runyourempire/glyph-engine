@@ -4,16 +4,20 @@
 //! the runtime module to wrap them in Web Components or standalone HTML.
 
 pub mod arc;
+pub mod automaton;
 pub mod breed;
 pub mod cast;
 pub mod flow;
 pub mod glsl;
 pub mod gravity;
+pub mod ifs;
 pub mod listen;
+pub mod lsystem;
 pub mod memory;
 pub mod project;
 pub mod react;
 pub mod resonate;
+pub mod scene;
 pub mod score;
 pub mod stages;
 pub mod swarm;
@@ -21,7 +25,7 @@ pub mod temporal;
 pub mod voice;
 pub mod wgsl;
 
-use crate::ast::{Cinematic, Expr, LayerBody, Param};
+use crate::ast::{Cinematic, Expr, FnDef, LayerBody, Param};
 use crate::builtins;
 use crate::error::CompileError;
 
@@ -54,6 +58,12 @@ pub struct ShaderOutput {
     pub swarm_trail_wgsl: Option<String>,
     /// Flow field compute shader.
     pub flow_wgsl: Option<String>,
+    /// Post-processing pass fragment shaders (ordered).
+    pub pass_wgsl: Vec<String>,
+    /// Number of post-processing passes.
+    pub pass_count: usize,
+    /// Whether this cinematic uses feedback (previous frame as input).
+    pub uses_feedback: bool,
 }
 
 /// Extract user-defined uniform parameters from a cinematic's layers.
@@ -82,16 +92,23 @@ fn extract_uniforms(cinematic: &Cinematic) -> Vec<UniformInfo> {
         }
 
         // Pipeline stages: ident args that aren't builtins are user uniforms
-        if let LayerBody::Pipeline(stages) = &layer.body {
-            for stage in stages {
-                for arg in &stage.args {
-                    if let Expr::Ident(name) = &arg.value {
-                        if builtins::lookup(name).is_none() && seen.insert(name.clone()) {
-                            uniforms.push(UniformInfo {
-                                name: name.clone(),
-                                default: 0.0,
-                            });
-                        }
+        let stages_to_scan: Vec<&crate::ast::Stage> = match &layer.body {
+            LayerBody::Pipeline(stages) => stages.iter().collect(),
+            LayerBody::Conditional {
+                then_branch,
+                else_branch,
+                ..
+            } => then_branch.iter().chain(else_branch.iter()).collect(),
+            _ => vec![],
+        };
+        for stage in stages_to_scan {
+            for arg in &stage.args {
+                if let Expr::Ident(name) = &arg.value {
+                    if builtins::lookup(name).is_none() && seen.insert(name.clone()) {
+                        uniforms.push(UniformInfo {
+                            name: name.clone(),
+                            default: 0.0,
+                        });
                     }
                 }
             }
@@ -102,10 +119,27 @@ fn extract_uniforms(cinematic: &Cinematic) -> Vec<UniformInfo> {
 }
 
 /// Validate all pipeline layers in a cinematic.
-pub fn validate(cinematic: &Cinematic) -> Result<(), CompileError> {
+pub fn validate(cinematic: &Cinematic, fns: &[FnDef]) -> Result<(), CompileError> {
     for layer in &cinematic.layers {
-        if let LayerBody::Pipeline(pipeline) = &layer.body {
-            stages::validate_pipeline(pipeline)?;
+        match &layer.body {
+            LayerBody::Pipeline(pipeline) => {
+                stages::validate_pipeline_with_fns(pipeline, fns)?;
+            }
+            LayerBody::Conditional {
+                then_branch,
+                else_branch,
+                ..
+            } => {
+                let then_state = stages::validate_pipeline_with_fns(then_branch, fns)?;
+                let else_state = stages::validate_pipeline_with_fns(else_branch, fns)?;
+                if then_state != else_state {
+                    return Err(CompileError::validation(format!(
+                        "if/else branches produce different states: {:?} vs {:?}",
+                        then_state, else_state
+                    )));
+                }
+            }
+            LayerBody::Params(_) => {}
         }
     }
     // Cast type validation (checks pipeline output matches declared cast)
@@ -136,12 +170,20 @@ pub fn extract_uniforms_public(cinematic: &Cinematic) -> Vec<UniformInfo> {
 
 /// Generate shaders for a single cinematic.
 pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
-    validate(cinematic)?;
+    generate_with_fns(cinematic, &[])
+}
+
+/// Generate shaders for a cinematic with user-defined function context.
+pub fn generate_with_fns(
+    cinematic: &Cinematic,
+    fns: &[FnDef],
+) -> Result<ShaderOutput, CompileError> {
+    validate(cinematic, fns)?;
 
     let uniforms = extract_uniforms(cinematic);
 
-    let wgsl_fragment = wgsl::generate_fragment(cinematic, &uniforms);
-    let glsl_fragment = glsl::generate_fragment(cinematic, &uniforms);
+    let wgsl_fragment = wgsl::generate_fragment_with_fns(cinematic, &uniforms, fns);
+    let glsl_fragment = glsl::generate_fragment_with_fns(cinematic, &uniforms, fns);
 
     let uses_memory = memory::any_layer_uses_memory(&cinematic.layers);
 
@@ -225,6 +267,17 @@ pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
         None
     };
 
+    // Pass blocks → additional fragment shaders for post-processing
+    let pass_wgsl: Vec<String> = cinematic
+        .passes
+        .iter()
+        .map(|pb| wgsl::generate_pass_fragment(pb))
+        .collect();
+    let pass_count = pass_wgsl.len();
+
+    // Feedback detection
+    let uses_feedback = cinematic.layers.iter().any(|l| l.feedback);
+
     Ok(ShaderOutput {
         name: cinematic.name.clone(),
         wgsl_fragment,
@@ -239,6 +292,9 @@ pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
         swarm_agent_wgsl,
         swarm_trail_wgsl,
         flow_wgsl,
+        pass_wgsl,
+        pass_count,
+        uses_feedback,
     })
 }
 
@@ -257,6 +313,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(stages),
             }],
             arcs: vec![],
@@ -268,6 +325,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         }
     }
 
@@ -330,6 +389,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Params(vec![Param {
                     name: "intensity".into(),
                     value: Expr::Number(0.5),
@@ -346,6 +406,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let uniforms = extract_uniforms(&cin);
         assert_eq!(uniforms.len(), 1);
@@ -364,6 +426,7 @@ mod tests {
                 opacity: None,
                 cast: Some("sdf".into()),
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -378,6 +441,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         assert!(generate(&cin).is_ok());
     }
@@ -393,6 +458,7 @@ mod tests {
                 opacity: None,
                 cast: Some("sdf".into()),
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -413,6 +479,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let err = generate(&cin).unwrap_err();
         assert!(err.to_string().contains("cast as 'sdf'"));
@@ -429,6 +497,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -455,6 +524,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let output = generate(&cin).unwrap();
         assert_eq!(output.js_modules.len(), 1);
@@ -473,6 +544,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -497,6 +569,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let output = generate(&cin).unwrap();
         assert!(output.compute_wgsl.is_some());
@@ -535,6 +609,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -562,6 +637,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let output = generate(&cin).unwrap();
         assert!(output
@@ -581,6 +658,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -609,6 +687,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let output = generate(&cin).unwrap();
         assert!(output
@@ -629,6 +709,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![
                     Stage {
                         name: "circle".into(),
@@ -664,6 +745,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let output = generate(&cin).unwrap();
         let has_resonate = output
@@ -689,6 +772,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -709,6 +793,8 @@ mod tests {
             }),
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let output = generate(&cin).unwrap();
         assert!(output.react_wgsl.is_some());
@@ -730,6 +816,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -754,6 +841,8 @@ mod tests {
                 bounds: crate::ast::BoundsMode::Wrap,
             }),
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let output = generate(&cin).unwrap();
         assert!(output.swarm_agent_wgsl.is_some());
@@ -773,6 +862,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -794,6 +884,8 @@ mod tests {
                 strength: 1.0,
                 bounds: crate::ast::BoundsMode::Wrap,
             }),
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let output = generate(&cin).unwrap();
         assert!(output.flow_wgsl.is_some());

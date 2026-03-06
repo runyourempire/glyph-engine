@@ -12,10 +12,40 @@
 use crate::ast::*;
 use crate::codegen::memory;
 use crate::codegen::stages::get_arg;
+use crate::codegen::wgsl::substitute_fn_args;
 use crate::codegen::UniformInfo;
+
+fn named_palette_glsl(name: &str) -> Option<(&str, &str, &str, &str)> {
+    match name {
+        "fire" => Some(("vec3(0.5, 0.3, 0.1)", "vec3(0.5, 0.2, 0.1)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.25, 0.25)")),
+        "ocean" => Some(("vec3(0.0, 0.3, 0.5)", "vec3(0.0, 0.3, 0.5)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.1, 0.2)")),
+        "neon" => Some(("vec3(0.5, 0.5, 0.5)", "vec3(0.5, 0.5, 0.5)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.33, 0.67)")),
+        "aurora" => Some(("vec3(0.0, 0.5, 0.3)", "vec3(0.2, 0.5, 0.4)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.1, 0.3)")),
+        "sunset" => Some(("vec3(0.5, 0.3, 0.2)", "vec3(0.5, 0.2, 0.3)", "vec3(1.0, 1.0, 0.5)", "vec3(0.8, 0.9, 0.3)")),
+        "ice" => Some(("vec3(0.5, 0.7, 0.9)", "vec3(0.2, 0.2, 0.1)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.05, 0.15)")),
+        _ => None,
+    }
+}
+
+/// Generate a GLSL ES 3.0 fragment shader with user-defined functions.
+pub fn generate_fragment_with_fns(
+    cinematic: &Cinematic,
+    uniforms: &[UniformInfo],
+    fns: &[FnDef],
+) -> String {
+    generate_fragment_inner(cinematic, uniforms, fns)
+}
 
 /// Generate a GLSL ES 3.0 fragment shader for a cinematic.
 pub fn generate_fragment(cinematic: &Cinematic, uniforms: &[UniformInfo]) -> String {
+    generate_fragment_inner(cinematic, uniforms, &[])
+}
+
+fn generate_fragment_inner(
+    cinematic: &Cinematic,
+    uniforms: &[UniformInfo],
+    fns: &[FnDef],
+) -> String {
     let mut s = String::with_capacity(4096);
 
     // Header
@@ -64,7 +94,7 @@ pub fn generate_fragment(cinematic: &Cinematic, uniforms: &[UniformInfo]) -> Str
     }
 
     for (i, layer) in cinematic.layers.iter().enumerate() {
-        emit_glsl_layer(&mut s, layer, i, multi_layer);
+        emit_glsl_layer(&mut s, layer, i, multi_layer, fns);
     }
 
     if multi_layer {
@@ -282,12 +312,7 @@ fn emit_glsl_palette(s: &mut String) {
     s.push_str("}\n\n");
 }
 
-fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
-    let body = match &layer.body {
-        LayerBody::Pipeline(stages) => stages,
-        _ => return,
-    };
-
+fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: &[FnDef]) {
     s.push_str(&format!("    // ── Layer {idx}: {} ──\n", layer.name));
     if multi {
         s.push_str("    {\n");
@@ -296,9 +321,39 @@ fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
 
     s.push_str(&format!("{indent}vec2 p = vec2(uv.x * aspect, uv.y);\n"));
 
-    for stage in body {
-        emit_glsl_stage(s, stage, indent);
-    }
+    match &layer.body {
+        LayerBody::Pipeline(stages) => {
+            for stage in stages {
+                emit_glsl_stage_with_fns(s, stage, indent, fns);
+            }
+        }
+        LayerBody::Conditional {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
+            s.push_str(&format!("{indent}vec4 color_result;\n"));
+            s.push_str(&format!("{indent}{{\n"));
+            let inner = &format!("{indent}    ");
+            s.push_str(&format!("{inner}vec2 p_then = p;\n"));
+            s.push_str(&format!("{inner}{{ vec2 p = p_then;\n"));
+            for stage in then_branch {
+                emit_glsl_stage_with_fns(s, stage, inner, fns);
+            }
+            s.push_str(&format!("{inner}vec4 then_color = color_result; }}\n"));
+            s.push_str(&format!("{inner}{{ vec2 p = p_then;\n"));
+            for stage in else_branch {
+                emit_glsl_stage_with_fns(s, stage, inner, fns);
+            }
+            s.push_str(&format!("{inner}vec4 else_color = color_result; }}\n"));
+            let cond_str = emit_glsl_expr(condition);
+            s.push_str(&format!(
+                "{inner}color_result = {cond_str} ? then_color : else_color;\n"
+            ));
+            s.push_str(&format!("{indent}}}\n"));
+        }
+        LayerBody::Params(_) => return,
+    };
 
     // Memory: mix with previous frame if this layer has memory
     if let Some(decay) = layer.memory {
@@ -345,6 +400,59 @@ fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
     } else {
         s.push_str(&format!("{indent}fragColor = color_result;\n"));
     }
+}
+
+/// Emit a GLSL expression string from an AST Expr.
+fn emit_glsl_expr(expr: &Expr) -> String {
+    match expr {
+        Expr::Number(v) => format!("{v:.6}"),
+        Expr::Ident(name) => match name.as_str() {
+            "time" => "time".to_string(),
+            "bass" => "u_audio_bass".to_string(),
+            "mid" => "u_audio_mid".to_string(),
+            "treble" => "u_audio_treble".to_string(),
+            "energy" => "u_audio_energy".to_string(),
+            "beat" => "u_audio_beat".to_string(),
+            _ => name.clone(),
+        },
+        Expr::DottedIdent { object, field } => format!("{object}_{field}"),
+        Expr::BinOp { op, left, right } => {
+            let l = emit_glsl_expr(left);
+            let r = emit_glsl_expr(right);
+            let op_str = match op {
+                BinOp::Add => "+",
+                BinOp::Sub => "-",
+                BinOp::Mul => "*",
+                BinOp::Div => "/",
+                BinOp::Pow => return format!("pow({l}, {r})"),
+                BinOp::Gt => ">",
+                BinOp::Lt => "<",
+                BinOp::Gte => ">=",
+                BinOp::Lte => "<=",
+                BinOp::Eq => "==",
+                BinOp::NotEq => "!=",
+            };
+            format!("({l} {op_str} {r})")
+        }
+        Expr::Neg(inner) => format!("(-{})", emit_glsl_expr(inner)),
+        Expr::Paren(inner) => format!("({})", emit_glsl_expr(inner)),
+        Expr::Call { name, args } => {
+            let arg_strs: Vec<String> = args.iter().map(|a| emit_glsl_expr(&a.value)).collect();
+            format!("{}({})", name, arg_strs.join(", "))
+        }
+        _ => "0.0".to_string(),
+    }
+}
+
+fn emit_glsl_stage_with_fns(s: &mut String, stage: &Stage, indent: &str, fns: &[FnDef]) {
+    if let Some(fn_def) = fns.iter().find(|f| f.name == stage.name) {
+        for fn_stage in &fn_def.body {
+            let substituted = substitute_fn_args(fn_stage, &fn_def.params, &stage.args);
+            emit_glsl_stage(s, &substituted, indent);
+        }
+        return;
+    }
+    emit_glsl_stage(s, stage, indent);
 }
 
 fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
@@ -514,21 +622,48 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             ));
         }
         "palette" => {
-            let a_r = get_arg(args, "a_r", 0, "palette");
-            let a_g = get_arg(args, "a_g", 1, "palette");
-            let a_b = get_arg(args, "a_b", 2, "palette");
-            let b_r = get_arg(args, "b_r", 3, "palette");
-            let b_g = get_arg(args, "b_g", 4, "palette");
-            let b_b = get_arg(args, "b_b", 5, "palette");
-            let c_r = get_arg(args, "c_r", 6, "palette");
-            let c_g = get_arg(args, "c_g", 7, "palette");
-            let c_b = get_arg(args, "c_b", 8, "palette");
-            let d_r = get_arg(args, "d_r", 9, "palette");
-            let d_g = get_arg(args, "d_g", 10, "palette");
-            let d_b = get_arg(args, "d_b", 11, "palette");
-            s.push_str(&format!(
-                "{indent}vec4 color_result = vec4(cosine_palette(sdf_result, vec3({a_r}, {a_g}, {a_b}), vec3({b_r}, {b_g}, {b_b}), vec3({c_r}, {c_g}, {c_b}), vec3({d_r}, {d_g}, {d_b})), 1.0);\n"
-            ));
+            let preset = args.first().and_then(|a| {
+                if let Expr::Ident(name) = &a.value {
+                    named_palette_glsl(name)
+                } else {
+                    None
+                }
+            });
+            if let Some((a, b, c, d)) = preset {
+                s.push_str(&format!(
+                    "{indent}vec4 color_result = vec4(cosine_palette(sdf_result, {a}, {b}, {c}, {d}), 1.0);\n"
+                ));
+            } else {
+                let a_r = get_arg(args, "a_r", 0, "palette");
+                let a_g = get_arg(args, "a_g", 1, "palette");
+                let a_b = get_arg(args, "a_b", 2, "palette");
+                let b_r = get_arg(args, "b_r", 3, "palette");
+                let b_g = get_arg(args, "b_g", 4, "palette");
+                let b_b = get_arg(args, "b_b", 5, "palette");
+                let c_r = get_arg(args, "c_r", 6, "palette");
+                let c_g = get_arg(args, "c_g", 7, "palette");
+                let c_b = get_arg(args, "c_b", 8, "palette");
+                let d_r = get_arg(args, "d_r", 9, "palette");
+                let d_g = get_arg(args, "d_g", 10, "palette");
+                let d_b = get_arg(args, "d_b", 11, "palette");
+                s.push_str(&format!(
+                    "{indent}vec4 color_result = vec4(cosine_palette(sdf_result, vec3({a_r}, {a_g}, {a_b}), vec3({b_r}, {b_g}, {b_b}), vec3({c_r}, {c_g}, {c_b}), vec3({d_r}, {d_g}, {d_b})), 1.0);\n"
+                ));
+            }
+        }
+        // ── SDF Morph ────────────────────────────────────
+        "morph" => {
+            let args = &stage.args;
+            if args.len() < 3 {
+                s.push_str(&format!("{indent}float sdf_result = length(p) - 0.2;\n"));
+            } else {
+                emit_glsl_sub_sdf(s, &args[0].value, "sdf_a", indent);
+                emit_glsl_sub_sdf(s, &args[1].value, "sdf_b", indent);
+                let t = emit_glsl_expr(&args[2].value);
+                s.push_str(&format!(
+                    "{indent}float sdf_result = mix(sdf_a, sdf_b, {t});\n"
+                ));
+            }
         }
         // ── SDF Boolean operations ──────────────────────
         "union" | "subtract" | "intersect" | "xor" => {
@@ -831,6 +966,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(stages),
             }],
             arcs: vec![],
@@ -842,6 +978,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         }
     }
 
@@ -1031,6 +1169,7 @@ mod tests {
                     opacity: None,
                     cast: None,
                     blend: BlendMode::Add,
+                    feedback: false,
                     body: LayerBody::Pipeline(vec![
                         Stage {
                             name: "circle".into(),
@@ -1049,6 +1188,7 @@ mod tests {
                     opacity: None,
                     cast: None,
                     blend: BlendMode::Add,
+                    feedback: false,
                     body: LayerBody::Pipeline(vec![
                         Stage {
                             name: "ring".into(),
@@ -1070,6 +1210,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         };
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("vec4 final_color"));
@@ -1205,6 +1347,8 @@ mod tests {
             react: None,
             swarm: None,
             flow: None,
+            passes: vec![],
+            cinematic_uses: vec![],
         }
     }
 
@@ -1218,6 +1362,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1230,6 +1375,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Screen,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1253,6 +1399,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1265,6 +1412,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Multiply,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1288,6 +1436,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Add,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
@@ -1300,6 +1449,7 @@ mod tests {
                 opacity: None,
                 cast: None,
                 blend: BlendMode::Overlay,
+                feedback: false,
                 body: LayerBody::Pipeline(vec![Stage {
                     name: "circle".into(),
                     args: vec![],
