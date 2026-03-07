@@ -104,7 +104,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("      layout: pipelineLayout,\n");
     s.push_str("      vertex: { module: vMod, entryPoint: 'vs_main' },\n");
     s.push_str(
-        "      fragment: { module: fMod, entryPoint: 'fs_main', targets: [{ format }] },\n",
+        "      fragment: { module: fMod, entryPoint: 'fs_main', targets: [{ format, blend: { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } } }] },\n",
     );
     s.push_str("      primitive: { topology: 'triangle-list' }\n");
     s.push_str("    });\n");
@@ -129,7 +129,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("      this._passPipelines.push(this.device.createRenderPipeline({\n");
         s.push_str("        layout: passPL,\n");
         s.push_str("        vertex: { module: vMod, entryPoint: 'vs_main' },\n");
-        s.push_str("        fragment: { module: mod, entryPoint: 'fs_main', targets: [{ format }] },\n");
+        s.push_str("        fragment: { module: mod, entryPoint: 'fs_main', targets: [{ format, blend: { color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } } }] },\n");
         s.push_str("        primitive: { topology: 'triangle-list' }\n");
         s.push_str("      }));\n");
         s.push_str("    }\n");
@@ -181,14 +181,14 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("    const mainPass = encoder.beginRenderPass({\n");
         s.push_str("      colorAttachments: [{\n");
         s.push_str("        view: this._passFBOs[0].createView(),\n");
-        s.push_str("        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 }\n");
+        s.push_str("        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n");
         s.push_str("      }]\n");
         s.push_str("    });\n");
     } else {
         s.push_str("    const mainPass = encoder.beginRenderPass({\n");
         s.push_str("      colorAttachments: [{\n");
         s.push_str("        view: this.ctx.getCurrentTexture().createView(),\n");
-        s.push_str("        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 }\n");
+        s.push_str("        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n");
         s.push_str("      }]\n");
         s.push_str("    });\n");
     }
@@ -237,7 +237,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("      const pp = encoder.beginRenderPass({\n");
         s.push_str("        colorAttachments: [{\n");
         s.push_str("          view: targetView,\n");
-        s.push_str("          loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 }\n");
+        s.push_str("          loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n");
         s.push_str("        }]\n");
         s.push_str("      });\n");
         s.push_str("      pp.setPipeline(this._passPipelines[p]);\n");
@@ -371,7 +371,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
 
     // ── init() ───────────────────────────────────────────────────────
     s.push_str("  init() {\n");
-    s.push_str("    const gl = this.canvas.getContext('webgl2');\n");
+    s.push_str("    const gl = this.canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true });\n");
     s.push_str("    if (!gl) return false;\n");
     s.push_str("    this.gl = gl;\n\n");
 
@@ -445,8 +445,10 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("    const gl = this.gl;\n");
     s.push_str("    const t = performance.now() / 1000 - this.startTime;\n");
     s.push_str("    gl.viewport(0, 0, this.canvas.width, this.canvas.height);\n");
-    s.push_str("    gl.clearColor(0, 0, 0, 1);\n");
+    s.push_str("    gl.clearColor(0, 0, 0, 0);\n");
     s.push_str("    gl.clear(gl.COLOR_BUFFER_BIT);\n");
+    s.push_str("    gl.enable(gl.BLEND);\n");
+    s.push_str("    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);\n");
     s.push_str("    gl.useProgram(this.program);\n\n");
 
     if needs_prev_frame {

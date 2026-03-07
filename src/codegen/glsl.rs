@@ -91,7 +91,7 @@ fn generate_fragment_inner(
     let render_layers = cinematic.layers.iter().filter(|l| !matches!(l.body, LayerBody::Params(_))).count();
     let multi_layer = render_layers > 1;
     if multi_layer {
-        s.push_str("    vec4 final_color = vec4(0.0, 0.0, 0.0, 1.0);\n\n");
+        s.push_str("    vec4 final_color = vec4(0.0, 0.0, 0.0, 0.0);\n\n");
     }
 
     for (i, layer) in cinematic.layers.iter().enumerate() {
@@ -370,25 +370,30 @@ fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: 
         // Apply opacity if specified
         if let Some(opacity) = layer.opacity {
             s.push_str(&format!(
+                "{indent}float la = color_result.a * {opacity:.6};\n"
+            ));
+            s.push_str(&format!(
                 "{indent}vec3 lc = color_result.rgb * {opacity:.6};\n"
             ));
         } else {
+            s.push_str(&format!("{indent}float la = color_result.a;\n"));
             s.push_str(&format!("{indent}vec3 lc = color_result.rgb;\n"));
         }
         match layer.blend {
             BlendMode::Add => {
+                // Premultiplied alpha "over" compositing
                 s.push_str(&format!(
-                    "{indent}final_color = vec4(final_color.rgb + lc, 1.0);\n"
+                    "{indent}final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);\n"
                 ));
             }
             BlendMode::Screen => {
                 s.push_str(&format!(
-                    "{indent}final_color = vec4(vec3(1.0) - (vec3(1.0) - final_color.rgb) * (vec3(1.0) - lc), 1.0);\n"
+                    "{indent}final_color = vec4(vec3(1.0) - (vec3(1.0) - final_color.rgb) * (vec3(1.0) - lc), max(final_color.a, la));\n"
                 ));
             }
             BlendMode::Multiply => {
                 s.push_str(&format!(
-                    "{indent}final_color = vec4(final_color.rgb * lc, 1.0);\n"
+                    "{indent}final_color = vec4(final_color.rgb * lc, max(final_color.a, la));\n"
                 ));
             }
             BlendMode::Overlay => {
@@ -398,7 +403,7 @@ fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: 
                     "{indent}vec3 hi = vec3(1.0) - 2.0 * (vec3(1.0) - base) * (vec3(1.0) - lc);\n"
                 ));
                 s.push_str(&format!(
-                    "{indent}final_color = vec4(mix(hi, lo, step(base, vec3(0.5))), 1.0); }}\n"
+                    "{indent}final_color = vec4(mix(hi, lo, step(base, vec3(0.5))), max(final_color.a, la)); }}\n"
                 ));
             }
         }
@@ -503,7 +508,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 "{indent}float glow_result = apply_glow(sdf_result, glow_pulse);\n\n"
             ));
             s.push_str(&format!(
-                "{indent}vec4 color_result = vec4(vec3(glow_result), 1.0);\n"
+                "{indent}vec4 color_result = vec4(vec3(glow_result), glow_result);\n"
             ));
         }
         "tint" => {
@@ -511,7 +516,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let g = get_arg(args, "g", 1, "tint");
             let b = get_arg(args, "b", 2, "tint");
             s.push_str(&format!(
-                "{indent}color_result = vec4(color_result.rgb * vec3({r}, {g}, {b}), 1.0);\n"
+                "{indent}color_result = vec4(color_result.rgb * vec3({r}, {g}, {b}), color_result.a);\n"
             ));
         }
         "bloom" => {
@@ -521,7 +526,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             s.push_str(&format!(
                 "{indent}float pp_lum = dot(color_result.rgb, vec3(0.299, 0.587, 0.114));\n"
             ));
-            s.push_str(&format!("{indent}color_result = vec4(color_result.rgb + max(pp_lum - {thresh}, 0.0) * {strength}, 1.0);\n"));
+            s.push_str(&format!("{indent}color_result = vec4(color_result.rgb + max(pp_lum - {thresh}, 0.0) * {strength}, color_result.a);\n"));
         }
         "rotate" => {
             let speed = get_arg(args, "speed", 0, "rotate");
@@ -556,7 +561,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let r = get_arg(args, "r", 0, "shade");
             let g = get_arg(args, "g", 1, "shade");
             let b = get_arg(args, "b", 2, "shade");
-            s.push_str(&format!("{indent}vec4 color_result = vec4(vec3({r}, {g}, {b}) * (1.0 - clamp(sdf_result, 0.0, 1.0)), 1.0);\n"));
+            s.push_str(&format!("{indent}vec4 color_result = vec4(vec3({r}, {g}, {b}) * (1.0 - clamp(sdf_result, 0.0, 1.0)), 1.0 - clamp(sdf_result, 0.0, 1.0));\n"));
         }
         "emissive" => {
             let intensity = get_arg(args, "intensity", 0, "emissive");
@@ -637,7 +642,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             });
             if let Some((a, b, c, d)) = preset {
                 s.push_str(&format!(
-                    "{indent}vec4 color_result = vec4(cosine_palette(sdf_result, {a}, {b}, {c}, {d}), 1.0);\n"
+                    "{indent}vec3 pal_rgb = cosine_palette(sdf_result, {a}, {b}, {c}, {d});\n{indent}vec4 color_result = vec4(pal_rgb, dot(pal_rgb, vec3(0.299, 0.587, 0.114)));\n"
                 ));
             } else {
                 let a_r = get_arg(args, "a_r", 0, "palette");
@@ -653,7 +658,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 let d_g = get_arg(args, "d_g", 10, "palette");
                 let d_b = get_arg(args, "d_b", 11, "palette");
                 s.push_str(&format!(
-                    "{indent}vec4 color_result = vec4(cosine_palette(sdf_result, vec3({a_r}, {a_g}, {a_b}), vec3({b_r}, {b_g}, {b_b}), vec3({c_r}, {c_g}, {c_b}), vec3({d_r}, {d_g}, {d_b})), 1.0);\n"
+                    "{indent}vec3 pal_rgb = cosine_palette(sdf_result, vec3({a_r}, {a_g}, {a_b}), vec3({b_r}, {b_g}, {b_b}), vec3({c_r}, {c_g}, {c_b}), vec3({d_r}, {d_g}, {d_b}));\n{indent}vec4 color_result = vec4(pal_rgb, dot(pal_rgb, vec3(0.299, 0.587, 0.114)));\n"
                 ));
             }
         }
@@ -722,7 +727,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let w = get_arg(args, "width", 0, "outline");
             s.push_str(&format!("{indent}{{ float out_lum = dot(color_result.rgb, vec3(0.299, 0.587, 0.114));\n"));
             s.push_str(&format!("{indent}float out_edge = abs(out_lum) - {w};\n"));
-            s.push_str(&format!("{indent}color_result = vec4(color_result.rgb * (1.0 - smoothstep(0.0, 0.02, out_edge)), 1.0); }}\n"));
+            s.push_str(&format!("{indent}color_result = vec4(color_result.rgb * (1.0 - smoothstep(0.0, 0.02, out_edge)), color_result.a * (1.0 - smoothstep(0.0, 0.02, out_edge))); }}\n"));
         }
         // ── New SDF primitives ──────────────────────────
         "line" => {

@@ -148,7 +148,7 @@ fn emit_pass_stage(s: &mut String, stage: &Stage, indent: &str) {
                 "{indent}let lum = dot(color_result.rgb, vec3<f32>(0.299, 0.587, 0.114));\n"
             ));
             s.push_str(&format!(
-                "{indent}color_result = select(vec4<f32>(0.0, 0.0, 0.0, 1.0), color_result, lum > {t});\n"
+                "{indent}color_result = select(vec4<f32>(0.0, 0.0, 0.0, 0.0), color_result, lum > {t});\n"
             ));
         }
         "invert" => {
@@ -158,7 +158,7 @@ fn emit_pass_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "blend_add" => {
             s.push_str(&format!(
-                "{indent}color_result = vec4<f32>(min(pixel.rgb + color_result.rgb, vec3<f32>(1.0)), 1.0);\n"
+                "{indent}color_result = vec4<f32>(min(pixel.rgb + color_result.rgb, vec3<f32>(1.0)), max(pixel.a, color_result.a));\n"
             ));
         }
         "vignette" => {
@@ -239,7 +239,7 @@ fn generate_fragment_inner(
     let render_layers = cinematic.layers.iter().filter(|l| !matches!(l.body, LayerBody::Params(_))).count();
     let multi_layer = render_layers > 1;
     if multi_layer {
-        s.push_str("    var final_color = vec4<f32>(0.0, 0.0, 0.0, 1.0);\n\n");
+        s.push_str("    var final_color = vec4<f32>(0.0, 0.0, 0.0, 0.0);\n\n");
     }
 
     for (i, layer) in cinematic.layers.iter().enumerate() {
@@ -536,25 +536,30 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: 
         // Apply opacity if specified
         if let Some(opacity) = layer.opacity {
             s.push_str(&format!(
+                "{indent}let la = color_result.a * {opacity:.6};\n"
+            ));
+            s.push_str(&format!(
                 "{indent}let lc = color_result.rgb * {opacity:.6};\n"
             ));
         } else {
+            s.push_str(&format!("{indent}let la = color_result.a;\n"));
             s.push_str(&format!("{indent}let lc = color_result.rgb;\n"));
         }
         match layer.blend {
             BlendMode::Add => {
+                // Premultiplied alpha "over" compositing: src + dst * (1 - srcAlpha)
                 s.push_str(&format!(
-                    "{indent}final_color = vec4<f32>(final_color.rgb + lc, 1.0);\n"
+                    "{indent}final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);\n"
                 ));
             }
             BlendMode::Screen => {
                 s.push_str(&format!(
-                    "{indent}final_color = vec4<f32>(1.0 - (1.0 - final_color.rgb) * (1.0 - lc), 1.0);\n"
+                    "{indent}final_color = vec4<f32>(1.0 - (1.0 - final_color.rgb) * (1.0 - lc), max(final_color.a, la));\n"
                 ));
             }
             BlendMode::Multiply => {
                 s.push_str(&format!(
-                    "{indent}final_color = vec4<f32>(final_color.rgb * lc, 1.0);\n"
+                    "{indent}final_color = vec4<f32>(final_color.rgb * lc, max(final_color.a, la));\n"
                 ));
             }
             BlendMode::Overlay => {
@@ -564,7 +569,7 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: 
                     "{indent}let hi = 1.0 - 2.0 * (1.0 - base) * (1.0 - lc);\n"
                 ));
                 s.push_str(&format!(
-                    "{indent}final_color = vec4<f32>(select(hi, lo, base < vec3<f32>(0.5)), 1.0); }}\n"
+                    "{indent}final_color = vec4<f32>(select(hi, lo, base < vec3<f32>(0.5)), max(final_color.a, la)); }}\n"
                 ));
             }
         }
@@ -732,14 +737,14 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 "{indent}let glow_result = apply_glow(sdf_result, glow_pulse);\n"
             ));
             s.push_str(&format!(
-                "{indent}var color_result = vec4<f32>(vec3<f32>(glow_result), 1.0);\n"
+                "{indent}var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);\n"
             ));
         }
         "tint" => {
             let r = get_arg(args, "r", 0, "tint");
             let g = get_arg(args, "g", 1, "tint");
             let b = get_arg(args, "b", 2, "tint");
-            s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb * vec3<f32>({r}, {g}, {b}), 1.0);\n"));
+            s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb * vec3<f32>({r}, {g}, {b}), color_result.a);\n"));
         }
         "bloom" => {
             let thresh = get_arg(args, "threshold", 0, "bloom");
@@ -747,7 +752,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             s.push_str(&format!(
                 "{indent}let pp_lum = dot(color_result.rgb, vec3<f32>(0.299, 0.587, 0.114));\n"
             ));
-            s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb + max(pp_lum - {thresh}, 0.0) * {strength}, 1.0);\n"));
+            s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb + max(pp_lum - {thresh}, 0.0) * {strength}, color_result.a);\n"));
         }
         "rotate" => {
             let speed = get_arg(args, "speed", 0, "rotate");
@@ -780,7 +785,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let r = get_arg(args, "r", 0, "shade");
             let g = get_arg(args, "g", 1, "shade");
             let b = get_arg(args, "b", 2, "shade");
-            s.push_str(&format!("{indent}var color_result = vec4<f32>(vec3<f32>({r}, {g}, {b}) * (1.0 - clamp(sdf_result, 0.0, 1.0)), 1.0);\n"));
+            s.push_str(&format!("{indent}var color_result = vec4<f32>(vec3<f32>({r}, {g}, {b}) * (1.0 - clamp(sdf_result, 0.0, 1.0)), 1.0 - clamp(sdf_result, 0.0, 1.0));\n"));
         }
         "emissive" => {
             let intensity = get_arg(args, "intensity", 0, "emissive");
@@ -862,7 +867,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             });
             if let Some((a, b, c, d)) = preset {
                 s.push_str(&format!(
-                    "{indent}var color_result = vec4<f32>(cosine_palette(sdf_result, {a}, {b}, {c}, {d}), 1.0);\n"
+                    "{indent}let pal_rgb = cosine_palette(sdf_result, {a}, {b}, {c}, {d});\n{indent}var color_result = vec4<f32>(pal_rgb, dot(pal_rgb, vec3<f32>(0.299, 0.587, 0.114)));\n"
                 ));
             } else {
                 let a_r = get_arg(args, "a_r", 0, "palette");
@@ -878,7 +883,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 let d_g = get_arg(args, "d_g", 10, "palette");
                 let d_b = get_arg(args, "d_b", 11, "palette");
                 s.push_str(&format!(
-                    "{indent}var color_result = vec4<f32>(cosine_palette(sdf_result, vec3<f32>({a_r}, {a_g}, {a_b}), vec3<f32>({b_r}, {b_g}, {b_b}), vec3<f32>({c_r}, {c_g}, {c_b}), vec3<f32>({d_r}, {d_g}, {d_b})), 1.0);\n"
+                    "{indent}let pal_rgb = cosine_palette(sdf_result, vec3<f32>({a_r}, {a_g}, {a_b}), vec3<f32>({b_r}, {b_g}, {b_b}), vec3<f32>({c_r}, {c_g}, {c_b}), vec3<f32>({d_r}, {d_g}, {d_b}));\n{indent}var color_result = vec4<f32>(pal_rgb, dot(pal_rgb, vec3<f32>(0.299, 0.587, 0.114)));\n"
                 ));
             }
         }
@@ -939,7 +944,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             // outline is Color->Color: use the sdf approach on the color's luminance
             s.push_str(&format!("{indent}{{ let out_lum = dot(color_result.rgb, vec3<f32>(0.299, 0.587, 0.114));\n"));
             s.push_str(&format!("{indent}let out_edge = abs(out_lum) - {w};\n"));
-            s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb * (1.0 - smoothstep(0.0, 0.02, out_edge)), 1.0); }}\n"));
+            s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb * (1.0 - smoothstep(0.0, 0.02, out_edge)), color_result.a * (1.0 - smoothstep(0.0, 0.02, out_edge))); }}\n"));
         }
         // ── New SDF primitives ──────────────────────────
         "line" => {
