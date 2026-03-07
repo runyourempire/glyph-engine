@@ -642,7 +642,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             });
             if let Some((a, b, c, d)) = preset {
                 s.push_str(&format!(
-                    "{indent}vec3 pal_rgb = cosine_palette(sdf_result, {a}, {b}, {c}, {d});\n{indent}vec4 color_result = vec4(pal_rgb, dot(pal_rgb, vec3(0.299, 0.587, 0.114)));\n"
+                    "{indent}vec3 pal_rgb = cosine_palette(sdf_result, {a}, {b}, {c}, {d});\n{indent}vec4 color_result = vec4(pal_rgb, clamp(dot(pal_rgb, vec3(0.299, 0.587, 0.114)) * 2.0, 0.0, 1.0));\n"
                 ));
             } else {
                 let a_r = get_arg(args, "a_r", 0, "palette");
@@ -658,7 +658,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 let d_g = get_arg(args, "d_g", 10, "palette");
                 let d_b = get_arg(args, "d_b", 11, "palette");
                 s.push_str(&format!(
-                    "{indent}vec3 pal_rgb = cosine_palette(sdf_result, vec3({a_r}, {a_g}, {a_b}), vec3({b_r}, {b_g}, {b_b}), vec3({c_r}, {c_g}, {c_b}), vec3({d_r}, {d_g}, {d_b}));\n{indent}vec4 color_result = vec4(pal_rgb, dot(pal_rgb, vec3(0.299, 0.587, 0.114)));\n"
+                    "{indent}vec3 pal_rgb = cosine_palette(sdf_result, vec3({a_r}, {a_g}, {a_b}), vec3({b_r}, {b_g}, {b_b}), vec3({c_r}, {c_g}, {c_b}), vec3({d_r}, {d_g}, {d_b}));\n{indent}vec4 color_result = vec4(pal_rgb, clamp(dot(pal_rgb, vec3(0.299, 0.587, 0.114)) * 2.0, 0.0, 1.0));\n"
                 ));
             }
         }
