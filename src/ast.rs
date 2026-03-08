@@ -10,6 +10,7 @@ pub struct Program {
     pub ifs_blocks: Vec<IfsBlock>,
     pub lsystem_blocks: Vec<LsystemBlock>,
     pub automaton_blocks: Vec<AutomatonBlock>,
+    pub matrix_blocks: Vec<MatrixBlock>,
 }
 
 /// `fn name(params) { pipeline }`
@@ -45,6 +46,10 @@ pub struct Cinematic {
     pub passes: Vec<PassBlock>,
     /// References to other cinematics used as texture inputs.
     pub cinematic_uses: Vec<CinematicUse>,
+    /// Coupling matrix for bidirectional parameter coupling.
+    pub matrix_coupling: Option<MatrixCoupling>,
+    /// Color matrix for 3x3 RGB color grading.
+    pub matrix_color: Option<MatrixColor>,
 }
 
 /// `pass name { pipeline }` — post-processing pass within a cinematic.
@@ -464,6 +469,51 @@ pub enum AutomatonSeed {
     Random(f64),
     Center,
     Pattern(String),
+}
+
+// ── Phase v0.7: Matrix System ────────────────────────────
+
+/// A `matrix` block — one of three matrix forms.
+#[derive(Debug, Clone)]
+pub enum MatrixBlock {
+    /// `matrix coupling { sources, targets, weights, damping, depth }`
+    Coupling(MatrixCoupling),
+    /// `matrix color { 3x3 values }`
+    Color(MatrixColor),
+    /// `matrix transitions "name" { states, weights, hold }`
+    Transitions(MatrixTransitions),
+}
+
+/// Coupling matrix — bidirectional NxM parameter coupling grid.
+#[derive(Debug, Clone)]
+pub struct MatrixCoupling {
+    pub sources: Vec<String>,
+    pub targets: Vec<MatrixTarget>,
+    pub weights: Vec<f64>,
+    pub damping: f64,
+    pub depth: u32,
+}
+
+/// A coupling target: `layer.field`
+#[derive(Debug, Clone)]
+pub struct MatrixTarget {
+    pub layer: String,
+    pub field: String,
+}
+
+/// Color matrix — 3x3 RGB color grading transform.
+#[derive(Debug, Clone)]
+pub struct MatrixColor {
+    pub values: [f64; 9],
+}
+
+/// Transition matrix — Markov chain probabilistic scene sequencing.
+#[derive(Debug, Clone)]
+pub struct MatrixTransitions {
+    pub name: String,
+    pub states: Vec<String>,
+    pub weights: Vec<f64>,
+    pub hold: Duration,
 }
 
 // ── Phase v0.5: Scene sequencing ─────────────────────────

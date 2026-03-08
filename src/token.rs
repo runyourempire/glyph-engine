@@ -38,6 +38,7 @@ pub enum Token {
     Transition,
     For,
     Feedback,
+    Matrix,
 
     // --- punctuation ---
     Pipe,       // |
@@ -122,6 +123,7 @@ impl std::fmt::Display for Token {
             Token::Transition => write!(f, "transition"),
             Token::For => write!(f, "for"),
             Token::Feedback => write!(f, "feedback"),
+            Token::Matrix => write!(f, "matrix"),
             Token::Pipe => write!(f, "|"),
             Token::Tilde => write!(f, "~"),
             Token::LBrace => write!(f, "{{"),

@@ -1358,10 +1358,7 @@ fn parse_conditional_multi_stage_branches() {
 #[test]
 fn parse_use_import_basic() {
     // use "shapes.game"
-    let tokens = vec![
-        s(Token::Use),
-        s(Token::StringLit("shapes.game".into())),
-    ];
+    let tokens = vec![s(Token::Use), s(Token::StringLit("shapes.game".into()))];
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse use import");
     assert_eq!(prog.imports.len(), 1);

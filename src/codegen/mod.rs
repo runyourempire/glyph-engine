@@ -13,6 +13,7 @@ pub mod gravity;
 pub mod ifs;
 pub mod listen;
 pub mod lsystem;
+pub mod matrix;
 pub mod memory;
 pub mod project;
 pub mod react;
@@ -58,6 +59,10 @@ pub struct ShaderOutput {
     pub swarm_trail_wgsl: Option<String>,
     /// Flow field compute shader.
     pub flow_wgsl: Option<String>,
+    /// Color matrix WGSL function (injected into fragment shader).
+    pub color_matrix_wgsl: Option<String>,
+    /// Color matrix GLSL function.
+    pub color_matrix_glsl: Option<String>,
     /// Post-processing pass fragment shaders (ordered).
     pub pass_wgsl: Vec<String>,
     /// Number of post-processing passes.
@@ -237,6 +242,24 @@ pub fn generate_with_fns(
         }
     }
 
+    // Matrix coupling → GameCouplingMatrix JS class
+    if let Some(ref mc) = cinematic.matrix_coupling {
+        js_modules.push(matrix::generate_coupling_js(mc));
+    }
+
+    // Note: transition matrices are top-level (Program.matrix_blocks),
+    // not per-cinematic. They are handled separately during scene codegen.
+
+    // Matrix color → WGSL/GLSL function snippets (injected into fragment shader)
+    let color_matrix_wgsl = cinematic
+        .matrix_color
+        .as_ref()
+        .map(|mc| matrix::generate_color_matrix_wgsl(mc));
+    let color_matrix_glsl = cinematic
+        .matrix_color
+        .as_ref()
+        .map(|mc| matrix::generate_color_matrix_glsl(mc));
+
     // React → compute WGSL + GameReactionField JS class
     let react_wgsl = if let Some(ref rb) = cinematic.react {
         let (w, h) = (256u32, 256u32);
@@ -287,6 +310,8 @@ pub fn generate_with_fns(
         uniforms,
         uses_memory,
         js_modules,
+        color_matrix_wgsl,
+        color_matrix_glsl,
         compute_wgsl,
         react_wgsl,
         swarm_agent_wgsl,
@@ -327,6 +352,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         }
     }
 
@@ -408,6 +435,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let uniforms = extract_uniforms(&cin);
         assert_eq!(uniforms.len(), 1);
@@ -443,6 +472,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         assert!(generate(&cin).is_ok());
     }
@@ -481,6 +512,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let err = generate(&cin).unwrap_err();
         assert!(err.to_string().contains("cast as 'sdf'"));
@@ -526,6 +559,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate(&cin).unwrap();
         assert_eq!(output.js_modules.len(), 1);
@@ -571,6 +606,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output.compute_wgsl.is_some());
@@ -639,6 +676,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output
@@ -689,6 +728,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output
@@ -747,6 +788,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate(&cin).unwrap();
         let has_resonate = output
@@ -795,6 +838,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output.react_wgsl.is_some());
@@ -843,6 +888,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output.swarm_agent_wgsl.is_some());
@@ -886,6 +933,8 @@ mod tests {
             }),
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output.flow_wgsl.is_some());

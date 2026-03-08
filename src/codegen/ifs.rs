@@ -114,7 +114,9 @@ pub fn generate_compute_wgsl(ifs: &IfsBlock) -> String {
     s.push_str("\n        // Map to texture coordinates\n");
     s.push_str("        let px = i32((pos.x + 3.0) / 6.0 * params.width);\n");
     s.push_str("        let py = i32((pos.y + 0.5) / 12.0 * params.height);\n");
-    s.push_str("        if (px >= 0 && px < i32(params.width) && py >= 0 && py < i32(params.height)) {\n");
+    s.push_str(
+        "        if (px >= 0 && px < i32(params.width) && py >= 0 && py < i32(params.height)) {\n",
+    );
     s.push_str("            let idx = u32(py) * u32(params.width) + u32(px);\n");
     s.push_str("            atomicAdd(&histogram[idx], 1u);\n");
     s.push_str("        }\n");

@@ -125,14 +125,18 @@ fn emit_pass_stage(s: &mut String, stage: &Stage, indent: &str) {
             s.push_str(&format!("{indent}// blur pass\n"));
             s.push_str(&format!("{indent}var blurred = vec4<f32>(0.0);\n"));
             s.push_str(&format!("{indent}let texel = 1.0 / u.resolution;\n"));
-            s.push_str(&format!(
-                "{indent}let r = i32({radius});\n"
-            ));
+            s.push_str(&format!("{indent}let r = i32({radius});\n"));
             s.push_str(&format!("{indent}var count = 0.0;\n"));
             s.push_str(&format!("{indent}for (var dy = -r; dy <= r; dy++) {{\n"));
-            s.push_str(&format!("{indent}    for (var dx = -r; dx <= r; dx++) {{\n"));
-            s.push_str(&format!("{indent}        let offset = vec2<f32>(f32(dx), f32(dy)) * texel;\n"));
-            s.push_str(&format!("{indent}        blurred += textureSample(pass_tex, pass_sampler, uv + offset);\n"));
+            s.push_str(&format!(
+                "{indent}    for (var dx = -r; dx <= r; dx++) {{\n"
+            ));
+            s.push_str(&format!(
+                "{indent}        let offset = vec2<f32>(f32(dx), f32(dy)) * texel;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}        blurred += textureSample(pass_tex, pass_sampler, uv + offset);\n"
+            ));
             s.push_str(&format!("{indent}        count += 1.0;\n"));
             s.push_str(&format!("{indent}    }}\n"));
             s.push_str(&format!("{indent}}}\n"));
@@ -176,10 +180,7 @@ fn emit_pass_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         _ => {
             // Unknown pass stage — passthrough
-            s.push_str(&format!(
-                "{indent}// unknown pass stage: {}\n",
-                stage.name
-            ));
+            s.push_str(&format!("{indent}// unknown pass stage: {}\n", stage.name));
         }
     }
 }
@@ -221,6 +222,12 @@ fn generate_fragment_inner(
     // Built-in helper functions
     emit_wgsl_builtins(&mut s, cinematic);
 
+    // Color matrix function (if present)
+    if let Some(ref mc) = cinematic.matrix_color {
+        s.push_str(&super::matrix::generate_color_matrix_wgsl(mc));
+        s.push('\n');
+    }
+
     // Fragment entry
     s.push_str("@fragment\n");
     s.push_str("fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {\n");
@@ -236,7 +243,11 @@ fn generate_fragment_inner(
         s.push('\n');
     }
 
-    let render_layers = cinematic.layers.iter().filter(|l| !matches!(l.body, LayerBody::Params(_))).count();
+    let render_layers = cinematic
+        .layers
+        .iter()
+        .filter(|l| !matches!(l.body, LayerBody::Params(_)))
+        .count();
     let multi_layer = render_layers > 1;
     if multi_layer {
         s.push_str("    var final_color = vec4<f32>(0.0, 0.0, 0.0, 0.0);\n\n");
@@ -246,10 +257,20 @@ fn generate_fragment_inner(
         if matches!(layer.body, LayerBody::Params(_)) {
             continue;
         }
-        emit_wgsl_layer(&mut s, layer, i, multi_layer, fns);
+        emit_wgsl_layer(
+            &mut s,
+            layer,
+            i,
+            multi_layer,
+            fns,
+            cinematic.matrix_color.is_some(),
+        );
     }
 
     if multi_layer {
+        if cinematic.matrix_color.is_some() {
+            s.push_str("    final_color = vec4<f32>(apply_color_matrix(final_color.rgb), final_color.a);\n");
+        }
         s.push_str("    return final_color;\n");
     }
     s.push_str("}\n");
@@ -259,7 +280,10 @@ fn generate_fragment_inner(
 fn emit_wgsl_builtins(s: &mut String, cinematic: &Cinematic) {
     let needs_circle = cinematic.layers.iter().any(|l| has_stage(l, "circle"));
     let needs_star = cinematic.layers.iter().any(|l| has_stage(l, "star"));
-    let needs_box = cinematic.layers.iter().any(|l| has_stage(l, "box") || has_stage(l, "cross"));
+    let needs_box = cinematic
+        .layers
+        .iter()
+        .any(|l| has_stage(l, "box") || has_stage(l, "cross"));
     let needs_hex = cinematic.layers.iter().any(|l| has_stage(l, "hex"));
     let needs_fbm = cinematic.layers.iter().any(|l| has_stage(l, "fbm"));
     let needs_warp = cinematic.layers.iter().any(|l| has_stage(l, "warp"));
@@ -476,7 +500,14 @@ fn emit_wgsl_palette(s: &mut String) {
     s.push_str("}\n\n");
 }
 
-fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: &[FnDef]) {
+fn emit_wgsl_layer(
+    s: &mut String,
+    layer: &Layer,
+    idx: usize,
+    multi: bool,
+    fns: &[FnDef],
+    has_color_matrix: bool,
+) {
     s.push_str(&format!("    // ── Layer {idx}: {} ──\n", layer.name));
     if multi {
         s.push_str("    {\n");
@@ -575,6 +606,9 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: 
         }
         s.push_str("    }\n\n");
     } else {
+        if has_color_matrix {
+            s.push_str(&format!("{indent}color_result = vec4<f32>(apply_color_matrix(color_result.rgb), color_result.a);\n"));
+        }
         s.push_str(&format!("{indent}return color_result;\n"));
     }
 }
@@ -583,17 +617,15 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: 
 pub fn emit_wgsl_expr(expr: &Expr) -> String {
     match expr {
         Expr::Number(v) => format!("{v:.6}"),
-        Expr::Ident(name) => {
-            match name.as_str() {
-                "time" => "time".to_string(),
-                "bass" => "u.audio_bass".to_string(),
-                "mid" => "u.audio_mid".to_string(),
-                "treble" => "u.audio_treble".to_string(),
-                "energy" => "u.audio_energy".to_string(),
-                "beat" => "u.audio_beat".to_string(),
-                _ => name.clone(),
-            }
-        }
+        Expr::Ident(name) => match name.as_str() {
+            "time" => "time".to_string(),
+            "bass" => "u.audio_bass".to_string(),
+            "mid" => "u.audio_mid".to_string(),
+            "treble" => "u.audio_treble".to_string(),
+            "energy" => "u.audio_energy".to_string(),
+            "beat" => "u.audio_beat".to_string(),
+            _ => name.clone(),
+        },
         Expr::DottedIdent { object, field } => {
             let obj = match object.as_str() {
                 "audio" => "u.audio_",
@@ -656,11 +688,9 @@ pub fn substitute_fn_args(stage: &Stage, params: &[String], caller_args: &[Arg])
         args: stage
             .args
             .iter()
-            .map(|arg| {
-                Arg {
-                    name: arg.name.clone(),
-                    value: substitute_expr(&arg.value, params, caller_args),
-                }
+            .map(|arg| Arg {
+                name: arg.name.clone(),
+                value: substitute_expr(&arg.value, params, caller_args),
             })
             .collect(),
     }
@@ -912,9 +942,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         "radial" => {
             let count = get_arg(args, "count", 0, "radial");
             s.push_str(&format!("{indent}{{ let r_angle = atan2(p.y, p.x);\n"));
-            s.push_str(&format!(
-                "{indent}let r_sector = 6.28318 / {count};\n"
-            ));
+            s.push_str(&format!("{indent}let r_sector = 6.28318 / {count};\n"));
             s.push_str(&format!(
                 "{indent}let r_a = game_mod(r_angle + r_sector * 0.5, r_sector) - r_sector * 0.5;\n"
             ));
@@ -942,7 +970,9 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         "outline" => {
             let w = get_arg(args, "width", 0, "outline");
             // outline is Color->Color: use the sdf approach on the color's luminance
-            s.push_str(&format!("{indent}{{ let out_lum = dot(color_result.rgb, vec3<f32>(0.299, 0.587, 0.114));\n"));
+            s.push_str(&format!(
+                "{indent}{{ let out_lum = dot(color_result.rgb, vec3<f32>(0.299, 0.587, 0.114));\n"
+            ));
             s.push_str(&format!("{indent}let out_edge = abs(out_lum) - {w};\n"));
             s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb * (1.0 - smoothstep(0.0, 0.02, out_edge)), color_result.a * (1.0 - smoothstep(0.0, 0.02, out_edge))); }}\n"));
         }
@@ -999,8 +1029,12 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let w = get_arg(args, "width", 1, "spiral");
             s.push_str(&format!("{indent}let sp_r = length(p);\n"));
             s.push_str(&format!("{indent}let sp_a = atan2(p.y, p.x);\n"));
-            s.push_str(&format!("{indent}let sp_d = sp_r - (sp_a + 3.14159265) / 6.28318 / {turns};\n"));
-            s.push_str(&format!("{indent}var sdf_result = abs(sp_d - floor(sp_d + 0.5)) - {w};\n"));
+            s.push_str(&format!(
+                "{indent}let sp_d = sp_r - (sp_a + 3.14159265) / 6.28318 / {turns};\n"
+            ));
+            s.push_str(&format!(
+                "{indent}var sdf_result = abs(sp_d - floor(sp_d + 0.5)) - {w};\n"
+            ));
         }
         "grid" => {
             let spacing = get_arg(args, "spacing", 0, "grid");
@@ -1042,15 +1076,11 @@ fn emit_wgsl_sub_sdf(s: &mut String, expr: &Expr, var_name: &str, indent: &str) 
             "box" => {
                 let w = get_arg(&sub_args, "width", 0, "box");
                 let h = get_arg(&sub_args, "height", 1, "box");
-                s.push_str(&format!(
-                    "{indent}let {var_name} = sdf_box(p, {w}, {h});\n"
-                ));
+                s.push_str(&format!("{indent}let {var_name} = sdf_box(p, {w}, {h});\n"));
             }
             "hex" => {
                 let r = get_arg(&sub_args, "radius", 0, "hex");
-                s.push_str(&format!(
-                    "{indent}let {var_name} = sdf_hex(p, {r});\n"
-                ));
+                s.push_str(&format!("{indent}let {var_name} = sdf_hex(p, {r});\n"));
             }
             "line" => {
                 let x1 = get_arg(&sub_args, "x1", 0, "line");
@@ -1077,16 +1107,12 @@ fn emit_wgsl_sub_sdf(s: &mut String, expr: &Expr, var_name: &str, indent: &str) 
             }
             "heart" => {
                 let sz = get_arg(&sub_args, "size", 0, "heart");
-                s.push_str(&format!(
-                    "{indent}let {var_name} = sdf_heart(p, {sz});\n"
-                ));
+                s.push_str(&format!("{indent}let {var_name} = sdf_heart(p, {sz});\n"));
             }
             "egg" => {
                 let r = get_arg(&sub_args, "radius", 0, "egg");
                 let k = get_arg(&sub_args, "k", 1, "egg");
-                s.push_str(&format!(
-                    "{indent}let {var_name} = sdf_egg(p, {r}, {k});\n"
-                ));
+                s.push_str(&format!("{indent}let {var_name} = sdf_egg(p, {r}, {k});\n"));
             }
             _ => {
                 s.push_str(&format!(
@@ -1178,7 +1204,10 @@ fn has_stage_in_stages(stages: &[Stage], name: &str) -> bool {
 /// Recursively check if an expression tree references a stage by name.
 fn has_stage_in_expr(expr: &Expr, name: &str) -> bool {
     match expr {
-        Expr::Call { name: call_name, args } => {
+        Expr::Call {
+            name: call_name,
+            args,
+        } => {
             if call_name == name {
                 return true;
             }
@@ -1238,6 +1267,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         }
     }
 
@@ -1381,6 +1412,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         }
     }
 
@@ -1585,7 +1618,10 @@ mod tests {
         ]);
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("fn smin("), "smin helper emitted");
-        assert!(output.contains("smin(sdf_a, sdf_b,"), "smooth union uses smin");
+        assert!(
+            output.contains("smin(sdf_a, sdf_b,"),
+            "smooth union uses smin"
+        );
     }
 
     #[test]
@@ -1658,7 +1694,10 @@ mod tests {
             },
         ]);
         let output = generate_fragment(&cin, &[]);
-        assert!(output.contains("sdf_result = sdf_result -"), "round subtracts radius");
+        assert!(
+            output.contains("sdf_result = sdf_result -"),
+            "round subtracts radius"
+        );
 
         let cin2 = make_cinematic(vec![
             Stage {
@@ -1722,7 +1761,10 @@ mod tests {
             },
         ]);
         let output2 = generate_fragment(&cin2, &[]);
-        assert!(output2.contains("fn sdf_triangle("), "triangle helper emitted");
+        assert!(
+            output2.contains("fn sdf_triangle("),
+            "triangle helper emitted"
+        );
 
         let cin3 = make_cinematic(vec![
             Stage {
@@ -1785,7 +1827,10 @@ mod tests {
             },
         ]);
         let output = generate_fragment(&cin, &[]);
-        assert!(output.contains("max(sdf_a, -sdf_b)"), "subtract = max(a, -b)");
+        assert!(
+            output.contains("max(sdf_a, -sdf_b)"),
+            "subtract = max(a, -b)"
+        );
     }
 
     // v0.4 — morph
@@ -1977,6 +2022,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("select("), "conditional uses select()");
@@ -2026,14 +2073,32 @@ mod tests {
         };
         let wgsl = generate_pass_fragment(&pass);
         // Must have self-contained struct definitions
-        assert!(wgsl.contains("struct Uniforms {"), "pass shader must define Uniforms");
-        assert!(wgsl.contains("struct VertexOutput {"), "pass shader must define VertexOutput");
-        assert!(wgsl.contains("resolution: vec2<f32>"), "Uniforms has resolution");
-        assert!(wgsl.contains("@location(0) uv: vec2<f32>"), "VertexOutput has uv");
+        assert!(
+            wgsl.contains("struct Uniforms {"),
+            "pass shader must define Uniforms"
+        );
+        assert!(
+            wgsl.contains("struct VertexOutput {"),
+            "pass shader must define VertexOutput"
+        );
+        assert!(
+            wgsl.contains("resolution: vec2<f32>"),
+            "Uniforms has resolution"
+        );
+        assert!(
+            wgsl.contains("@location(0) uv: vec2<f32>"),
+            "VertexOutput has uv"
+        );
         // And the actual pass content
-        assert!(wgsl.contains("@group(0) @binding(3) var pass_tex"), "has pass_tex binding");
+        assert!(
+            wgsl.contains("@group(0) @binding(3) var pass_tex"),
+            "has pass_tex binding"
+        );
         assert!(wgsl.contains("fn fs_main"), "has fragment entry point");
-        assert!(wgsl.contains("textureSample(pass_tex"), "samples pass texture");
+        assert!(
+            wgsl.contains("textureSample(pass_tex"),
+            "samples pass texture"
+        );
     }
 
     #[test]
@@ -2051,7 +2116,10 @@ mod tests {
         let wgsl = generate_pass_fragment(&pass);
         assert!(wgsl.contains("vign"), "vignette uses vign variable");
         assert!(wgsl.contains("0.6"), "vignette strength parameter");
-        assert!(wgsl.contains("length(uv - 0.5)"), "vignette uses distance from center");
+        assert!(
+            wgsl.contains("length(uv - 0.5)"),
+            "vignette uses distance from center"
+        );
     }
 
     #[test]
@@ -2081,7 +2149,10 @@ mod tests {
             }],
         };
         let wgsl = generate_pass_fragment(&pass);
-        assert!(wgsl.contains("1.0 - color_result.rgb"), "invert subtracts from 1.0");
+        assert!(
+            wgsl.contains("1.0 - color_result.rgb"),
+            "invert subtracts from 1.0"
+        );
     }
 
     #[test]
@@ -2094,7 +2165,10 @@ mod tests {
             }],
         };
         let wgsl = generate_pass_fragment(&pass);
-        assert!(wgsl.contains("min(pixel.rgb + color_result.rgb"), "blend_add uses min to clamp");
+        assert!(
+            wgsl.contains("min(pixel.rgb + color_result.rgb"),
+            "blend_add uses min to clamp"
+        );
     }
 
     #[test]
@@ -2104,11 +2178,17 @@ mod tests {
             body: vec![
                 Stage {
                     name: "blur".into(),
-                    args: vec![Arg { name: None, value: Expr::Number(2.0) }],
+                    args: vec![Arg {
+                        name: None,
+                        value: Expr::Number(2.0),
+                    }],
                 },
                 Stage {
                     name: "vignette".into(),
-                    args: vec![Arg { name: None, value: Expr::Number(0.5) }],
+                    args: vec![Arg {
+                        name: None,
+                        value: Expr::Number(0.5),
+                    }],
                 },
             ],
         };

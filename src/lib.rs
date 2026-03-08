@@ -237,6 +237,22 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
         });
     }
 
+    // Transition matrix blocks produce JS controller classes
+    for matrix_block in &program.matrix_blocks {
+        if let crate::ast::MatrixBlock::Transitions(ref tm) = matrix_block {
+            let js = codegen::matrix::generate_transition_js(tm);
+            if !js.is_empty() {
+                outputs.push(CompileOutput {
+                    name: format!("matrix_transitions_{}", tm.name),
+                    wgsl: None,
+                    glsl: None,
+                    js,
+                    html: None,
+                });
+            }
+        }
+    }
+
     Ok(outputs)
 }
 
@@ -650,49 +666,77 @@ mod tests {
     fn e2e_example_015_resonate_network() {
         let source = std::fs::read_to_string("examples/015-resonate-network.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 015 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 015 should compile: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn e2e_example_016_arc_evolution() {
         let source = std::fs::read_to_string("examples/016-arc-evolution.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 016 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 016 should compile: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn e2e_example_018_react_turing() {
         let source = std::fs::read_to_string("examples/018-react-turing.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 018 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 018 should compile: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn e2e_example_023_polar_distort() {
         let source = std::fs::read_to_string("examples/023-polar-distort.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 023 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 023 should compile: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn e2e_example_017_living_organism() {
         let source = std::fs::read_to_string("examples/017-living-organism.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 017 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 017 should compile: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn e2e_example_019_swarm() {
         let source = std::fs::read_to_string("examples/019-swarm-physarum.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 019 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 019 should compile: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn e2e_example_020_flow() {
         let source = std::fs::read_to_string("examples/020-flow-fields.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 020 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 020 should compile: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -942,14 +986,22 @@ mod tests {
     fn e2e_example_035_feedback_trails() {
         let source = std::fs::read_to_string("examples/035-feedback-trails.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 035 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 035 should compile: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn e2e_example_036_blur_vignette() {
         let source = std::fs::read_to_string("examples/036-blur-vignette.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 036 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 036 should compile: {:?}",
+            result.err()
+        );
         let outputs = result.unwrap();
         // Should have pass shaders
         assert!(outputs[0].js.contains("PASS_WGSL_0"));
@@ -959,7 +1011,11 @@ mod tests {
     fn e2e_example_038_genesis() {
         let source = std::fs::read_to_string("examples/038-genesis.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 038 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 038 should compile: {:?}",
+            result.err()
+        );
         let outputs = result.unwrap();
         // Should have memory (3 layers use it) and vignette pass
         assert!(outputs[0].js.contains("_initMemory"));
@@ -970,7 +1026,11 @@ mod tests {
     fn e2e_example_039_cosmos() {
         let source = std::fs::read_to_string("examples/039-cosmos.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 039 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 039 should compile: {:?}",
+            result.err()
+        );
         let outputs = result.unwrap();
         // Memory + passes + SDF boolean
         assert!(outputs[0].js.contains("_initMemory"));
@@ -982,7 +1042,11 @@ mod tests {
     fn e2e_example_042_mandala_bloom() {
         let source = std::fs::read_to_string("examples/042-mandala-bloom.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 042 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 042 should compile: {:?}",
+            result.err()
+        );
         let outputs = result.unwrap();
         // SDF boolean + memory + passes
         assert!(outputs[0].js.contains("_initMemory"));
@@ -1087,7 +1151,11 @@ mod tests {
     fn e2e_example_043_scene_sequence() {
         let source = std::fs::read_to_string("examples/043-scene-sequence.game").unwrap();
         let result = compile(&source, &default_config());
-        assert!(result.is_ok(), "example 043 should compile: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "example 043 should compile: {:?}",
+            result.err()
+        );
         let outputs = result.unwrap();
         // 3 cinematics + 1 scene component
         assert_eq!(outputs.len(), 4);
@@ -1236,12 +1304,17 @@ mod tests {
 
     #[test]
     fn e2e_new_primitives() {
-        for prim in ["line", "capsule", "triangle", "arc_sdf", "cross", "heart", "egg", "spiral", "grid"] {
-            let source = format!(
-                "cinematic \"test\" {{ layer bg {{ {prim}() | glow(1.0) }} }}"
-            );
+        for prim in [
+            "line", "capsule", "triangle", "arc_sdf", "cross", "heart", "egg", "spiral", "grid",
+        ] {
+            let source = format!("cinematic \"test\" {{ layer bg {{ {prim}() | glow(1.0) }} }}");
             let result = compile(&source, &default_config());
-            assert!(result.is_ok(), "primitive '{}' should compile: {:?}", prim, result.err());
+            assert!(
+                result.is_ok(),
+                "primitive '{}' should compile: {:?}",
+                prim,
+                result.err()
+            );
         }
     }
 
@@ -1252,7 +1325,12 @@ mod tests {
                 "cinematic \"test\" {{ layer bg {{ circle(0.2) | {modifier}(0.01) | glow(1.0) }} }}"
             );
             let result = compile(&source, &default_config());
-            assert!(result.is_ok(), "modifier '{}' should compile: {:?}", modifier, result.err());
+            assert!(
+                result.is_ok(),
+                "modifier '{}' should compile: {:?}",
+                modifier,
+                result.err()
+            );
         }
     }
 
@@ -1263,29 +1341,49 @@ mod tests {
                 "cinematic \"test\" {{ layer bg {{ {op}(4) | circle(0.05) | glow(1.0) }} }}"
             );
             let result = compile(&source, &default_config());
-            assert!(result.is_ok(), "spatial op '{}' should compile: {:?}", op, result.err());
+            assert!(
+                result.is_ok(),
+                "spatial op '{}' should compile: {:?}",
+                op,
+                result.err()
+            );
         }
     }
 
     #[test]
     fn e2e_all_pass_types() {
-        for pass_type in ["blur(2.0)", "threshold(0.5)", "invert", "blend_add", "vignette(0.5)"] {
+        for pass_type in [
+            "blur(2.0)",
+            "threshold(0.5)",
+            "invert",
+            "blend_add",
+            "vignette(0.5)",
+        ] {
             let source = format!(
                 "cinematic \"test\" {{ layer bg {{ circle(0.3) | glow(1.0) }} pass p {{ {pass_type} }} }}"
             );
             let result = compile(&source, &default_config());
-            assert!(result.is_ok(), "pass type '{}' should compile: {:?}", pass_type, result.err());
+            assert!(
+                result.is_ok(),
+                "pass type '{}' should compile: {:?}",
+                pass_type,
+                result.err()
+            );
         }
     }
 
     #[test]
     fn e2e_named_palette_variants() {
         for name in ["fire", "ocean", "neon", "aurora", "sunset", "ice"] {
-            let source = format!(
-                "cinematic \"test\" {{ layer bg {{ circle(0.3) | palette({name}) }} }}"
-            );
+            let source =
+                format!("cinematic \"test\" {{ layer bg {{ circle(0.3) | palette({name}) }} }}");
             let result = compile(&source, &default_config());
-            assert!(result.is_ok(), "palette '{}' should compile: {:?}", name, result.err());
+            assert!(
+                result.is_ok(),
+                "palette '{}' should compile: {:?}",
+                name,
+                result.err()
+            );
         }
     }
 
@@ -1390,5 +1488,122 @@ mod tests {
         let outputs = compile(source, &config).unwrap();
         assert!(outputs[0].html.is_none()); // Component mode has no HTML
         assert!(!outputs[0].js.is_empty());
+    }
+
+    // ======================================================================
+    // Matrix keyword E2E tests
+    // ======================================================================
+
+    #[test]
+    fn e2e_matrix_coupling() {
+        let source = r#"
+            cinematic "test" {
+                layer config { bass: 0.0  treble: 0.0 }
+                layer core { circle(0.3) | glow(1.5) | tint(1.0, 0.5, 0.2) }
+                layer ring { ring(0.4, 0.02) | glow(0.8) | tint(1.0, 1.0, 1.0) }
+                matrix coupling {
+                    [bass, treble] -> [core.scale, ring.opacity]
+                    weights [0.3, 0.1, 0.0, 0.5]
+                    damping 0.9
+                    depth 2
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+        let js = &outputs[0].js;
+        assert!(
+            js.contains("GameCouplingMatrix"),
+            "should generate coupling matrix class"
+        );
+        assert!(
+            js.contains("propagate(uniforms)"),
+            "should have propagate method"
+        );
+        assert!(js.contains("'bass'"), "should have bass source");
+        assert!(js.contains("core"), "should have core target");
+    }
+
+    #[test]
+    fn e2e_matrix_color() {
+        let source = r#"
+            cinematic "test" {
+                layer bg {
+                    warp(scale: 2.0, octaves: 3, strength: 0.2)
+                    | fbm(scale: 3.0, octaves: 3)
+                    | palette(a_r: 0.5, a_g: 0.5, a_b: 0.5, b_r: 0.5, b_g: 0.5, b_b: 0.5, c_r: 1.0, c_g: 1.0, c_b: 1.0, d_r: 0.0, d_g: 0.33, d_b: 0.67)
+                }
+                layer stars {
+                    simplex(10.0) | glow(0.5) | tint(1.0, 1.0, 1.0)
+                }
+                matrix color {
+                    [1.2, 0.1, -0.05,
+                     -0.1, 1.05, 0.0,
+                     0.0, -0.05, 0.8]
+                }
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        assert_eq!(outputs.len(), 1);
+        let wgsl = outputs[0].wgsl.as_ref().unwrap();
+        assert!(
+            wgsl.contains("apply_color_matrix"),
+            "WGSL should have color matrix function"
+        );
+        assert!(wgsl.contains("mat3x3f"), "WGSL should have mat3x3f");
+        let glsl = outputs[0].glsl.as_ref().unwrap();
+        assert!(
+            glsl.contains("apply_color_matrix"),
+            "GLSL should have color matrix function"
+        );
+        assert!(glsl.contains("mat3"), "GLSL should have mat3");
+    }
+
+    #[test]
+    fn e2e_matrix_transitions() {
+        let source = r#"
+            cinematic "a" { layer bg { circle(0.3) | glow(1.0) | tint(0.5, 0.5, 0.8) } }
+            cinematic "b" { layer bg { circle(0.5) | glow(2.0) | tint(1.0, 0.8, 0.3) } }
+            matrix transitions "flow" {
+                states ["a", "b"]
+                weights [0.0, 1.0, 0.5, 0.5]
+                hold 3s
+            }
+        "#;
+        let outputs = compile(source, &default_config()).unwrap();
+        // 2 cinematics + 1 transition matrix
+        assert_eq!(outputs.len(), 3);
+        let tm_js = &outputs[2].js;
+        assert!(
+            tm_js.contains("GameTransitionMatrix_flow"),
+            "should generate transition matrix class"
+        );
+        assert!(
+            tm_js.contains("evaluate(elapsed)"),
+            "should have evaluate method"
+        );
+        assert!(tm_js.contains("next()"), "should have next method");
+        assert!(tm_js.contains("'a'"), "should have state 'a'");
+        assert!(tm_js.contains("'b'"), "should have state 'b'");
+    }
+
+    #[test]
+    fn e2e_matrix_examples_compile() {
+        for example in [
+            "044-matrix-coupling",
+            "045-matrix-color",
+            "046-matrix-transitions",
+        ] {
+            let path = format!("examples/{}.game", example);
+            let source =
+                std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("should read {}", path));
+            let result = compile(&source, &default_config());
+            assert!(
+                result.is_ok(),
+                "{} should compile: {:?}",
+                example,
+                result.err()
+            );
+        }
     }
 }

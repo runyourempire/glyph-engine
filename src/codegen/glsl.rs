@@ -17,12 +17,42 @@ use crate::codegen::UniformInfo;
 
 fn named_palette_glsl(name: &str) -> Option<(&str, &str, &str, &str)> {
     match name {
-        "fire" => Some(("vec3(0.5, 0.3, 0.1)", "vec3(0.5, 0.2, 0.1)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.25, 0.25)")),
-        "ocean" => Some(("vec3(0.0, 0.3, 0.5)", "vec3(0.0, 0.3, 0.5)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.1, 0.2)")),
-        "neon" => Some(("vec3(0.5, 0.5, 0.5)", "vec3(0.5, 0.5, 0.5)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.33, 0.67)")),
-        "aurora" => Some(("vec3(0.0, 0.5, 0.3)", "vec3(0.2, 0.5, 0.4)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.1, 0.3)")),
-        "sunset" => Some(("vec3(0.5, 0.3, 0.2)", "vec3(0.5, 0.2, 0.3)", "vec3(1.0, 1.0, 0.5)", "vec3(0.8, 0.9, 0.3)")),
-        "ice" => Some(("vec3(0.5, 0.7, 0.9)", "vec3(0.2, 0.2, 0.1)", "vec3(1.0, 1.0, 1.0)", "vec3(0.0, 0.05, 0.15)")),
+        "fire" => Some((
+            "vec3(0.5, 0.3, 0.1)",
+            "vec3(0.5, 0.2, 0.1)",
+            "vec3(1.0, 1.0, 1.0)",
+            "vec3(0.0, 0.25, 0.25)",
+        )),
+        "ocean" => Some((
+            "vec3(0.0, 0.3, 0.5)",
+            "vec3(0.0, 0.3, 0.5)",
+            "vec3(1.0, 1.0, 1.0)",
+            "vec3(0.0, 0.1, 0.2)",
+        )),
+        "neon" => Some((
+            "vec3(0.5, 0.5, 0.5)",
+            "vec3(0.5, 0.5, 0.5)",
+            "vec3(1.0, 1.0, 1.0)",
+            "vec3(0.0, 0.33, 0.67)",
+        )),
+        "aurora" => Some((
+            "vec3(0.0, 0.5, 0.3)",
+            "vec3(0.2, 0.5, 0.4)",
+            "vec3(1.0, 1.0, 1.0)",
+            "vec3(0.0, 0.1, 0.3)",
+        )),
+        "sunset" => Some((
+            "vec3(0.5, 0.3, 0.2)",
+            "vec3(0.5, 0.2, 0.3)",
+            "vec3(1.0, 1.0, 0.5)",
+            "vec3(0.8, 0.9, 0.3)",
+        )),
+        "ice" => Some((
+            "vec3(0.5, 0.7, 0.9)",
+            "vec3(0.2, 0.2, 0.1)",
+            "vec3(1.0, 1.0, 1.0)",
+            "vec3(0.0, 0.05, 0.15)",
+        )),
         _ => None,
     }
 }
@@ -74,6 +104,12 @@ fn generate_fragment_inner(
     // Built-in helper functions (C-style params!)
     emit_glsl_builtins(&mut s, cinematic);
 
+    // Color matrix function (if present)
+    if let Some(ref mc) = cinematic.matrix_color {
+        s.push_str(&super::matrix::generate_color_matrix_glsl(mc));
+        s.push('\n');
+    }
+
     // Entry point: void main()
     s.push_str("void main(){\n");
     s.push_str("    vec2 uv = v_uv * 2.0 - 1.0;\n");
@@ -88,7 +124,11 @@ fn generate_fragment_inner(
         s.push('\n');
     }
 
-    let render_layers = cinematic.layers.iter().filter(|l| !matches!(l.body, LayerBody::Params(_))).count();
+    let render_layers = cinematic
+        .layers
+        .iter()
+        .filter(|l| !matches!(l.body, LayerBody::Params(_)))
+        .count();
     let multi_layer = render_layers > 1;
     if multi_layer {
         s.push_str("    vec4 final_color = vec4(0.0, 0.0, 0.0, 0.0);\n\n");
@@ -98,10 +138,22 @@ fn generate_fragment_inner(
         if matches!(layer.body, LayerBody::Params(_)) {
             continue;
         }
-        emit_glsl_layer(&mut s, layer, i, multi_layer, fns);
+        emit_glsl_layer(
+            &mut s,
+            layer,
+            i,
+            multi_layer,
+            fns,
+            cinematic.matrix_color.is_some(),
+        );
     }
 
     if multi_layer {
+        if cinematic.matrix_color.is_some() {
+            s.push_str(
+                "    final_color = vec4(apply_color_matrix(final_color.rgb), final_color.a);\n",
+            );
+        }
         s.push_str("    fragColor = final_color;\n");
     }
     s.push_str("}\n");
@@ -111,7 +163,10 @@ fn generate_fragment_inner(
 fn emit_glsl_builtins(s: &mut String, cinematic: &Cinematic) {
     let needs_circle = cinematic.layers.iter().any(|l| has_stage(l, "circle"));
     let needs_star = cinematic.layers.iter().any(|l| has_stage(l, "star"));
-    let needs_box = cinematic.layers.iter().any(|l| has_stage(l, "box") || has_stage(l, "cross"));
+    let needs_box = cinematic
+        .layers
+        .iter()
+        .any(|l| has_stage(l, "box") || has_stage(l, "cross"));
     let needs_hex = cinematic.layers.iter().any(|l| has_stage(l, "hex"));
     let needs_fbm = cinematic.layers.iter().any(|l| has_stage(l, "fbm"));
     let needs_warp = cinematic.layers.iter().any(|l| has_stage(l, "warp"));
@@ -316,7 +371,14 @@ fn emit_glsl_palette(s: &mut String) {
     s.push_str("}\n\n");
 }
 
-fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: &[FnDef]) {
+fn emit_glsl_layer(
+    s: &mut String,
+    layer: &Layer,
+    idx: usize,
+    multi: bool,
+    fns: &[FnDef],
+    has_color_matrix: bool,
+) {
     s.push_str(&format!("    // ── Layer {idx}: {} ──\n", layer.name));
     if multi {
         s.push_str("    {\n");
@@ -409,6 +471,9 @@ fn emit_glsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool, fns: 
         }
         s.push_str("    }\n\n");
     } else {
+        if has_color_matrix {
+            s.push_str(&format!("{indent}color_result = vec4(apply_color_matrix(color_result.rgb), color_result.a);\n"));
+        }
         s.push_str(&format!("{indent}fragColor = color_result;\n"));
     }
 }
@@ -725,7 +790,9 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "outline" => {
             let w = get_arg(args, "width", 0, "outline");
-            s.push_str(&format!("{indent}{{ float out_lum = dot(color_result.rgb, vec3(0.299, 0.587, 0.114));\n"));
+            s.push_str(&format!(
+                "{indent}{{ float out_lum = dot(color_result.rgb, vec3(0.299, 0.587, 0.114));\n"
+            ));
             s.push_str(&format!("{indent}float out_edge = abs(out_lum) - {w};\n"));
             s.push_str(&format!("{indent}color_result = vec4(color_result.rgb * (1.0 - smoothstep(0.0, 0.02, out_edge)), color_result.a * (1.0 - smoothstep(0.0, 0.02, out_edge))); }}\n"));
         }
@@ -775,15 +842,21 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         "egg" => {
             let r = get_arg(args, "radius", 0, "egg");
             let k = get_arg(args, "k", 1, "egg");
-            s.push_str(&format!("{indent}float sdf_result = sdf_egg(p, {r}, {k});\n"));
+            s.push_str(&format!(
+                "{indent}float sdf_result = sdf_egg(p, {r}, {k});\n"
+            ));
         }
         "spiral" => {
             let turns = get_arg(args, "turns", 0, "spiral");
             let w = get_arg(args, "width", 1, "spiral");
             s.push_str(&format!("{indent}float sp_r = length(p);\n"));
             s.push_str(&format!("{indent}float sp_a = atan(p.y, p.x);\n"));
-            s.push_str(&format!("{indent}float sp_d = sp_r - (sp_a + 3.14159265) / 6.28318 / {turns};\n"));
-            s.push_str(&format!("{indent}float sdf_result = abs(sp_d - floor(sp_d + 0.5)) - {w};\n"));
+            s.push_str(&format!(
+                "{indent}float sp_d = sp_r - (sp_a + 3.14159265) / 6.28318 / {turns};\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float sdf_result = abs(sp_d - floor(sp_d + 0.5)) - {w};\n"
+            ));
         }
         "grid" => {
             let spacing = get_arg(args, "spacing", 0, "grid");
@@ -831,9 +904,7 @@ fn emit_glsl_sub_sdf(s: &mut String, expr: &Expr, var_name: &str, indent: &str) 
             }
             "hex" => {
                 let r = get_arg(&sub_args, "radius", 0, "hex");
-                s.push_str(&format!(
-                    "{indent}float {var_name} = sdf_hex(p, {r});\n"
-                ));
+                s.push_str(&format!("{indent}float {var_name} = sdf_hex(p, {r});\n"));
             }
             "line" => {
                 let x1 = get_arg(&sub_args, "x1", 0, "line");
@@ -860,9 +931,7 @@ fn emit_glsl_sub_sdf(s: &mut String, expr: &Expr, var_name: &str, indent: &str) 
             }
             "heart" => {
                 let sz = get_arg(&sub_args, "size", 0, "heart");
-                s.push_str(&format!(
-                    "{indent}float {var_name} = sdf_heart(p, {sz});\n"
-                ));
+                s.push_str(&format!("{indent}float {var_name} = sdf_heart(p, {sz});\n"));
             }
             "egg" => {
                 let r = get_arg(&sub_args, "radius", 0, "egg");
@@ -945,7 +1014,10 @@ fn has_stage_in_stages(stages: &[Stage], name: &str) -> bool {
 
 fn has_stage_in_expr(expr: &Expr, name: &str) -> bool {
     match expr {
-        Expr::Call { name: call_name, args } => {
+        Expr::Call {
+            name: call_name,
+            args,
+        } => {
             if call_name == name {
                 return true;
             }
@@ -1000,6 +1072,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         }
     }
 
@@ -1232,6 +1306,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("vec4 final_color"));
@@ -1369,6 +1445,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         }
     }
 
@@ -1574,7 +1652,10 @@ mod tests {
         ]);
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("float smin("), "GLSL smin helper");
-        assert!(output.contains("smin(sdf_a, sdf_b,"), "smooth union uses smin");
+        assert!(
+            output.contains("smin(sdf_a, sdf_b,"),
+            "smooth union uses smin"
+        );
     }
 
     #[test]
@@ -1610,7 +1691,10 @@ mod tests {
             },
         ]);
         let output = generate_fragment(&cin, &[]);
-        assert!(output.contains("float sdf_triangle(vec2 p"), "GLSL C-style triangle helper");
+        assert!(
+            output.contains("float sdf_triangle(vec2 p"),
+            "GLSL C-style triangle helper"
+        );
 
         let cin2 = make_cinematic(vec![
             Stage {
@@ -1623,6 +1707,9 @@ mod tests {
             },
         ]);
         let output2 = generate_fragment(&cin2, &[]);
-        assert!(output2.contains("float sp_r = length(p)"), "spiral code emitted");
+        assert!(
+            output2.contains("float sp_r = length(p)"),
+            "spiral code emitted"
+        );
     }
 }

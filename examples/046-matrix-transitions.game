@@ -1,0 +1,49 @@
+// Matrix Transitions — Markov chain scene sequencing
+//
+// Instead of linear scene playback, the transition matrix
+// defines probability weights for state changes.
+// "intro" most likely transitions to "build" (70%),
+// "peak" almost always resolves (90%), and
+// "resolve" has a 60% chance of looping back to "intro".
+
+cinematic "intro" {
+  layer bg {
+    circle(0.5) | glow(2.0) | tint(0.2, 0.3, 0.8)
+  }
+}
+
+cinematic "build" {
+  layer bg {
+    warp(scale: 2.0, octaves: 3, strength: 0.2)
+    | fbm(scale: 3.0, octaves: 3)
+    | palette(
+        a_r: 0.5, a_g: 0.4, a_b: 0.9,
+        b_r: 0.5, b_g: 0.5, b_b: 0.5,
+        c_r: 1.0, c_g: 1.0, c_b: 1.0,
+        d_r: 0.0, d_g: 0.33, d_b: 0.67
+      )
+  }
+}
+
+cinematic "peak" {
+  layer bg {
+    simplex(3.0) | glow(3.0) | tint(1.0, 0.8, 0.3)
+  }
+}
+
+cinematic "resolve" {
+  layer bg {
+    circle(0.3) | glow(1.0) | tint(0.3, 0.5, 0.4)
+  }
+}
+
+matrix transitions "flow" {
+  states ["intro", "build", "peak", "resolve"]
+  weights [
+    0.0, 0.7, 0.2, 0.1,
+    0.0, 0.0, 0.8, 0.2,
+    0.0, 0.1, 0.0, 0.9,
+    0.6, 0.0, 0.0, 0.4
+  ]
+  hold 5s
+}

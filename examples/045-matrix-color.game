@@ -1,0 +1,29 @@
+// Matrix Color — 3x3 RGB color grading
+//
+// Applies a cinematic color grade using a 3x3 matrix transform.
+// This example creates a warm amber tone by boosting red,
+// slightly reducing green, and pushing blue toward amber.
+
+cinematic "matrix-color" {
+  layer nebula {
+    warp(scale: 1.5, octaves: 4, strength: 0.3)
+    | fbm(scale: 3.0, octaves: 4)
+    | palette(
+        a_r: 0.5, a_g: 0.5, a_b: 0.5,
+        b_r: 0.0, b_g: 0.5, b_b: 0.33,
+        c_r: 0.67, c_g: 0.0, c_b: 1.0,
+        d_r: 0.0, d_g: 0.1, d_b: 0.2
+      )
+  }
+
+  layer stars {
+    simplex(20.0) | glow(0.3) | tint(1.0, 1.0, 1.0)
+  }
+
+  // Warm amber color grade
+  matrix color {
+    [1.2,  0.1,  -0.05,
+     -0.1, 1.05, 0.0,
+     0.0,  -0.05, 0.8]
+  }
+}

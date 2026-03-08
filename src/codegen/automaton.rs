@@ -94,7 +94,10 @@ pub fn generate_compute_wgsl(block: &AutomatonBlock) -> String {
     s.push_str("    if (current == 0u) {\n");
 
     // Birth conditions
-    let birth_cond: Vec<String> = birth.iter().map(|n| format!("neighbors == {}u", n)).collect();
+    let birth_cond: Vec<String> = birth
+        .iter()
+        .map(|n| format!("neighbors == {}u", n))
+        .collect();
     if !birth_cond.is_empty() {
         s.push_str(&format!(
             "        if ({}) {{ next = 1u; }}\n",

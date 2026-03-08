@@ -30,9 +30,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("    this.bindGroup = null;\n");
     s.push_str("    this.running = false;\n");
     s.push_str("    this.startTime = performance.now() / 1000;\n");
-    s.push_str(
-        "    this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };\n",
-    );
+    s.push_str("    this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };\n");
     s.push_str("    this.mouseX = 0; this.mouseY = 0;\n");
     s.push_str("    this.userParams = {};\n");
     s.push_str("    for (const u of uniformDefs) this.userParams[u.name] = u.default;\n");
@@ -52,26 +50,18 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("    this.device = await adapter.requestDevice();\n");
     s.push_str("    const ctx = this.canvas.getContext('webgpu');\n");
     s.push_str("    const format = navigator.gpu.getPreferredCanvasFormat();\n");
-    s.push_str(
-        "    ctx.configure({ device: this.device, format, alphaMode: 'premultiplied' });\n",
-    );
+    s.push_str("    ctx.configure({ device: this.device, format, alphaMode: 'premultiplied' });\n");
     s.push_str("    this.ctx = ctx;\n");
     s.push_str("    this.format = format;\n\n");
 
-    s.push_str(
-        "    const vMod = this.device.createShaderModule({ code: this.wgslVertex });\n",
-    );
-    s.push_str(
-        "    const fMod = this.device.createShaderModule({ code: this.wgslFragment });\n\n",
-    );
+    s.push_str("    const vMod = this.device.createShaderModule({ code: this.wgslVertex });\n");
+    s.push_str("    const fMod = this.device.createShaderModule({ code: this.wgslFragment });\n\n");
 
     // Uniform buffer
     s.push_str("    const floatCount = 8 + 2 + 2 + this.uniformDefs.length;\n");
     s.push_str("    const bufSize = Math.ceil(floatCount * 4 / 16) * 16;\n");
     s.push_str("    this.uniformBuffer = this.device.createBuffer({\n");
-    s.push_str(
-        "      size: bufSize, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST\n",
-    );
+    s.push_str("      size: bufSize, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST\n");
     s.push_str("    });\n");
     s.push_str("    this.floatCount = floatCount;\n\n");
 
@@ -89,9 +79,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("    // Memory/feedback: ping-pong textures (Group 1)\n");
         s.push_str("    this._initMemory();\n");
         s.push_str("    const pipelineLayout = this.device.createPipelineLayout({\n");
-        s.push_str(
-            "      bindGroupLayouts: [bindGroupLayout, this._memBindGroupLayout]\n",
-        );
+        s.push_str("      bindGroupLayouts: [bindGroupLayout, this._memBindGroupLayout]\n");
         s.push_str("    });\n\n");
     } else {
         s.push_str(
@@ -123,9 +111,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("    this._passBGL = passBGL;\n");
         s.push_str("    const passPL = this.device.createPipelineLayout({ bindGroupLayouts: [passBGL] });\n");
         s.push_str("    for (const code of this.passShaders) {\n");
-        s.push_str(
-            "      const mod = this.device.createShaderModule({ code });\n",
-        );
+        s.push_str("      const mod = this.device.createShaderModule({ code });\n");
         s.push_str("      this._passPipelines.push(this.device.createRenderPipeline({\n");
         s.push_str("        layout: passPL,\n");
         s.push_str("        vertex: { module: vMod, entryPoint: 'vs_main' },\n");
@@ -170,7 +156,9 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("    data[6] = w; data[7] = h;\n");
     s.push_str("    data[8] = this.mouseX; data[9] = this.mouseY;\n");
     s.push_str("    let i = 10;\n");
-    s.push_str("    for (const u of this.uniformDefs) data[i++] = this.userParams[u.name] ?? u.default;\n");
+    s.push_str(
+        "    for (const u of this.uniformDefs) data[i++] = this.userParams[u.name] ?? u.default;\n",
+    );
     s.push_str("    this.device.queue.writeBuffer(this.uniformBuffer, 0, data);\n\n");
 
     s.push_str("    const encoder = this.device.createCommandEncoder();\n\n");
@@ -181,14 +169,18 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("    const mainPass = encoder.beginRenderPass({\n");
         s.push_str("      colorAttachments: [{\n");
         s.push_str("        view: this._passFBOs[0].createView(),\n");
-        s.push_str("        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n");
+        s.push_str(
+            "        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n",
+        );
         s.push_str("      }]\n");
         s.push_str("    });\n");
     } else {
         s.push_str("    const mainPass = encoder.beginRenderPass({\n");
         s.push_str("      colorAttachments: [{\n");
         s.push_str("        view: this.ctx.getCurrentTexture().createView(),\n");
-        s.push_str("        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n");
+        s.push_str(
+            "        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n",
+        );
         s.push_str("      }]\n");
         s.push_str("    });\n");
     }
@@ -216,12 +208,8 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
             "\n    // Post-processing chain ({pass_count} pass{})\n",
             if pass_count > 1 { "es" } else { "" }
         ));
-        s.push_str(&format!(
-            "    for (let p = 0; p < {pass_count}; p++) {{\n"
-        ));
-        s.push_str(&format!(
-            "      const isLast = (p === {pass_count} - 1);\n"
-        ));
+        s.push_str(&format!("    for (let p = 0; p < {pass_count}; p++) {{\n"));
+        s.push_str(&format!("      const isLast = (p === {pass_count} - 1);\n"));
         s.push_str("      const readIdx = p % 2;\n");
         s.push_str("      const targetView = isLast\n");
         s.push_str("        ? this.ctx.getCurrentTexture().createView()\n");
@@ -237,7 +225,9 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("      const pp = encoder.beginRenderPass({\n");
         s.push_str("        colorAttachments: [{\n");
         s.push_str("          view: targetView,\n");
-        s.push_str("          loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n");
+        s.push_str(
+            "          loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n",
+        );
         s.push_str("        }]\n");
         s.push_str("      });\n");
         s.push_str("      pp.setPipeline(this._passPipelines[p]);\n");
@@ -327,9 +317,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
 
     // ── Utility methods ──────────────────────────────────────────────
     s.push_str("  setParam(name, value) { this.userParams[name] = value; }\n");
-    s.push_str(
-        "  setAudioData(d) { Object.assign(this.audioData, d); }\n",
-    );
+    s.push_str("  setAudioData(d) { Object.assign(this.audioData, d); }\n");
     s.push_str("  destroy() { this.stop(); this.canvas.removeEventListener('mousemove', this._onMouseMove); this.device?.destroy(); }\n");
 
     s.push_str("}\n");
@@ -355,9 +343,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("    this.program = null;\n");
     s.push_str("    this.running = false;\n");
     s.push_str("    this.startTime = performance.now() / 1000;\n");
-    s.push_str(
-        "    this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };\n",
-    );
+    s.push_str("    this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };\n");
     s.push_str("    this.mouseX = 0; this.mouseY = 0;\n");
     s.push_str("    this.userParams = {};\n");
     s.push_str("    for (const u of uniformDefs) this.userParams[u.name] = u.default;\n");
@@ -464,9 +450,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("    gl.uniform1f(this.locs.treble, this.audioData.treble);\n");
     s.push_str("    gl.uniform1f(this.locs.energy, this.audioData.energy);\n");
     s.push_str("    gl.uniform1f(this.locs.beat, this.audioData.beat);\n");
-    s.push_str(
-        "    gl.uniform2f(this.locs.resolution, this.canvas.width, this.canvas.height);\n",
-    );
+    s.push_str("    gl.uniform2f(this.locs.resolution, this.canvas.width, this.canvas.height);\n");
     s.push_str("    gl.uniform2f(this.locs.mouse, this.mouseX, this.mouseY);\n");
     s.push_str("    for (const u of this.uniformDefs) {\n");
     s.push_str(
@@ -513,7 +497,9 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
         s.push_str("    const writeIdx = 1 - this._memIdx;\n");
         s.push_str("    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);\n");
         s.push_str("    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this._memFbo[writeIdx]);\n");
-        s.push_str("    gl.blitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.NEAREST);\n");
+        s.push_str(
+            "    gl.blitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.NEAREST);\n",
+        );
         s.push_str("    gl.bindFramebuffer(gl.FRAMEBUFFER, null);\n");
         s.push_str("    this._memIdx = writeIdx;\n");
         s.push_str("  }\n\n");
@@ -534,9 +520,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
 
     // ── Utility methods ──────────────────────────────────────────────
     s.push_str("  setParam(name, value) { this.userParams[name] = value; }\n");
-    s.push_str(
-        "  setAudioData(d) { Object.assign(this.audioData, d); }\n",
-    );
+    s.push_str("  setAudioData(d) { Object.assign(this.audioData, d); }\n");
     s.push_str("  destroy() { this.stop(); this.canvas.removeEventListener('mousemove', this._onMouseMove); }\n");
 
     s.push_str("}\n");

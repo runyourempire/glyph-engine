@@ -129,6 +129,7 @@ impl Parser {
             Some(Token::Feedback) => Ok("feedback".into()),
             Some(Token::Play) => Ok("play".into()),
             Some(Token::Pass) => Ok("pass".into()),
+            Some(Token::Matrix) => Ok("matrix".into()),
             Some(tok) => Err(CompileError::ParseError {
                 message: format!("expected identifier, found `{tok}`"),
                 line,
@@ -148,7 +149,12 @@ impl Parser {
         // Consume hyphenated continuations: ease-out, ease-in-out
         while matches!(self.peek(), Some(Token::Minus)) {
             // Look ahead: is there an ident after the minus?
-            if self.tokens.get(self.pos + 1).map(|(t, _, _)| matches!(t, Token::Ident(_))).unwrap_or(false) {
+            if self
+                .tokens
+                .get(self.pos + 1)
+                .map(|(t, _, _)| matches!(t, Token::Ident(_)))
+                .unwrap_or(false)
+            {
                 self.advance(); // consume minus
                 let part = self.expect_ident()?;
                 name.push('-');
@@ -234,6 +240,7 @@ impl Parser {
         let mut ifs_blocks = Vec::new();
         let mut lsystem_blocks = Vec::new();
         let mut automaton_blocks = Vec::new();
+        let mut matrix_blocks = Vec::new();
 
         while !self.at_end() {
             match self.peek() {
@@ -286,6 +293,13 @@ impl Parser {
                         return Err(e);
                     }
                 },
+                Some(Token::Matrix) => match self.parse_matrix_block() {
+                    Ok(m) => matrix_blocks.push(m),
+                    Err(e) => {
+                        self.skip_to_recovery();
+                        return Err(e);
+                    }
+                },
                 // Contextual keywords for v0.6 blocks
                 Some(Token::Ident(s)) if s == "ifs" => match self.parse_ifs_block() {
                     Ok(b) => ifs_blocks.push(b),
@@ -313,7 +327,7 @@ impl Parser {
                     let tok = self.advance();
                     return Err(CompileError::ParseError {
                         message: format!(
-                            "expected `import`, `use`, `fn`, `cinematic`, `breed`, `project`, `scene`, `ifs`, `lsystem`, or `automaton` at top level, found `{}`",
+                            "expected `import`, `use`, `fn`, `cinematic`, `breed`, `project`, `scene`, `matrix`, `ifs`, `lsystem`, or `automaton` at top level, found `{}`",
                             tok.map_or("EOF".into(), |t| t.to_string())
                         ),
                         line,
@@ -334,6 +348,7 @@ impl Parser {
             ifs_blocks,
             lsystem_blocks,
             automaton_blocks,
+            matrix_blocks,
         })
     }
 
@@ -508,6 +523,8 @@ impl Parser {
         let mut flow = None;
         let mut passes = Vec::new();
         let mut cinematic_uses = Vec::new();
+        let mut matrix_coupling = None;
+        let mut matrix_color = None;
 
         while !self.at_end() && !self.check(&Token::RBrace) {
             match self.peek() {
@@ -523,11 +540,26 @@ impl Parser {
                 Some(Token::Flow) => flow = Some(self.parse_flow()?),
                 Some(Token::Pass) => passes.push(self.parse_pass_block()?),
                 Some(Token::Use) => cinematic_uses.push(self.parse_cinematic_use()?),
+                Some(Token::Matrix) => {
+                    let matrix = self.parse_matrix_block()?;
+                    match matrix {
+                        MatrixBlock::Coupling(c) => matrix_coupling = Some(c),
+                        MatrixBlock::Color(c) => matrix_color = Some(c),
+                        MatrixBlock::Transitions(_) => {
+                            let (line, col) = self.current_pos();
+                            return Err(CompileError::ParseError {
+                                message: "transition matrices belong at top level, not inside cinematic blocks".into(),
+                                line,
+                                col,
+                            });
+                        }
+                    }
+                }
                 _ => {
                     let (line, col) = self.current_pos();
                     return Err(CompileError::ParseError {
                         message: format!(
-                            "expected `layer`, `arc`, `resonate`, `listen`, `voice`, `score`, `gravity`, `react`, `swarm`, `flow`, `pass`, or `use` inside cinematic, found `{}`",
+                            "expected `layer`, `arc`, `resonate`, `listen`, `voice`, `score`, `gravity`, `react`, `swarm`, `flow`, `pass`, `use`, or `matrix` inside cinematic, found `{}`",
                             self.peek().map_or("EOF".into(), |t| t.to_string())
                         ),
                         line,
@@ -552,6 +584,8 @@ impl Parser {
             flow,
             passes,
             cinematic_uses,
+            matrix_coupling,
+            matrix_color,
         })
     }
 
@@ -1914,13 +1948,12 @@ impl Parser {
                         }
                         _ => {
                             // "random" with optional density
-                            let density = if let Some(Token::Float(_) | Token::Integer(_)) =
-                                self.peek()
-                            {
-                                self.parse_number_value()?
-                            } else {
-                                0.5
-                            };
+                            let density =
+                                if let Some(Token::Float(_) | Token::Integer(_)) = self.peek() {
+                                    self.parse_number_value()?
+                                } else {
+                                    0.5
+                                };
                             AutomatonSeed::Random(density)
                         }
                     };
@@ -1951,6 +1984,204 @@ impl Parser {
             rule,
             seed,
             speed,
+        })
+    }
+
+    // ======================================================================
+    // matrix <kind> { ... }
+    // ======================================================================
+
+    fn parse_matrix_block(&mut self) -> Result<MatrixBlock, CompileError> {
+        self.expect(&Token::Matrix)?;
+        let kind = self.expect_ident()?;
+        match kind.as_str() {
+            "coupling" => self.parse_matrix_coupling().map(MatrixBlock::Coupling),
+            "color" => self.parse_matrix_color().map(MatrixBlock::Color),
+            "transitions" => self
+                .parse_matrix_transitions()
+                .map(MatrixBlock::Transitions),
+            _ => {
+                let (line, col) = self.current_pos();
+                Err(CompileError::ParseError {
+                    message: format!(
+                        "expected `coupling`, `color`, or `transitions` after `matrix`, found `{}`",
+                        kind
+                    ),
+                    line,
+                    col,
+                })
+            }
+        }
+    }
+
+    /// Parse `matrix coupling { [sources] -> [targets] weights [...] damping N depth N }`
+    fn parse_matrix_coupling(&mut self) -> Result<MatrixCoupling, CompileError> {
+        self.expect(&Token::LBrace)?;
+
+        // Parse [source1, source2, ...] -> [target1.field1, target2.field2, ...]
+        self.expect(&Token::LBracket)?;
+        let mut sources = Vec::new();
+        loop {
+            sources.push(self.expect_ident()?);
+            if self.check(&Token::RBracket) {
+                self.advance();
+                break;
+            }
+            self.expect(&Token::Comma)?;
+        }
+
+        self.expect(&Token::Arrow)?;
+
+        self.expect(&Token::LBracket)?;
+        let mut targets = Vec::new();
+        loop {
+            let layer = self.expect_ident()?;
+            self.expect(&Token::Dot)?;
+            let field = self.expect_ident_or_keyword()?;
+            targets.push(MatrixTarget { layer, field });
+            if self.check(&Token::RBracket) {
+                self.advance();
+                break;
+            }
+            self.expect(&Token::Comma)?;
+        }
+
+        // Parse named fields
+        let mut weights = Vec::new();
+        let mut damping = 0.95;
+        let mut depth = 4u32;
+
+        while !self.check(&Token::RBrace) {
+            match self.peek() {
+                Some(Token::Ident(s)) if s == "weights" => {
+                    self.advance();
+                    self.expect(&Token::LBracket)?;
+                    loop {
+                        let v = self.parse_number_value()?;
+                        weights.push(v);
+                        if self.check(&Token::RBracket) {
+                            self.advance();
+                            break;
+                        }
+                        self.expect(&Token::Comma)?;
+                    }
+                }
+                Some(Token::Ident(s)) if s == "damping" => {
+                    self.advance();
+                    damping = self.parse_number_value()?;
+                }
+                Some(Token::Ident(s)) if s == "depth" => {
+                    self.advance();
+                    depth = self.parse_number_value()? as u32;
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message: format!(
+                            "expected `weights`, `damping`, or `depth` in matrix coupling, found `{}`",
+                            self.peek().map_or("EOF".into(), |t| t.to_string())
+                        ),
+                        line,
+                        col,
+                    });
+                }
+            }
+        }
+
+        self.expect(&Token::RBrace)?;
+        Ok(MatrixCoupling {
+            sources,
+            targets,
+            weights,
+            damping,
+            depth,
+        })
+    }
+
+    /// Parse `matrix color { [9 values] }`
+    fn parse_matrix_color(&mut self) -> Result<MatrixColor, CompileError> {
+        self.expect(&Token::LBrace)?;
+        self.expect(&Token::LBracket)?;
+
+        let mut values = [0.0f64; 9];
+        for i in 0..9 {
+            let v = self.parse_number_value()?;
+            values[i] = v;
+            if i < 8 {
+                self.expect(&Token::Comma)?;
+            }
+        }
+
+        self.expect(&Token::RBracket)?;
+        self.expect(&Token::RBrace)?;
+        Ok(MatrixColor { values })
+    }
+
+    /// Parse `matrix transitions "name" { states [...] weights [...] hold Ns }`
+    fn parse_matrix_transitions(&mut self) -> Result<MatrixTransitions, CompileError> {
+        let name = self.expect_string()?;
+        self.expect(&Token::LBrace)?;
+
+        let mut states = Vec::new();
+        let mut weights = Vec::new();
+        let mut hold = Duration::Seconds(5.0);
+
+        while !self.check(&Token::RBrace) {
+            match self.peek() {
+                Some(Token::Ident(s)) if s == "states" => {
+                    self.advance();
+                    self.expect(&Token::LBracket)?;
+                    loop {
+                        if let Some(Token::StringLit(_)) = self.peek() {
+                            let s = self.expect_string()?;
+                            states.push(s);
+                        } else {
+                            states.push(self.expect_ident()?);
+                        }
+                        if self.check(&Token::RBracket) {
+                            self.advance();
+                            break;
+                        }
+                        self.expect(&Token::Comma)?;
+                    }
+                }
+                Some(Token::Ident(s)) if s == "weights" => {
+                    self.advance();
+                    self.expect(&Token::LBracket)?;
+                    loop {
+                        let v = self.parse_number_value()?;
+                        weights.push(v);
+                        if self.check(&Token::RBracket) {
+                            self.advance();
+                            break;
+                        }
+                        self.expect(&Token::Comma)?;
+                    }
+                }
+                Some(Token::Ident(s)) if s == "hold" => {
+                    self.advance();
+                    hold = self.parse_duration()?;
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message: format!(
+                            "expected `states`, `weights`, or `hold` in matrix transitions, found `{}`",
+                            self.peek().map_or("EOF".into(), |t| t.to_string())
+                        ),
+                        line,
+                        col,
+                    });
+                }
+            }
+        }
+
+        self.expect(&Token::RBrace)?;
+        Ok(MatrixTransitions {
+            name,
+            states,
+            weights,
+            hold,
         })
     }
 

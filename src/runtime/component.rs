@@ -46,7 +46,10 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
             s.push_str(&format!("const PASS_WGSL_{i} = `{escaped}`;\n"));
         }
         let pass_refs: Vec<String> = (0..pass_count).map(|i| format!("PASS_WGSL_{i}")).collect();
-        s.push_str(&format!("const PASS_SHADERS = [{}];\n", pass_refs.join(",")));
+        s.push_str(&format!(
+            "const PASS_SHADERS = [{}];\n",
+            pass_refs.join(",")
+        ));
     }
 
     // Compute shader constants
@@ -74,7 +77,10 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     s.push('\n');
 
     // WebGPU renderer (with features)
-    s.push_str(&super::helpers::webgpu_renderer(needs_prev_frame, pass_count));
+    s.push_str(&super::helpers::webgpu_renderer(
+        needs_prev_frame,
+        pass_count,
+    ));
     s.push_str("\n\n");
 
     // WebGL2 fallback renderer (with memory, no passes)
@@ -159,7 +165,9 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
         }
         if shader.swarm_agent_wgsl.is_some() {
             s.push_str("      if (typeof SWARM_AGENT_WGSL !== 'undefined') {\n");
-            s.push_str("        const sim = new GameSwarmSim(dev, SWARM_AGENT_WGSL, SWARM_TRAIL_WGSL);\n");
+            s.push_str(
+                "        const sim = new GameSwarmSim(dev, SWARM_AGENT_WGSL, SWARM_TRAIL_WGSL);\n",
+            );
             s.push_str("        await sim.init();\n");
             s.push_str("        this._swarmSim = sim;\n");
             s.push_str("      }\n");
@@ -303,6 +311,8 @@ mod tests {
             uniforms: vec![],
             uses_memory: false,
             js_modules: vec![],
+            color_matrix_wgsl: None,
+            color_matrix_glsl: None,
             compute_wgsl: None,
             react_wgsl: None,
             swarm_agent_wgsl: None,
@@ -460,7 +470,10 @@ mod tests {
         }];
         let js = generate_component(&with_fill);
         assert!(js.contains("set progress(v)"), "should have progress alias");
-        assert!(js.contains("set fill_angle(v)"), "should have fill_angle setter");
+        assert!(
+            js.contains("set fill_angle(v)"),
+            "should have fill_angle setter"
+        );
 
         let mut without_fill = make_shader("orb");
         without_fill.uniforms = vec![UniformInfo {
@@ -468,7 +481,10 @@ mod tests {
             default: 1.0,
         }];
         let js = generate_component(&without_fill);
-        assert!(!js.contains("set progress(v)"), "should NOT have progress alias");
+        assert!(
+            !js.contains("set progress(v)"),
+            "should NOT have progress alias"
+        );
     }
 
     #[test]
@@ -487,7 +503,10 @@ mod tests {
             default: 1.0,
         }];
         let js = generate_component(&without_intensity);
-        assert!(!js.contains("set health(v)"), "should NOT have health alias");
+        assert!(
+            !js.contains("set health(v)"),
+            "should NOT have health alias"
+        );
     }
 
     #[test]
@@ -505,7 +524,10 @@ mod tests {
         ];
         let js = generate_component(&shader);
         let count = js.matches("set progress(v)").count();
-        assert_eq!(count, 1, "expected exactly one progress setter, got {count}");
+        assert_eq!(
+            count, 1,
+            "expected exactly one progress setter, got {count}"
+        );
         assert!(js.contains("set progress(v) { this.setParam('progress', v); }"));
         assert!(!js.contains("this.fill_angle"));
     }

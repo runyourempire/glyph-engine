@@ -1,0 +1,50 @@
+// Matrix Coupling — bidirectional parameter grid
+//
+// Demonstrates the coupling matrix: a 3x3 weight grid
+// connecting animated sources to visual parameters.
+// When bass changes, core.scale and ring.opacity respond.
+// When treble changes, noise.intensity and ring.opacity shift.
+
+cinematic "matrix-coupling" {
+  layer config {
+    bass: 0.0
+    treble: 0.0
+    energy: 0.2
+  }
+
+  layer core memory: 0.92 {
+    circle(0.3) | glow(1.5) | tint(0.831, 0.686, 0.216)
+  }
+
+  layer noise_field {
+    warp(scale: 2.0, octaves: 3, strength: 0.2)
+    | fbm(scale: 4.0, octaves: 3)
+    | palette(
+        a_r: 0.2, a_g: 0.3, a_b: 0.5,
+        b_r: 0.3, b_g: 0.4, b_b: 0.6,
+        c_r: 1.0, c_g: 0.8, c_b: 0.6,
+        d_r: 0.0, d_g: 0.2, d_b: 0.5
+      )
+  }
+
+  layer ring opacity: 0.7 {
+    ring(0.45, 0.02) | glow(0.8) | tint(1.0, 1.0, 1.0)
+  }
+
+  arc {
+    bass: 0.0 -> 1.0 over 4s ease-in-out
+    treble: 0.0 -> 0.8 over 3s ease-out
+    energy: 0.2 -> 1.0 over 6s
+  }
+
+  matrix coupling {
+    [bass, treble, energy] -> [core.scale, noise_field.intensity, ring.opacity]
+    weights [
+      0.3, 0.1, 0.0,
+      0.0, 0.5, 0.2,
+      0.1, 0.0, 0.7
+    ]
+    damping 0.92
+    depth 3
+  }
+}

@@ -181,6 +181,8 @@ mod tests {
             flow: None,
             passes: vec![],
             cinematic_uses: vec![],
+            matrix_coupling: None,
+            matrix_color: None,
         };
         let err = validate_casts(&cin).unwrap_err();
         assert!(err.to_string().contains("layer 'b'"));

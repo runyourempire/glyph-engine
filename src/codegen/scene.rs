@@ -89,13 +89,13 @@ pub fn generate_scene_js(block: &SceneBlock) -> String {
     s.push_str("      if (t < acc + e.duration) {\n");
     s.push_str("        const progress = (t - acc) / e.duration;\n");
     s.push_str("        if (e.type === 'play') {\n");
-    s.push_str(
-        "          return { current: e.cinematic, next: null, blend: 0, kind: null };\n",
-    );
+    s.push_str("          return { current: e.cinematic, next: null, blend: 0, kind: null };\n");
     s.push_str("        } else {\n");
     s.push_str("          // transition: find next play entry\n");
     s.push_str("          const idx = this._entries.indexOf(e);\n");
-    s.push_str("          const nextEntry = this._entries.slice(idx + 1).find(x => x.type === 'play');\n");
+    s.push_str(
+        "          const nextEntry = this._entries.slice(idx + 1).find(x => x.type === 'play');\n",
+    );
     s.push_str("          return {\n");
     s.push_str("            current: lastCinematic,\n");
     s.push_str("            next: nextEntry ? nextEntry.cinematic : null,\n");
@@ -108,9 +108,7 @@ pub fn generate_scene_js(block: &SceneBlock) -> String {
     s.push_str("      acc += e.duration;\n");
     s.push_str("    }\n\n");
 
-    s.push_str(
-        "    return { current: lastCinematic, next: null, blend: 0, kind: null };\n",
-    );
+    s.push_str("    return { current: lastCinematic, next: null, blend: 0, kind: null };\n");
     s.push_str("  }\n\n");
 
     // isComplete
@@ -122,9 +120,7 @@ pub fn generate_scene_js(block: &SceneBlock) -> String {
     // progress
     s.push_str("  progress(elapsedSec) {\n");
     s.push_str("    if (this._startTime === null) return 0;\n");
-    s.push_str(
-        "    return Math.min((elapsedSec - this._startTime) / this._totalDuration, 1.0);\n",
-    );
+    s.push_str("    return Math.min((elapsedSec - this._startTime) / this._totalDuration, 1.0);\n");
     s.push_str("  }\n\n");
 
     // reset
@@ -257,7 +253,9 @@ pub fn generate_scene_component(block: &SceneBlock) -> String {
     s.push_str("    const state = this._timeline.evaluate(elapsed);\n\n");
 
     // Convert cinematic name to tag
-    s.push_str("    const toTag = n => n ? n.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : null;\n");
+    s.push_str(
+        "    const toTag = n => n ? n.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() : null;\n",
+    );
     s.push_str("    const curTag = toTag(state.current);\n");
     s.push_str("    const nextTag = toTag(state.next);\n\n");
 

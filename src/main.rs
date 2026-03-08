@@ -356,8 +356,7 @@ fn compile_game_file(path: &std::path::Path) -> Result<CompileResult> {
         seed: None,
     };
 
-    let program =
-        game_compiler::compile_to_ast(&source).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let program = game_compiler::compile_to_ast(&source).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let cinematic_count = program.cinematics.len();
 
@@ -369,8 +368,7 @@ fn compile_game_file(path: &std::path::Path) -> Result<CompileResult> {
     };
     let uniform_count = uniforms.len();
 
-    let results =
-        game_compiler::compile(&source, &config).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let results = game_compiler::compile(&source, &config).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let first = results
         .into_iter()
@@ -648,7 +646,8 @@ fn main() -> Result<()> {
                 TemplateArg::Composition => "composition",
             };
 
-            let out_path = output.unwrap_or_else(|| PathBuf::from(format!("{}.game", template_name)));
+            let out_path =
+                output.unwrap_or_else(|| PathBuf::from(format!("{}.game", template_name)));
 
             if out_path.exists() {
                 anyhow::bail!("file already exists: {}", out_path.display());
@@ -656,7 +655,11 @@ fn main() -> Result<()> {
 
             std::fs::write(&out_path, content)
                 .with_context(|| format!("write: {}", out_path.display()))?;
-            eprintln!("[game new] created {} (template: {})", out_path.display(), template_name);
+            eprintln!(
+                "[game new] created {} (template: {})",
+                out_path.display(),
+                template_name
+            );
         }
     }
 

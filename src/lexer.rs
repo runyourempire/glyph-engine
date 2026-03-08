@@ -79,6 +79,8 @@ enum LexToken {
     For,
     #[token("feedback")]
     Feedback,
+    #[token("matrix")]
+    Matrix,
     #[token("true")]
     True,
     #[token("false")]
@@ -235,6 +237,7 @@ fn convert(lt: LexToken, slice: &str) -> Result<Token, CompileError> {
         LexToken::Transition => Token::Transition,
         LexToken::For => Token::For,
         LexToken::Feedback => Token::Feedback,
+        LexToken::Matrix => Token::Matrix,
         LexToken::True => Token::Ident("true".into()),
         LexToken::False => Token::Ident("false".into()),
 
@@ -398,6 +401,15 @@ mod tests {
         assert_eq!(
             tokens("foo // comment\nbar"),
             vec![Token::Ident("foo".into()), Token::Ident("bar".into()),]
+        );
+    }
+
+    #[test]
+    fn lex_matrix_keyword() {
+        assert_eq!(tokens("matrix"), vec![Token::Matrix]);
+        assert_eq!(
+            tokens("matrix coupling"),
+            vec![Token::Matrix, Token::Ident("coupling".into())]
         );
     }
 

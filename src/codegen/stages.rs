@@ -266,7 +266,12 @@ mod tests {
 
     #[test]
     fn mirror_radial_pipeline() {
-        let stages = vec![stage("mirror"), stage("radial"), stage("circle"), stage("glow")];
+        let stages = vec![
+            stage("mirror"),
+            stage("radial"),
+            stage("circle"),
+            stage("glow"),
+        ];
         let result = validate_pipeline(&stages);
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), ShaderState::Color);
@@ -364,7 +369,10 @@ mod tests {
         let stages = vec![stage("nonexistent_fn")];
         let result = validate_pipeline_with_fns(&stages, &[]);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("unknown stage function"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("unknown stage function"));
     }
 
     #[test]
@@ -424,7 +432,10 @@ mod tests {
         let result = validate_pipeline(&stages);
         let err = result.unwrap_err().to_string();
         assert!(err.contains("unknown stage function"));
-        assert!(!err.contains("Did you mean"), "should not suggest for very different name: {err}");
+        assert!(
+            !err.contains("Did you mean"),
+            "should not suggest for very different name: {err}"
+        );
     }
 
     #[test]

@@ -44,10 +44,16 @@ pub fn generate_html(shader: &ShaderOutput) -> String {
             s.push_str(&format!("const PASS_WGSL_{i} = `{escaped}`;\n"));
         }
         let pass_refs: Vec<String> = (0..pass_count).map(|i| format!("PASS_WGSL_{i}")).collect();
-        s.push_str(&format!("const PASS_SHADERS = [{}];\n", pass_refs.join(",")));
+        s.push_str(&format!(
+            "const PASS_SHADERS = [{}];\n",
+            pass_refs.join(",")
+        ));
     }
 
-    s.push_str(&super::helpers::webgpu_renderer(needs_prev_frame, pass_count));
+    s.push_str(&super::helpers::webgpu_renderer(
+        needs_prev_frame,
+        pass_count,
+    ));
     s.push_str("\n\n");
     s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame));
     s.push_str("\n\n");
@@ -107,7 +113,10 @@ pub fn generate_artblocks_html(shader: &ShaderOutput, seed: Option<u64>) -> Stri
     s.push_str("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
     s.push_str("<meta charset=\"utf-8\">\n");
     s.push_str("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n");
-    s.push_str(&format!("<title>{} — GAME (Art Blocks)</title>\n", shader.name));
+    s.push_str(&format!(
+        "<title>{} — GAME (Art Blocks)</title>\n",
+        shader.name
+    ));
     s.push_str("<style>*{margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden;background:#000}canvas{width:100%;height:100%;display:block}</style>\n");
     s.push_str("</head>\n<body>\n<canvas id=\"c\"></canvas>\n<script>\n");
 
@@ -143,8 +152,9 @@ pub fn generate_artblocks_html(shader: &ShaderOutput, seed: Option<u64>) -> Stri
             let escaped = escape_html_js(pass_wgsl);
             s.push_str(&format!("const PASS_WGSL_{i} = `{escaped}`;\n"));
         }
-        let pass_refs: Vec<String> =
-            (0..pass_count_ab).map(|i| format!("PASS_WGSL_{i}")).collect();
+        let pass_refs: Vec<String> = (0..pass_count_ab)
+            .map(|i| format!("PASS_WGSL_{i}"))
+            .collect();
         s.push_str(&format!(
             "const PASS_SHADERS = [{}];\n",
             pass_refs.join(",")
@@ -215,6 +225,8 @@ mod tests {
             uniforms: vec![],
             uses_memory: false,
             js_modules: vec![],
+            color_matrix_wgsl: None,
+            color_matrix_glsl: None,
             compute_wgsl: None,
             react_wgsl: None,
             swarm_agent_wgsl: None,
