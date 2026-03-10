@@ -235,6 +235,23 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
         "  setAudioSource(bridge) { bridge?.subscribe(d => this._renderer?.setAudioData(d)); }\n\n",
     );
 
+    // Frame export API
+    s.push_str("  getFrame() {\n");
+    s.push_str("    if (!this._canvas) return null;\n");
+    s.push_str("    const w = this._canvas.width, h = this._canvas.height;\n");
+    s.push_str("    const offscreen = document.createElement('canvas');\n");
+    s.push_str("    offscreen.width = w;\n");
+    s.push_str("    offscreen.height = h;\n");
+    s.push_str("    const ctx = offscreen.getContext('2d');\n");
+    s.push_str("    ctx.drawImage(this._canvas, 0, 0);\n");
+    s.push_str("    return ctx.getImageData(0, 0, w, h);\n");
+    s.push_str("  }\n\n");
+
+    s.push_str("  getFrameDataURL(type) {\n");
+    s.push_str("    if (!this._canvas) return null;\n");
+    s.push_str("    return this._canvas.toDataURL(type || 'image/png');\n");
+    s.push_str("  }\n\n");
+
     // Generate property getters/setters for each uniform so el.fill_angle = 0.5 works
     s.push_str("  // Property accessors for each uniform\n");
     for u in &shader.uniforms {
@@ -276,7 +293,7 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     s
 }
 
-fn to_kebab(s: &str) -> String {
+pub(crate) fn to_kebab(s: &str) -> String {
     s.chars()
         .map(|c| {
             if c.is_alphanumeric() {
@@ -290,7 +307,7 @@ fn to_kebab(s: &str) -> String {
         .to_string()
 }
 
-fn to_pascal(s: &str) -> String {
+pub(crate) fn to_pascal(s: &str) -> String {
     s.split(|c: char| !c.is_alphanumeric())
         .filter(|w| !w.is_empty())
         .map(|w| {

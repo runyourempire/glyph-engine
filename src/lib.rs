@@ -7,6 +7,10 @@ pub mod lexer;
 pub mod parser;
 pub mod runtime;
 pub mod token;
+#[cfg(feature = "wasm")]
+pub mod wasm;
+#[cfg(feature = "lsp")]
+pub mod lsp;
 
 use error::CompileError;
 
@@ -21,6 +25,7 @@ fn resolve_stdlib(path: &str) -> Option<String> {
         "patterns" => Some(include_str!("../stdlib/patterns.game").to_string()),
         "effects" => Some(include_str!("../stdlib/effects.game").to_string()),
         "motion" => Some(include_str!("../stdlib/motion.game").to_string()),
+        "recipes" => Some(include_str!("../stdlib/recipes.game").to_string()),
         _ => None,
     }
 }
@@ -70,6 +75,8 @@ pub struct CompileOutput {
     pub glsl: Option<String>,
     pub js: String,
     pub html: Option<String>,
+    /// TypeScript type definitions for the Web Component.
+    pub dts: Option<String>,
 }
 
 // ── Public API ───────────────────────────────────────────
@@ -153,12 +160,15 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             OutputFormat::Component => None,
         };
 
+        let dts = Some(runtime::typescript::generate_typescript_defs(&shader));
+
         outputs.push(CompileOutput {
             name: shader.name.clone(),
             wgsl: Some(shader.wgsl_fragment),
             glsl: Some(shader.glsl_fragment),
             js,
             html,
+            dts,
         });
     }
 
@@ -179,6 +189,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             glsl: None,
             js,
             html: None,
+            dts: None,
         });
     }
 
@@ -192,6 +203,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
                 glsl: None,
                 js,
                 html: None,
+                dts: None,
             });
         }
     }
@@ -207,6 +219,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             glsl: None,
             js,
             html: None,
+            dts: None,
         });
     }
 
@@ -220,6 +233,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             glsl: None,
             js,
             html: None,
+            dts: None,
         });
     }
 
@@ -234,6 +248,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             glsl: None,
             js,
             html: None,
+            dts: None,
         });
     }
 
@@ -248,6 +263,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
                     glsl: None,
                     js,
                     html: None,
+                    dts: None,
                 });
             }
         }

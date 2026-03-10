@@ -57,6 +57,17 @@ enum Command {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+
+    /// List all available builtins, palettes, and templates.
+    Info {
+        /// Category: builtins, palettes, templates, or all.
+        #[arg(default_value = "all")]
+        category: String,
+    },
+
+    /// Start the Language Server Protocol server.
+    #[cfg(feature = "lsp")]
+    Lsp,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -81,6 +92,9 @@ enum TemplateArg {
     Particles,
     Procedural,
     Composition,
+    Reactive,
+    Sdf,
+    Scene,
 }
 
 // ── Template constants ──────────────────────────────────────
@@ -148,6 +162,74 @@ const TEMPLATE_COMPOSITION: &str = r#"cinematic "composition" {
   layer top blend add {
     circle(0.05) | glow(5.0) | tint(1.0, 1.0, 1.0)
   }
+}
+"#;
+
+const TEMPLATE_REACTIVE: &str = r#"cinematic "audio-reactive" {
+  listen {
+    bass: energy(range: [20, 200])
+    mid: energy(range: [200, 2000])
+    treble: energy(range: [2000, 16000])
+    onset: attack(threshold: 0.6)
+  }
+
+  layer core {
+    warp(scale: 3.0, strength: 0.2)
+    | circle(0.15) | glow(3.0) | tint(0.83, 0.69, 0.22)
+  }
+
+  layer ring1 blend add {
+    ring(0.25, 0.01) | glow(2.5) | tint(0.4, 0.7, 1.0)
+  }
+
+  resonate {
+    audio.bass -> core.radius * 0.15
+    audio.mid -> ring1.radius * 0.1
+  }
+}
+"#;
+
+const TEMPLATE_SDF: &str = r#"cinematic "sdf-showcase" {
+  layer base {
+    rotate(0.3)
+    | smooth_union(
+        circle(0.15),
+        translate(0.2, 0.0) | circle(0.1),
+        0.1
+      )
+    | glow(2.0) | tint(0.9, 0.3, 0.2)
+  }
+
+  layer rings blend add {
+    radial(6) | ring(0.3, 0.005) | glow(2.5) | tint(0.83, 0.69, 0.22)
+  }
+}
+"#;
+
+const TEMPLATE_SCENE: &str = r#"cinematic "intro" {
+  layer glow_center {
+    circle(0.2) | glow(3.0) | tint(0.83, 0.69, 0.22)
+  }
+
+  arc {
+    glow_center.radius: 0.05 -> 0.3 over 3s ease_out
+  }
+}
+
+cinematic "main" {
+  layer bg {
+    warp(3.0, 4, 0.5, 2.0, 0.3) | fbm(2.0, 4) | palette(ocean)
+  }
+
+  layer indicator blend add {
+    ring(0.2, 0.01) | glow(2.5) | tint(0.2, 0.8, 0.4)
+  }
+}
+
+scene "demo" {
+  play "intro" for 5s
+  transition dissolve over 1s
+  play "main" for 10s
 }
 "#;
 
@@ -602,6 +684,14 @@ fn main() -> Result<()> {
                         .with_context(|| format!("write: {}", js_path.display()))?;
                     eprintln!("[game] wrote {}", js_path.display());
 
+                    // Write TypeScript definitions
+                    if let Some(dts) = &output.dts {
+                        let dts_path = output_dir.join(format!("{stem}.d.ts"));
+                        std::fs::write(&dts_path, dts)
+                            .with_context(|| format!("write: {}", dts_path.display()))?;
+                        eprintln!("[game] wrote {}", dts_path.display());
+                    }
+
                     // Write HTML if generated
                     if let Some(html) = &output.html {
                         let html_path = output_dir.join(format!("{stem}.html"));
@@ -636,6 +726,9 @@ fn main() -> Result<()> {
                 TemplateArg::Particles => TEMPLATE_PARTICLES,
                 TemplateArg::Procedural => TEMPLATE_PROCEDURAL,
                 TemplateArg::Composition => TEMPLATE_COMPOSITION,
+                TemplateArg::Reactive => TEMPLATE_REACTIVE,
+                TemplateArg::Sdf => TEMPLATE_SDF,
+                TemplateArg::Scene => TEMPLATE_SCENE,
             };
 
             let template_name = match template {
@@ -644,6 +737,9 @@ fn main() -> Result<()> {
                 TemplateArg::Particles => "particles",
                 TemplateArg::Procedural => "procedural",
                 TemplateArg::Composition => "composition",
+                TemplateArg::Reactive => "reactive",
+                TemplateArg::Sdf => "sdf",
+                TemplateArg::Scene => "scene",
             };
 
             let out_path =
@@ -661,7 +757,115 @@ fn main() -> Result<()> {
                 template_name
             );
         }
+
+        #[cfg(feature = "lsp")]
+        Command::Lsp => {
+            game_compiler::lsp::run_lsp();
+        }
+
+        Command::Info { category } => {
+            match category.as_str() {
+                "builtins" | "b" => print_builtins(),
+                "palettes" | "p" => print_palettes(),
+                "templates" | "t" => print_templates(),
+                _ => {
+                    print_builtins();
+                    println!();
+                    print_palettes();
+                    println!();
+                    print_templates();
+                }
+            }
+        }
     }
 
     Ok(())
+}
+
+fn print_builtins() {
+    println!("GAME Builtins");
+    println!("=============");
+    let items = game_compiler::builtins::completions();
+    let mut sdf_gen = Vec::new();
+    let mut transforms = Vec::new();
+    let mut bridges = Vec::new();
+    let mut color_proc = Vec::new();
+    let mut sdf_mod = Vec::new();
+
+    for item in &items {
+        match (item.input.as_str(), item.output.as_str()) {
+            ("Position", "Sdf") => sdf_gen.push(&item.signature),
+            ("Position", "Position") => transforms.push(&item.signature),
+            ("Sdf", "Color") => bridges.push(&item.signature),
+            ("Color", "Color") => color_proc.push(&item.signature),
+            ("Sdf", "Sdf") => sdf_mod.push(&item.signature),
+            _ => {}
+        }
+    }
+
+    println!("\n  SDF Generators (Position -> SDF):");
+    for sig in &sdf_gen { println!("    {sig}"); }
+    println!("\n  Transforms (Position -> Position):");
+    for sig in &transforms { println!("    {sig}"); }
+    println!("\n  Bridges (SDF -> Color):");
+    for sig in &bridges { println!("    {sig}"); }
+    println!("\n  Color Processors (Color -> Color):");
+    for sig in &color_proc { println!("    {sig}"); }
+    println!("\n  Shape Modifiers (SDF -> SDF):");
+    for sig in &sdf_mod { println!("    {sig}"); }
+}
+
+fn print_palettes() {
+    println!("Named Palettes (30)");
+    println!("===================");
+    let palettes = [
+        ("fire",       "warm reds/oranges"),
+        ("ocean",      "cool blues"),
+        ("neon",       "vibrant rainbow"),
+        ("aurora",     "green/purple northern lights"),
+        ("sunset",     "warm orange/pink horizon"),
+        ("ice",        "cool blue/white"),
+        ("ember",      "deep red/orange coals"),
+        ("lava",       "volcanic orange/red"),
+        ("magma",      "bright orange to deep red"),
+        ("inferno",    "yellow-white to deep red"),
+        ("plasma",     "purple/pink energy"),
+        ("electric",   "bright cyan/blue"),
+        ("cyber",      "neon green/cyan"),
+        ("matrix",     "green-on-black terminal"),
+        ("forest",     "deep greens/warm browns"),
+        ("moss",       "muted greens/earth"),
+        ("earth",      "brown/tan/olive"),
+        ("desert",     "warm sand/terracotta"),
+        ("blood",      "dark to bright red"),
+        ("rose",       "pink/rose/magenta"),
+        ("candy",      "bright pink/purple/blue"),
+        ("royal",      "deep purple/gold"),
+        ("deep_sea",   "dark blue/cyan"),
+        ("coral",      "warm coral/orange/pink"),
+        ("arctic",     "white/light blue cold"),
+        ("twilight",   "purple/orange horizon"),
+        ("vapor",      "vaporwave purple/pink/teal"),
+        ("gold",       "warm gold/amber"),
+        ("silver",     "cool gray/white"),
+        ("monochrome", "grayscale"),
+    ];
+    for (name, desc) in &palettes {
+        println!("  {name:15} — {desc}");
+    }
+}
+
+fn print_templates() {
+    println!("Templates (8)");
+    println!("=============");
+    println!("  minimal      — single layer, basic circle + glow");
+    println!("  audio        — audio-reactive with listen block");
+    println!("  particles    — particle field with curl noise flow");
+    println!("  procedural   — terrain-like FBM + voronoi + palette");
+    println!("  composition  — multi-layer blend modes");
+    println!("  reactive     — audio-reactive with domain warping");
+    println!("  sdf          — SDF boolean operations showcase");
+    println!("  scene        — scene sequencing with transitions");
+    println!();
+    println!("  Usage: game new --template <name> [-o output.game]");
 }

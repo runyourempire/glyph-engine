@@ -3,3 +3,4 @@
 pub mod component;
 pub mod helpers;
 pub mod html;
+pub mod typescript;
