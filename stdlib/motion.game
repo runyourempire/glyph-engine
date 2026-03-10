@@ -1,12 +1,11 @@
 // GAME Standard Library — motion.game
 // Motion and transformation presets.
+// These are partial pipelines — they apply transforms that precede SDF stages.
+
+// ── Position transforms ──────────────────────────────────
 
 fn orbit(radius, speed) {
   translate(radius, 0.0) | rotate(speed)
-}
-
-fn pulse_ring(radius, width) {
-  ring(radius, width) | glow(2.0) | tint(1.0, 1.0, 1.0)
 }
 
 fn spin(speed, r, g, b) {
@@ -15,4 +14,72 @@ fn spin(speed, r, g, b) {
 
 fn wobble(sc, spd, str) {
   distort(scale: sc, speed: spd, strength: str)
+}
+
+fn drift(dx, dy) {
+  translate(dx, dy)
+}
+
+fn zoom(factor) {
+  scale(factor)
+}
+
+// ── Animated motion ──────────────────────────────────────
+
+fn breathe(sc, str) {
+  distort(scale: sc, speed: 0.5, strength: str)
+}
+
+fn jitter(sc, str) {
+  distort(scale: sc, speed: 5.0, strength: str)
+}
+
+fn wave(sc, spd, str) {
+  distort(scale: sc, speed: spd, strength: str)
+}
+
+fn flow_warp(sc, str) {
+  warp(scale: sc, strength: str)
+}
+
+// ── Spatial operations ───────────────────────────────────
+
+fn tile(sx, sy) {
+  repeat(sx, sy)
+}
+
+fn symmetry(count) {
+  radial(count)
+}
+
+fn reflect() {
+  mirror()
+}
+
+// ── Compound motion ──────────────────────────────────────
+
+fn pulse_ring(radius, width) {
+  ring(radius, width) | glow(2.0) | tint(1.0, 1.0, 1.0)
+}
+
+fn spinning_ring(radius, speed, r, g, b) {
+  rotate(speed) | ring(radius, 0.01) | glow(2.5) | tint(r, g, b)
+}
+
+fn orbiting_dot(radius, speed, r, g, b) {
+  translate(radius, 0.0) | rotate(speed) | circle(0.05)
+  | glow(3.0) | tint(r, g, b)
+}
+
+fn expanding_ring(radius, r, g, b) {
+  distort(scale: 2.0, speed: 0.5, strength: 0.03)
+  | ring(radius, 0.01) | glow(2.5) | tint(r, g, b)
+}
+
+fn spiral_motion(turns, speed, r, g, b) {
+  rotate(speed) | spiral(turns, 0.01) | glow(2.5) | tint(r, g, b)
+}
+
+fn ripple(radius, layers, r, g, b) {
+  circle(radius) | onion(layers, 0.005) | glow(2.0) | tint(r, g, b)
 }

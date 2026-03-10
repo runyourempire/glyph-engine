@@ -1,0 +1,142 @@
+// GAME Standard Library — recipes.game
+// Complete component recipes — full pipeline compositions for common use cases.
+
+// ── Status indicators ────────────────────────────────────
+
+fn status_healthy(size) {
+  circle(size) | glow(2.5) | tint(0.2, 0.85, 0.4)
+}
+
+fn status_warning(size) {
+  circle(size) | glow(2.5) | tint(1.0, 0.75, 0.1)
+}
+
+fn status_error(size) {
+  circle(size) | glow(2.5) | tint(0.95, 0.2, 0.2)
+}
+
+fn status_neutral(size) {
+  circle(size) | glow(2.0) | tint(0.5, 0.5, 0.6)
+}
+
+// ── Loading & progress ───────────────────────────────────
+
+fn loading_ring(radius, r, g, b) {
+  rotate(1.5) | arc_sdf(radius, 2.0, 0.015) | glow(2.5) | tint(r, g, b)
+}
+
+fn loading_dots(radius, r, g, b) {
+  radial(8) | translate(radius, 0.0) | circle(0.02)
+  | glow(2.5) | tint(r, g, b)
+}
+
+fn progress_ring(radius, r, g, b) {
+  ring(radius, 0.02) | glow(2.0) | tint(r, g, b)
+}
+
+fn spinner(radius, speed, r, g, b) {
+  rotate(speed) | arc_sdf(radius, 1.5, 0.012) | glow(3.0) | tint(r, g, b)
+}
+
+// ── Notification badges ──────────────────────────────────
+
+fn badge_dot(r, g, b) {
+  circle(0.1) | glow(3.0) | tint(r, g, b)
+}
+
+fn badge_ring(r, g, b) {
+  circle(0.08) | glow(2.0) | tint(r, g, b)
+}
+
+fn alert_pulse(r, g, b) {
+  distort(scale: 3.0, speed: 2.0, strength: 0.02)
+  | circle(0.1) | glow(3.5) | tint(r, g, b)
+}
+
+// ── Backgrounds ──────────────────────────────────────────
+
+fn ambient_noise(sc) {
+  warp(scale: sc, octaves: 4, strength: 0.3)
+  | fbm(scale: sc, octaves: 5) | glow(1.0) | tint(0.15, 0.15, 0.2)
+}
+
+fn nebula_bg(sc) {
+  warp(scale: sc, octaves: 5, strength: 0.4)
+  | fbm(scale: sc, octaves: 6) | palette(aurora)
+}
+
+fn lava_bg(sc) {
+  warp(scale: sc, octaves: 4, strength: 0.35)
+  | fbm(scale: sc, octaves: 5) | palette(fire)
+}
+
+fn ocean_bg(sc) {
+  warp(scale: sc, octaves: 4, strength: 0.25)
+  | fbm(scale: sc, octaves: 5) | palette(ocean)
+}
+
+fn cyber_grid(spacing, r, g, b) {
+  grid(spacing, 0.002) | glow(0.8) | tint(r, g, b)
+}
+
+fn starfield(density, r, g, b) {
+  repeat(density, density) | circle(0.005) | glow(4.0) | tint(r, g, b)
+}
+
+// ── Data visualization ───────────────────────────────────
+
+fn data_ring(radius, width, r, g, b) {
+  ring(radius, width) | glow(2.0) | tint(r, g, b)
+}
+
+fn data_dot(radius, r, g, b) {
+  circle(radius) | glow(2.5) | tint(r, g, b)
+}
+
+fn gauge_arc(radius, angle, r, g, b) {
+  arc_sdf(radius, angle, 0.02) | glow(2.0) | tint(r, g, b)
+}
+
+fn signal_bar(height, r, g, b) {
+  box(0.04, height) | glow(1.5) | tint(r, g, b)
+}
+
+// ── Decorative ───────────────────────────────────────────
+
+fn energy_core(radius, r, g, b) {
+  circle(radius) | glow(4.0) | tint(r, g, b) | bloom(0.2, 1.5)
+}
+
+fn void_portal(radius) {
+  warp(scale: 4.0, strength: 0.4) | ring(radius, 0.015)
+  | glow(3.0) | tint(0.4, 0.2, 0.8)
+}
+
+fn golden_seal(size) {
+  radial(8) | star(4, size, size * 0.5) | glow(2.0) | tint(0.83, 0.69, 0.22)
+}
+
+fn frost_crystal(size) {
+  radial(6) | line(0.0, 0.0, size, 0.0, 0.003)
+  | glow(2.5) | tint(0.6, 0.85, 1.0)
+}
+
+fn organic_cell(sc, r, g, b) {
+  warp(scale: sc, strength: 0.2) | voronoi(scale: sc)
+  | glow(1.5) | tint(r, g, b)
+}
+
+fn heartbeat(size, r, g, b) {
+  distort(scale: 3.0, speed: 3.0, strength: 0.04)
+  | heart(size) | glow(3.0) | tint(r, g, b)
+}
+
+fn mandala(layers, radius, r, g, b) {
+  radial(layers) | mirror() | translate(radius, 0.0) | circle(0.03)
+  | glow(2.5) | tint(r, g, b)
+}
+
+fn tech_reticle(size, r, g, b) {
+  union(cross(size, 0.003), ring(size * 0.6, 0.005))
+  | glow(2.0) | tint(r, g, b)
+}

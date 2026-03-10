@@ -1,6 +1,8 @@
 // Signal Waveform — full-width intelligence pulse for 4DA ActionBar
 // 100% × 48px — living signal quality meter below the action bar
 //
+// Aesthetic: deep teal — same luminance pattern as original, hue-shifted via d-offsets
+//
 // Uniforms:
 //   signal_count  (0-1)  — normalized item count (0=empty, 1=saturated)
 //   relevance_avg (0-1)  — mean relevance score across results
@@ -14,7 +16,7 @@ cinematic "signal-waveform" {
         0.15, 0.15, 0.15,
         0.25, 0.25, 0.25,
         1.0, 1.0, 1.0,
-        0.0, 0.1, 0.2
+        0.30, 0.0, 0.05
       )
   }
 
@@ -25,13 +27,13 @@ cinematic "signal-waveform" {
         signal_count, signal_count, signal_count,
         0.3, 0.3, 0.4,
         1.0, 0.8, 0.6,
-        0.0, 0.15, 0.25
+        0.30, 0.0, 0.08
       )
   }
 
   layer accent {
     ring(0.5, 0.006) | glow(relevance_avg)
-    | tint(1.0, 0.95, 0.85, freshness)
+    | tint(0.25, 0.92, 0.80, freshness)
   }
 
   layer config {

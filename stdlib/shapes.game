@@ -1,5 +1,7 @@
 // GAME Standard Library — shapes.game
-// Reusable shape functions for common patterns.
+// Reusable shape functions built from SDF primitives.
+
+// ── Basic shapes ─────────────────────────────────────────
 
 fn dot(r) {
   circle(r) | glow(1.0) | tint(1.0, 1.0, 1.0)
@@ -9,17 +11,79 @@ fn petal(size, r, g, b) {
   circle(size) | glow(2.0) | tint(r, g, b)
 }
 
-fn gear(radius, teeth) {
-  star(teeth, radius, radius * 0.7) | glow(1.5)
+fn orb(radius, intensity, r, g, b) {
+  circle(radius) | glow(intensity) | tint(r, g, b)
 }
 
-fn bullseye(r1, r2) {
-  ring(r1, 0.02) | glow(1.5) | tint(1.0, 1.0, 1.0)
+fn disc(radius, r, g, b) {
+  circle(radius) | shade(r, g, b)
 }
+
+fn pill(w, h) {
+  capsule(w, h) | glow(2.0) | tint(1.0, 1.0, 1.0)
+}
+
+// ── Rings & arcs ─────────────────────────────────────────
 
 fn halo(radius) {
   ring(radius, 0.01) | glow(3.0) | tint(1.0, 0.9, 0.7)
 }
+
+fn neon_ring(radius, r, g, b) {
+  ring(radius, 0.008) | glow(3.5) | tint(r, g, b)
+}
+
+fn thick_ring(radius, width, r, g, b) {
+  ring(radius, width) | glow(1.5) | tint(r, g, b)
+}
+
+fn arc_segment(radius, angle, r, g, b) {
+  arc_sdf(radius, angle, 0.015) | glow(2.5) | tint(r, g, b)
+}
+
+fn donut(radius, thickness) {
+  ring(radius, thickness) | glow(2.0) | tint(1.0, 1.0, 1.0)
+}
+
+fn concentric(r1, r2, r, g, b) {
+  ring(r1, 0.01) | glow(2.0) | tint(r, g, b)
+}
+
+// ── Stars & polygons ─────────────────────────────────────
+
+fn soft_star(radius, r, g, b) {
+  star(5, radius, radius * 0.4) | glow(3.0) | tint(r, g, b)
+}
+
+fn sharp_star(points, radius, r, g, b) {
+  star(points, radius, radius * 0.3) | shade(r, g, b)
+}
+
+fn gear(radius, teeth) {
+  star(teeth, radius, radius * 0.7) | glow(1.5) | tint(0.7, 0.7, 0.8)
+}
+
+fn hexagon(radius, r, g, b) {
+  hex(radius) | glow(2.0) | tint(r, g, b)
+}
+
+fn diamond(size, r, g, b) {
+  rotate(0.785) | box(size, size) | glow(2.0) | tint(r, g, b)
+}
+
+fn tri(size, r, g, b) {
+  triangle(size) | glow(2.0) | tint(r, g, b)
+}
+
+fn pentagon(radius, r, g, b) {
+  star(5, radius, radius * 0.82) | glow(2.0) | tint(r, g, b)
+}
+
+fn octagon(radius, r, g, b) {
+  star(8, radius, radius * 0.92) | glow(2.0) | tint(r, g, b)
+}
+
+// ── Compound shapes ──────────────────────────────────────
 
 fn badge(size) {
   intersect(ring(size, size * 0.25), star(5, size * 1.1, size * 0.5))
@@ -31,6 +95,80 @@ fn blob(size, k) {
   | glow(2.0) | tint(1.0, 1.0, 1.0)
 }
 
-fn pill(w, h) {
-  capsule(w, h) | glow(2.0) | tint(1.0, 1.0, 1.0)
+fn bullseye(r1, r2) {
+  ring(r1, 0.02) | glow(1.5) | tint(1.0, 1.0, 1.0)
+}
+
+fn crosshair(size, width) {
+  cross(size, width) | glow(2.0) | tint(1.0, 0.3, 0.3)
+}
+
+fn target(radius, r, g, b) {
+  union(circle(radius * 0.3), ring(radius, 0.01))
+  | glow(2.0) | tint(r, g, b)
+}
+
+fn shield(size, r, g, b) {
+  intersect(circle(size), box(size * 0.9, size * 1.2))
+  | glow(2.0) | tint(r, g, b)
+}
+
+fn lens(size, r, g, b) {
+  intersect(circle(size), circle(size))
+  | glow(2.5) | tint(r, g, b)
+}
+
+fn eye_shape(radius, r, g, b) {
+  smooth_intersect(circle(radius), circle(radius), 0.05)
+  | glow(2.5) | tint(r, g, b)
+}
+
+fn flower(petals, radius) {
+  radial(petals) | translate(radius * 0.5, 0.0) | circle(radius * 0.3)
+  | glow(2.5) | tint(0.9, 0.5, 0.7)
+}
+
+fn atom(radius, speed) {
+  union(circle(radius * 0.2), ring(radius, 0.005))
+  | glow(2.5) | tint(0.4, 0.7, 1.0)
+}
+
+fn infinity_loop(size, r, g, b) {
+  smooth_union(ring(size, 0.015), ring(size, 0.015), 0.05)
+  | glow(2.5) | tint(r, g, b)
+}
+
+fn medal(size, r, g, b) {
+  smooth_union(circle(size), star(6, size * 1.2, size * 0.8), 0.03)
+  | glow(2.0) | tint(r, g, b)
+}
+
+fn drop(radius, r, g, b) {
+  egg(radius, 0.15) | glow(2.5) | tint(r, g, b)
+}
+
+fn arrow_head(size, r, g, b) {
+  triangle(size) | glow(2.0) | tint(r, g, b)
+}
+
+// ── Outlined variants ────────────────────────────────────
+
+fn outlined_circle(radius, r, g, b) {
+  circle(radius) | shell(0.01) | glow(2.5) | tint(r, g, b)
+}
+
+fn outlined_box(w, h, r, g, b) {
+  box(w, h) | shell(0.01) | glow(2.5) | tint(r, g, b)
+}
+
+fn outlined_star(points, radius, r, g, b) {
+  star(points, radius, radius * 0.4) | shell(0.008) | glow(2.5) | tint(r, g, b)
+}
+
+fn rounded_box(w, h, r, g, b) {
+  box(w, h) | round(0.03) | glow(2.0) | tint(r, g, b)
+}
+
+fn onion_ring(radius, layers, r, g, b) {
+  circle(radius) | onion(layers, 0.01) | glow(2.0) | tint(r, g, b)
 }

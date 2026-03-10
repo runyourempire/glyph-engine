@@ -1,5 +1,7 @@
 // GAME Standard Library — patterns.game
-// Common visual patterns built from basic primitives.
+// Common visual patterns built from primitives and spatial operations.
+
+// ── Basic patterns ───────────────────────────────────────
 
 fn glowing_ring(radius, width, r, g, b) {
   ring(radius, width) | glow(2.5) | tint(r, g, b)
@@ -10,9 +12,111 @@ fn soft_circle(radius, r, g, b) {
 }
 
 fn sharp_circle(radius, r, g, b) {
-  circle(radius) | shade(1.0) | tint(r, g, b)
+  circle(radius) | shade(r, g, b)
 }
 
 fn outlined_shape(radius, r, g, b) {
-  circle(radius) | glow(2.0) | tint(r, g, b) | outline(1.0, 0.005)
+  circle(radius) | glow(2.0) | tint(r, g, b) | outline(0.005)
+}
+
+// ── Grid patterns ────────────────────────────────────────
+
+fn dot_grid(spacing, size, r, g, b) {
+  repeat(spacing, spacing) | circle(size) | glow(2.0) | tint(r, g, b)
+}
+
+fn ring_grid(spacing, radius, r, g, b) {
+  repeat(spacing, spacing) | ring(radius, 0.005) | glow(2.0) | tint(r, g, b)
+}
+
+fn hex_grid(spacing, size, r, g, b) {
+  repeat(spacing, spacing) | hex(size) | glow(1.5) | tint(r, g, b)
+}
+
+fn star_grid(spacing, size, r, g, b) {
+  repeat(spacing, spacing) | star(5, size, size * 0.4) | glow(2.0) | tint(r, g, b)
+}
+
+fn grid_lines(spacing, width, r, g, b) {
+  grid(spacing, width) | glow(1.0) | tint(r, g, b)
+}
+
+fn checker(spacing, r, g, b) {
+  repeat(spacing, spacing) | box(spacing * 0.45, spacing * 0.45) | shade(r, g, b)
+}
+
+// ── Radial patterns ──────────────────────────────────────
+
+fn radial_dots(count, radius, size, r, g, b) {
+  radial(count) | translate(radius, 0.0) | circle(size) | glow(2.5) | tint(r, g, b)
+}
+
+fn radial_rings(count, radius, r, g, b) {
+  radial(count) | translate(radius, 0.0) | ring(0.05, 0.005) | glow(2.0) | tint(r, g, b)
+}
+
+fn radial_stars(count, radius, size, r, g, b) {
+  radial(count) | translate(radius, 0.0) | star(5, size, size * 0.4)
+  | glow(2.5) | tint(r, g, b)
+}
+
+fn radial_burst(count, length, r, g, b) {
+  radial(count) | line(0.0, 0.0, length, 0.0, 0.003) | glow(2.5) | tint(r, g, b)
+}
+
+fn concentric_rings(count, spacing, r, g, b) {
+  circle(count * spacing) | onion(count, 0.005) | glow(2.0) | tint(r, g, b)
+}
+
+fn bullseye_pattern(rings, spacing, r, g, b) {
+  circle(rings * spacing) | onion(rings, 0.008) | glow(1.5) | tint(r, g, b)
+}
+
+// ── Mirrored patterns ────────────────────────────────────
+
+fn mirrored_dots(spacing, size, r, g, b) {
+  mirror() | repeat(spacing, spacing) | circle(size) | glow(2.0) | tint(r, g, b)
+}
+
+fn kaleidoscope(count, radius, r, g, b) {
+  radial(count) | mirror() | translate(radius, 0.0) | circle(0.05)
+  | glow(2.5) | tint(r, g, b)
+}
+
+// ── Noise patterns ───────────────────────────────────────
+
+fn noise_field(sc, r, g, b) {
+  fbm(scale: sc, octaves: 4) | glow(1.5) | tint(r, g, b)
+}
+
+fn cellular(sc, r, g, b) {
+  voronoi(scale: sc) | glow(1.5) | tint(r, g, b)
+}
+
+fn organic_texture(sc, str, r, g, b) {
+  warp(scale: sc, strength: str) | fbm(scale: sc) | glow(1.5) | tint(r, g, b)
+}
+
+fn warped_cells(sc, str, r, g, b) {
+  warp(scale: sc, strength: str) | voronoi(scale: sc) | glow(1.5) | tint(r, g, b)
+}
+
+// ── Spiral patterns ──────────────────────────────────────
+
+fn spiral_trail(turns, width, r, g, b) {
+  spiral(turns, width) | glow(2.5) | tint(r, g, b)
+}
+
+fn spinning_spiral(turns, width, speed, r, g, b) {
+  rotate(speed) | spiral(turns, width) | glow(2.5) | tint(r, g, b)
+}
+
+// ── Line patterns ────────────────────────────────────────
+
+fn crosshair_pattern(size, r, g, b) {
+  cross(size, 0.003) | glow(2.0) | tint(r, g, b)
+}
+
+fn scanner_line(width, r, g, b) {
+  line(-0.5, 0.0, 0.5, 0.0, width) | glow(2.5) | tint(r, g, b)
 }

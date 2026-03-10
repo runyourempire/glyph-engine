@@ -2,6 +2,8 @@
 // Reusable visual effect functions.
 // All functions are complete pipelines (SDF generator → bridge → color).
 
+// ── Glowing objects ──────────────────────────────────────
+
 fn neon_dot(r, g, b) {
   circle(0.1) | glow(4.0) | tint(r, g, b)
 }
@@ -22,8 +24,118 @@ fn soft_star(radius) {
   star(5, radius, radius * 0.4) | glow(3.0) | tint(0.95, 0.95, 0.9)
 }
 
+fn energy_sphere(radius, r, g, b) {
+  circle(radius) | glow(4.0) | tint(r, g, b) | bloom(0.2, 2.0)
+}
+
+fn hot_core(radius) {
+  circle(radius) | glow(5.0) | tint(1.0, 0.9, 0.7) | bloom(0.3, 1.5)
+}
+
+// ── Noise effects ────────────────────────────────────────
+
 fn warped_noise(sc, oct, str) {
   warp(scale: sc, octaves: oct, strength: str)
   | fbm(scale: sc, octaves: oct)
   | glow(1.5)
+}
+
+fn plasma(sc, str) {
+  warp(scale: sc, strength: str) | fbm(scale: sc, octaves: 6)
+  | palette(neon)
+}
+
+fn lava_flow(sc, str) {
+  warp(scale: sc, strength: str) | fbm(scale: sc, octaves: 5)
+  | palette(fire)
+}
+
+fn aurora_wave(sc, str) {
+  warp(scale: sc, strength: str) | fbm(scale: sc, octaves: 4)
+  | palette(aurora)
+}
+
+fn ocean_surface(sc, str) {
+  warp(scale: sc, strength: str) | fbm(scale: sc, octaves: 5)
+  | palette(ocean)
+}
+
+fn electric_field(sc) {
+  distort(scale: sc, speed: 2.0, strength: 0.3)
+  | voronoi(scale: sc) | palette(neon)
+}
+
+fn crystal_cells(sc) {
+  voronoi(scale: sc) | palette(ice)
+}
+
+fn organic_matter(sc, str) {
+  warp(scale: sc, strength: str) | voronoi(scale: sc)
+  | palette(forest)
+}
+
+fn desert_terrain(sc, str) {
+  warp(scale: sc, strength: str) | fbm(scale: sc, octaves: 6)
+  | palette(sunset)
+}
+
+// ── Animated effects ─────────────────────────────────────
+
+fn pulse_dot(radius, r, g, b) {
+  distort(scale: 3.0, speed: 1.5, strength: 0.05)
+  | circle(radius) | glow(3.5) | tint(r, g, b)
+}
+
+fn breathing_ring(radius, r, g, b) {
+  distort(scale: 2.0, speed: 0.5, strength: 0.03)
+  | ring(radius, 0.01) | glow(2.5) | tint(r, g, b)
+}
+
+fn shimmer(sc, r, g, b) {
+  distort(scale: sc, speed: 3.0, strength: 0.1)
+  | fbm(scale: sc, octaves: 3) | glow(2.0) | tint(r, g, b)
+}
+
+fn fire_ring(radius, intensity) {
+  distort(scale: 4.0, speed: 2.0, strength: 0.08)
+  | ring(radius, 0.02) | glow(intensity) | tint(1.0, 0.5, 0.1)
+}
+
+fn smoke_ring(radius) {
+  warp(scale: 3.0, strength: 0.15) | ring(radius, 0.04)
+  | glow(1.5) | tint(0.5, 0.5, 0.5)
+}
+
+// ── Polar effects ────────────────────────────────────────
+
+fn starburst(rays, r, g, b) {
+  polar() | repeat(0.3, 0.3) | circle(0.05)
+  | glow(2.5) | tint(r, g, b)
+}
+
+fn vortex(sc, r, g, b) {
+  polar() | warp(scale: sc, strength: 0.3) | fbm(scale: sc)
+  | glow(1.5) | tint(r, g, b)
+}
+
+fn tunnel(sc, r, g, b) {
+  polar() | fbm(scale: sc, octaves: 4) | glow(1.5) | tint(r, g, b)
+}
+
+// ── Gradient effects ─────────────────────────────────────
+
+fn radial_gradient(inner, outer, r, g, b) {
+  radial_fade(inner, outer) | glow(2.0) | tint(r, g, b)
+}
+
+fn spotlight(radius, r, g, b) {
+  radial_fade(0.0, radius) | glow(3.0) | tint(r, g, b)
+}
+
+fn haze(radius, r, g, b) {
+  radial_fade(0.0, radius) | glow(1.0) | tint(r, g, b) | grain(0.05)
+}
+
+fn foggy(sc, amount) {
+  fbm(scale: sc, octaves: 3) | glow(1.0) | tint(0.7, 0.7, 0.8) | grain(amount)
 }

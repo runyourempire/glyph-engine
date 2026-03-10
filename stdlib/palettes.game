@@ -1,5 +1,8 @@
 // GAME Standard Library — palettes.game
 // Named color palette functions for easy styling.
+// Each wraps a named palette with optional post-processing.
+
+// ── Core palettes ────────────────────────────────────────
 
 fn warm(intensity) {
   palette(fire) | bloom(intensity)
@@ -23,4 +26,100 @@ fn golden(intensity) {
 
 fn frost(intensity) {
   palette(ice) | bloom(intensity)
+}
+
+// ── Extended palettes ────────────────────────────────────
+
+fn ember_glow(intensity) {
+  palette(ember) | bloom(intensity)
+}
+
+fn lava_hot(intensity) {
+  palette(lava) | bloom(intensity)
+}
+
+fn magma_flow(intensity) {
+  palette(magma) | bloom(intensity)
+}
+
+fn plasma_burst(intensity) {
+  palette(plasma) | bloom(intensity)
+}
+
+fn cyber_neon(intensity) {
+  palette(cyber) | bloom(intensity)
+}
+
+fn deep_forest(intensity) {
+  palette(forest) | bloom(intensity)
+}
+
+fn earthy(intensity) {
+  palette(earth) | bloom(intensity)
+}
+
+fn desert_sand(intensity) {
+  palette(desert) | bloom(intensity)
+}
+
+fn rose_petal(intensity) {
+  palette(rose) | bloom(intensity)
+}
+
+fn candy_pop(intensity) {
+  palette(candy) | bloom(intensity)
+}
+
+fn royal_purple(intensity) {
+  palette(royal) | bloom(intensity)
+}
+
+fn deep_ocean(intensity) {
+  palette(deep_sea) | bloom(intensity)
+}
+
+fn coral_reef(intensity) {
+  palette(coral) | bloom(intensity)
+}
+
+fn twilight_sky(intensity) {
+  palette(twilight) | bloom(intensity)
+}
+
+fn vaporwave(intensity) {
+  palette(vapor) | bloom(intensity)
+}
+
+fn gold_metal(intensity) {
+  palette(gold) | bloom(intensity)
+}
+
+fn silver_chrome(intensity) {
+  palette(silver) | bloom(intensity)
+}
+
+fn mono(intensity) {
+  palette(monochrome) | bloom(intensity)
+}
+
+// ── Tinted palette combos ────────────────────────────────
+
+fn fire_blue(intensity) {
+  palette(fire) | tint(0.5, 0.7, 1.0) | bloom(intensity)
+}
+
+fn ocean_warm(intensity) {
+  palette(ocean) | tint(1.0, 0.8, 0.6) | bloom(intensity)
+}
+
+fn neon_pink(intensity) {
+  palette(neon) | tint(1.0, 0.4, 0.8) | bloom(intensity)
+}
+
+fn aurora_gold(intensity) {
+  palette(aurora) | tint(1.0, 0.85, 0.4) | bloom(intensity)
+}
+
+fn ice_violet(intensity) {
+  palette(ice) | tint(0.7, 0.5, 1.0) | bloom(intensity)
 }
