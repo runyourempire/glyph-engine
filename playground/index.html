@@ -1111,66 +1111,82 @@ aiPromptEl.addEventListener('keydown', (e) => {
 });
 btnGenerate.addEventListener('click', generateFromAI);
 
-const GAME_SYSTEM_PROMPT = `You are a visual artist working in the GAME language. You produce .game code that compiles to living, GPU-accelerated Web Components.
+const GAME_SYSTEM_PROMPT = `You write .game code — a DSL that compiles to GPU shaders. Output ONLY raw .game code, nothing else.
 
-Your output should be HYPER QUALITY -- not basic demos, but visuals that make people stop and stare.
+CRITICAL: You may ONLY use the functions listed below. If a function is not in this list, it DOES NOT EXIST. Do not invent functions like "translateFromCenter", "smoothRotate", "pulse", "breathe", "orbit", etc. — they will cause compilation errors.
 
-## Core Syntax
-cinematic "name" {
-  layer config { param: default_value }
-  layer name [memory: 0.0-1.0] [opacity: 0.0-1.0] [blend: add|screen|multiply|overlay] {
-    stage1(args) | stage2(args) | bridge(args) | color_op(args)
+## Syntax
+
+cinematic "kebab-name" {
+  layer config { param_name: 0.5 }
+  layer snake_name memory: 0.93 opacity: 0.8 blend: add {
+    transform(args) | shape(args) | glow(intensity) | tint(r, g, b)
   }
-  arc { param: start -> end over Ns easing }
-  resonate { param -> layer.property * weight }
-  matrix color { [9 floats] }
-  pass name { effect(args) }
+  arc { param: 0.0 -> 1.0 over 5s ease-in-out }
+  resonate { param -> layer_name.scale * 0.3 }
+  pass name { vignette(0.4) }
 }
 
-Pipeline states: Position -> Sdf -> Color (every layer MUST reach Color).
-Stages chain with |.
+Layer modifiers (memory, opacity, blend) go on the SAME LINE as the layer name, BEFORE the opening brace.
 
-## Builtins
-Position->Position: translate(x,y), rotate(speed), scale(s), warp(scale,oct,pers,lac,strength), distort(scale,speed,strength), polar, repeat(sx,sy), mirror, radial(count)
-Position->Sdf: circle(r), ring(r,w), star(pts,r,inner), box(w,h), hex(r), triangle(size), line(x1,y1,x2,y2,w), capsule(len,r), arc_sdf(r,angle,w), cross(size,arm), heart(size), egg(r,k), spiral(turns,w), grid(spacing,w), fbm(scale,oct,pers,lac), simplex(scale), voronoi(scale), radial_fade(inner,outer)
-Boolean: union(a,b), subtract(a,b), intersect(a,b), smooth_union(a,b,k), smooth_subtract(a,b,k), smooth_intersect(a,b,k), xor(a,b), morph(a,b,t)
-Sdf->Sdf: round(r), shell(w), onion(count,w), mask_arc(angle)
-Sdf->Color: glow(intensity), shade(r,g,b), emissive(intensity), palette(name)
-Color->Color: tint(r,g,b), bloom(threshold,strength), grain(amount), outline(width)
+## ALL Available Functions (nothing else exists)
 
-## 30 Palettes
+Transforms (Position->Position): translate(x,y), rotate(speed), scale(s), warp(scale,octaves,persistence,lacunarity,strength), distort(scale,speed,strength), polar, repeat(sx,sy), mirror, radial(count)
+
+Shapes (Position->Sdf): circle(r), ring(r,w), star(pts,r,inner), box(w,h), hex(r), triangle(size), line(x1,y1,x2,y2,w), capsule(len,r), arc_sdf(r,angle,w), cross(size,arm), heart(size), egg(r,k), spiral(turns,w), grid(spacing,w), fbm(scale,oct,pers,lac), simplex(scale), voronoi(scale), radial_fade(inner,outer)
+
+Booleans: union(a,b), subtract(a,b), intersect(a,b), smooth_union(a,b,k), smooth_subtract(a,b,k), smooth_intersect(a,b,k), xor(a,b), morph(a,b,t)
+
+Modifiers (Sdf->Sdf): round(r), shell(w), onion(count,w), mask_arc(angle)
+
+Bridges (Sdf->Color — REQUIRED): glow(intensity), shade(r,g,b), emissive(intensity), palette(name)
+
+Color ops (Color->Color): tint(r,g,b), bloom(threshold,strength), grain(amount), outline(width)
+
+Pass effects: blur(radius), vignette(strength), chromatic(offset), sharpen(strength), film_grain(amount)
+
+## Pipeline Rule
+Every layer pipeline must flow: Position -> Sdf -> Color. Use | to chain stages.
+
+## Palettes
 fire, ocean, neon, aurora, sunset, ice, ember, lava, magma, inferno, plasma, electric, cyber, matrix, forest, moss, earth, desert, blood, rose, candy, royal, deep_sea, coral, arctic, twilight, vapor, gold, silver, monochrome
 
-## Pass effects: blur(radius), vignette(strength), chromatic(offset), sharpen(strength), film_grain(amount)
-
-## Built-in Inputs (use in any expression)
-Interaction: mouse_x (0-1), mouse_y (0-1), mouse_down (0 or 1)
-Audio: bass, mid, treble, energy, beat
-Example: translate(mouse_x * 2.0 - 1.0, mouse_y * 2.0 - 1.0) | circle(0.1 + mouse_down * 0.15) | glow(2.0 + mouse_down * 2.0)
-
-## Expressions in arguments
-Stage args support full math: circle(0.1 + pulse * 0.15), glow(2.0 + sin(pulse * 6.28) * 0.5)
-Math functions: sin, cos, abs, min, max, pow, floor, ceil, fract, clamp, mix, step, smoothstep
-Operators: + - * / ^ (power)
+## Built-in Variables (use in expressions)
+mouse_x, mouse_y (0-1), mouse_down (0/1), bass, mid, treble, energy, beat
+Math: sin, cos, abs, min, max, pow, fract, clamp, mix, smoothstep. Operators: + - * / ^
 
 ## Resonate properties: .scale, .brightness, .intensity, .opacity
-## Easing: linear, ease-in, ease-out, ease-in-out, elastic, bounce
-## Config params use NEWLINES (semicolons are tolerated)
-## Parameters used in arc/resonate MUST be declared in config layer
-## Compiler auto-applies ACES tonemapping + dithering
+## Config params use newlines, not semicolons. Params in arc/resonate MUST be in config layer.
 
-## Rules
-1. glow() is the primary bridge -- best results 90% of the time
-2. warp() before noise for organic textures
-3. memory: 0.85-0.95 for alive flowing layers
-4. 3-6 layers sweet spot
-5. Always add pass frame { vignette(0.4) }
-6. Use resonate for emergent behavior
-7. cinematic names: kebab-case, layer names: snake_case
-8. DO NOT use "blend" as a pass name (reserved keyword)
-9. ONLY use the builtins listed above -- do not invent new ones
-
-OUTPUT ONLY THE GAME CODE. No explanation, no markdown fences, no comments about what it does. Just the raw .game source code.`;
+## Example (reference quality)
+cinematic "golden-nebula" {
+  layer config {
+    pulse: 0.0
+    intensity: 0.5
+  }
+  layer field memory: 0.92 {
+    warp(scale: 2.5, octaves: 4, strength: 0.15)
+    | fbm(scale: 3.0, octaves: 5) | palette(aurora)
+  }
+  layer core memory: 0.95 {
+    circle(0.15) | glow(3.5) | tint(1.0, 0.6, 0.2)
+  }
+  layer ring memory: 0.88 {
+    distort(scale: 2.0, speed: 0.5, strength: 0.03)
+    | ring(0.3, 0.015) | glow(2.0) | tint(0.8, 0.7, 0.3)
+  }
+  layer edge { ring(0.45, 0.003) | glow(0.8) | tint(0.3, 0.3, 0.35) }
+  arc {
+    pulse: 0.0 -> 1.0 over 5s ease-in-out
+    intensity: 0.5 -> 1.0 over 8s ease-in-out
+  }
+  resonate {
+    pulse -> ring.scale * 0.2
+    intensity -> core.brightness * 0.5
+  }
+  pass glow_pass { blur(1.5) }
+  pass frame { vignette(0.4) }
+}`;
 
 function cleanGameCode(raw) {
   // 1. Extract from markdown code fences
@@ -1251,7 +1267,7 @@ async function generateFromAI() {
         aiStatusEl.textContent = `Fixing error (attempt ${attempt + 2}/${MAX_RETRIES + 1})...`;
         aiStatusEl.className = 'generating';
 
-        const fixPrompt = `The GAME code you generated has a compilation error:\n\n${error}\n\nHere is the code that failed:\n\n${gameCode}\n\nFix the error and output ONLY the corrected .game code. No explanation.`;
+        const fixPrompt = `COMPILATION ERROR:\n${error}\n\nFAILED CODE:\n${gameCode}\n\nFix the error. Remember: you can ONLY use functions from the system prompt. Do NOT invent new functions. Layer modifiers (memory, opacity, blend) go on the same line BEFORE the opening brace. Output ONLY the corrected .game code.`;
 
         // Build conversation history for context
         const fixMessages = [

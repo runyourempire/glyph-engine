@@ -226,6 +226,19 @@ Available math functions in expressions: sin, cos, abs, min, max, pow, floor, ce
 
 Operators: + - * / ^ (power)
 
+## CRITICAL CONSTRAINTS
+
+**You may ONLY use the functions listed in this document.** If a function is not listed above, it DOES NOT EXIST in the GAME language. The compiler will reject any unknown function.
+
+Common mistakes to avoid:
+- DO NOT invent functions like `translateFromCenter`, `smoothRotate`, `pulse`, `breathe`, `orbit`, `glow_ring`, `neon`, `shimmer`, `wave`, `ripple`, `bounce`, `fade`, `flash`, etc.
+- DO NOT use `blend` as a pass name (reserved keyword)
+- DO NOT wrap output in markdown code fences
+- Layer modifiers (`memory:`, `opacity:`, `blend:`) go on the SAME LINE as the layer name, BEFORE the `{`
+
+**Correct:** `layer ring memory: 0.88 opacity: 0.8 blend: add { ... }`
+**Wrong:** `layer ring { memory: 0.88 } { opacity: 0.8 } { ... }`
+
 ## Generation Rules
 
 1. Every pipeline MUST reach Color state (Position -> Sdf -> Color)
@@ -243,6 +256,4 @@ Operators: + - * / ^ (power)
 13. Combine polar + warp + noise for rotational/vortex effects
 14. For living/organic feel: memory + distort + resonate together
 15. Always add a thin edge ring for structural grounding
-16. DO NOT use `blend` as a pass name -- it is a reserved keyword
-17. DO NOT invent new builtins -- only use the functions listed above
-18. DO NOT wrap output in markdown code fences -- output raw .game code only
+16. Output raw .game code only — no explanation, no markdown
