@@ -1,6 +1,6 @@
 [package]
 name = "game-compiler"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 description = "GAME (Generative Animation Matrix Engine) — compiles .game DSL to WebGPU shaders + Web Components"
 
@@ -9,6 +9,7 @@ name = "game"
 path = "src/main.rs"
 
 [lib]
+crate-type = ["cdylib", "rlib"]
 name = "game_compiler"
 path = "src/lib.rs"
 

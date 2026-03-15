@@ -1,10 +1,23 @@
 //! JavaScript helper code shared by all output formats.
 
+/// Compute type for wiring compute shader output to the fragment shader.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComputeType {
+    React,
+    Swarm,
+    Flow,
+}
+
 /// WebGPU renderer class with optional feature support.
 ///
 /// `needs_prev_frame` — enables ping-pong memory textures for `memory:` and `feedback:`
 /// `pass_count` — number of post-processing passes (creates FBO chain)
-pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
+/// `compute_type` — optional compute simulation whose output is bound to the fragment shader
+pub fn webgpu_renderer(
+    needs_prev_frame: bool,
+    pass_count: usize,
+    compute_type: Option<ComputeType>,
+) -> String {
     let has_passes = pass_count > 0;
     let mut s = String::with_capacity(8192);
 
@@ -16,6 +29,9 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     if has_passes {
         s.push_str(", passShaders");
     }
+    if compute_type.is_some() {
+        s.push_str(", computeType");
+    }
     s.push_str(") {\n");
     s.push_str("    this.canvas = canvas;\n");
     s.push_str("    this.wgslVertex = wgslVertex;\n");
@@ -24,6 +40,12 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     if has_passes {
         s.push_str("    this.passShaders = passShaders;\n");
     }
+    if compute_type.is_some() {
+        s.push_str("    this._computeType = computeType;\n");
+        s.push_str("    this._computeBuf = null;\n");
+        s.push_str("    this._computeW = 0;\n");
+        s.push_str("    this._computeH = 0;\n");
+    }
     s.push_str("    this.device = null;\n");
     s.push_str("    this.pipeline = null;\n");
     s.push_str("    this.uniformBuffer = null;\n");
@@ -31,7 +53,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("    this.running = false;\n");
     s.push_str("    this.startTime = performance.now() / 1000;\n");
     s.push_str("    this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };\n");
-    s.push_str("    this.mouseX = 0; this.mouseY = 0;\n");
+    s.push_str("    this.mouseX = 0; this.mouseY = 0; this.mouseDown = 0;\n");
     s.push_str("    this.userParams = {};\n");
     s.push_str("    for (const u of uniformDefs) this.userParams[u.name] = u.default;\n");
     s.push_str("    this._onMouseMove = (e) => {\n");
@@ -39,7 +61,28 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("      this.mouseX = (e.clientX - r.left) / r.width;\n");
     s.push_str("      this.mouseY = 1.0 - (e.clientY - r.top) / r.height;\n");
     s.push_str("    };\n");
+    s.push_str("    this._onMouseDown = () => { this.mouseDown = 1; };\n");
+    s.push_str("    this._onMouseUp = () => { this.mouseDown = 0; };\n");
+    s.push_str("    this._onTouchStart = (e) => {\n");
+    s.push_str("      this.mouseDown = 1;\n");
+    s.push_str("      const r = this.canvas.getBoundingClientRect();\n");
+    s.push_str("      const t = e.touches[0];\n");
+    s.push_str("      this.mouseX = (t.clientX - r.left) / r.width;\n");
+    s.push_str("      this.mouseY = 1.0 - (t.clientY - r.top) / r.height;\n");
+    s.push_str("    };\n");
+    s.push_str("    this._onTouchMove = (e) => {\n");
+    s.push_str("      const r = this.canvas.getBoundingClientRect();\n");
+    s.push_str("      const t = e.touches[0];\n");
+    s.push_str("      this.mouseX = (t.clientX - r.left) / r.width;\n");
+    s.push_str("      this.mouseY = 1.0 - (t.clientY - r.top) / r.height;\n");
+    s.push_str("    };\n");
+    s.push_str("    this._onTouchEnd = () => { this.mouseDown = 0; };\n");
     s.push_str("    this.canvas.addEventListener('mousemove', this._onMouseMove);\n");
+    s.push_str("    this.canvas.addEventListener('mousedown', this._onMouseDown);\n");
+    s.push_str("    this.canvas.addEventListener('mouseup', this._onMouseUp);\n");
+    s.push_str("    this.canvas.addEventListener('touchstart', this._onTouchStart, {passive: true});\n");
+    s.push_str("    this.canvas.addEventListener('touchmove', this._onTouchMove, {passive: true});\n");
+    s.push_str("    this.canvas.addEventListener('touchend', this._onTouchEnd);\n");
     s.push_str("  }\n\n");
 
     // ── init() ───────────────────────────────────────────────────────
@@ -50,7 +93,11 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("    this.device = await adapter.requestDevice();\n");
     s.push_str("    const ctx = this.canvas.getContext('webgpu');\n");
     s.push_str("    const format = navigator.gpu.getPreferredCanvasFormat();\n");
-    s.push_str("    ctx.configure({ device: this.device, format, alphaMode: 'premultiplied' });\n");
+    if needs_prev_frame {
+        s.push_str("    ctx.configure({ device: this.device, format, alphaMode: 'premultiplied', usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST });\n");
+    } else {
+        s.push_str("    ctx.configure({ device: this.device, format, alphaMode: 'premultiplied' });\n");
+    }
     s.push_str("    this.ctx = ctx;\n");
     s.push_str("    this.format = format;\n\n");
 
@@ -58,7 +105,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("    const fMod = this.device.createShaderModule({ code: this.wgslFragment });\n\n");
 
     // Uniform buffer
-    s.push_str("    const floatCount = 8 + 2 + 2 + this.uniformDefs.length;\n");
+    s.push_str("    const floatCount = 11 + this.uniformDefs.length;\n");
     s.push_str("    const bufSize = Math.ceil(floatCount * 4 / 16) * 16;\n");
     s.push_str("    this.uniformBuffer = this.device.createBuffer({\n");
     s.push_str("      size: bufSize, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST\n");
@@ -74,12 +121,29 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("      entries: [{ binding: 0, resource: { buffer: this.uniformBuffer } }]\n");
     s.push_str("    });\n\n");
 
-    // Memory/feedback init
+    // Compute bind group layout (storage buffer for compute output)
+    if compute_type.is_some() {
+        s.push_str("    this._computeBGL = this.device.createBindGroupLayout({\n");
+        s.push_str("      entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } }]\n");
+        s.push_str("    });\n");
+    }
+
+    // Memory/feedback init + pipeline layout
     if needs_prev_frame {
         s.push_str("    // Memory/feedback: ping-pong textures (Group 1)\n");
         s.push_str("    this._initMemory();\n");
+        if compute_type.is_some() {
+            s.push_str("    const pipelineLayout = this.device.createPipelineLayout({\n");
+            s.push_str("      bindGroupLayouts: [bindGroupLayout, this._memBindGroupLayout, this._computeBGL]\n");
+            s.push_str("    });\n\n");
+        } else {
+            s.push_str("    const pipelineLayout = this.device.createPipelineLayout({\n");
+            s.push_str("      bindGroupLayouts: [bindGroupLayout, this._memBindGroupLayout]\n");
+            s.push_str("    });\n\n");
+        }
+    } else if compute_type.is_some() {
         s.push_str("    const pipelineLayout = this.device.createPipelineLayout({\n");
-        s.push_str("      bindGroupLayouts: [bindGroupLayout, this._memBindGroupLayout]\n");
+        s.push_str("      bindGroupLayouts: [bindGroupLayout, this._computeBGL]\n");
         s.push_str("    });\n\n");
     } else {
         s.push_str(
@@ -155,7 +219,8 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     s.push_str("    data[5] = this.audioData.beat;\n");
     s.push_str("    data[6] = w; data[7] = h;\n");
     s.push_str("    data[8] = this.mouseX; data[9] = this.mouseY;\n");
-    s.push_str("    let i = 10;\n");
+    s.push_str("    data[10] = this.mouseDown;\n");
+    s.push_str("    let i = 11;\n");
     s.push_str(
         "    for (const u of this.uniformDefs) data[i++] = this.userParams[u.name] ?? u.default;\n",
     );
@@ -169,6 +234,17 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("    const mainPass = encoder.beginRenderPass({\n");
         s.push_str("      colorAttachments: [{\n");
         s.push_str("        view: this._passFBOs[0].createView(),\n");
+        s.push_str(
+            "        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n",
+        );
+        s.push_str("      }]\n");
+        s.push_str("    });\n");
+    } else if needs_prev_frame {
+        // Memory path: render to memory write texture (has CopySrc), then copy to canvas
+        s.push_str("    const memWriteTex = this._memTex[1 - this._memIdx];\n");
+        s.push_str("    const mainPass = encoder.beginRenderPass({\n");
+        s.push_str("      colorAttachments: [{\n");
+        s.push_str("        view: memWriteTex.createView(),\n");
         s.push_str(
             "        loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 }\n",
         );
@@ -189,16 +265,37 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
     if needs_prev_frame {
         s.push_str("    mainPass.setBindGroup(1, this._memBindGroup);\n");
     }
+    if compute_type.is_some() {
+        let compute_group_idx = if needs_prev_frame { 2 } else { 1 };
+        s.push_str("    if (this._computeBuf) {\n");
+        s.push_str("      const computeBG = this.device.createBindGroup({\n");
+        s.push_str("        layout: this._computeBGL,\n");
+        s.push_str("        entries: [{ binding: 0, resource: { buffer: this._computeBuf } }]\n");
+        s.push_str("      });\n");
+        s.push_str(&format!(
+            "      mainPass.setBindGroup({compute_group_idx}, computeBG);\n"
+        ));
+        s.push_str("    }\n");
+    }
     s.push_str("    mainPass.draw(3);\n");
     s.push_str("    mainPass.end();\n");
 
-    // Memory swap (capture main output for next frame)
+    // Memory swap + copy to canvas
     if needs_prev_frame {
-        s.push_str("\n    // Capture frame for memory/feedback\n");
         if has_passes {
+            // FBO path: copy FBO → memory, passes will write to canvas
+            s.push_str("\n    // Capture frame for memory/feedback\n");
             s.push_str("    this._swapMemory(encoder, this._passFBOs[0]);\n");
         } else {
-            s.push_str("    this._swapMemory(encoder, this.ctx.getCurrentTexture());\n");
+            // Direct path: we rendered to memWriteTex, copy it to canvas for display
+            s.push_str("\n    // Copy rendered frame to canvas and swap memory\n");
+            s.push_str("    encoder.copyTextureToTexture(\n");
+            s.push_str("      { texture: memWriteTex },\n");
+            s.push_str("      { texture: this.ctx.getCurrentTexture() },\n");
+            s.push_str("      { width: this.canvas.width, height: this.canvas.height }\n");
+            s.push_str("    );\n");
+            s.push_str("    this._memIdx = 1 - this._memIdx;\n");
+            s.push_str("    this._updateMemBindGroup();\n");
         }
     }
 
@@ -247,7 +344,7 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("    const h = this.canvas.height || 1;\n");
         s.push_str("    const desc = {\n");
         s.push_str("      size: { width: w, height: h },\n");
-        s.push_str("      format: 'rgba8unorm',\n");
+        s.push_str("      format: this.format,\n");
         s.push_str("      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST\n");
         s.push_str("    };\n");
         s.push_str("    this._memTex = [this.device.createTexture(desc), this.device.createTexture(desc)];\n");
@@ -315,10 +412,28 @@ pub fn webgpu_renderer(needs_prev_frame: bool, pass_count: usize) -> String {
         s.push_str("  }\n\n");
     }
 
+    // ── Compute buffer wiring ──────────────────────────────────────
+    if compute_type.is_some() {
+        s.push_str("  setComputeBuffer(buf, w, h) {\n");
+        s.push_str("    this._computeBuf = buf;\n");
+        s.push_str("    this._computeW = w;\n");
+        s.push_str("    this._computeH = h;\n");
+        s.push_str("  }\n\n");
+    }
+
     // ── Utility methods ──────────────────────────────────────────────
     s.push_str("  setParam(name, value) { this.userParams[name] = value; }\n");
     s.push_str("  setAudioData(d) { Object.assign(this.audioData, d); }\n");
-    s.push_str("  destroy() { this.stop(); this.canvas.removeEventListener('mousemove', this._onMouseMove); this.device?.destroy(); }\n");
+    s.push_str("  destroy() {\n");
+    s.push_str("    this.stop();\n");
+    s.push_str("    this.canvas.removeEventListener('mousemove', this._onMouseMove);\n");
+    s.push_str("    this.canvas.removeEventListener('mousedown', this._onMouseDown);\n");
+    s.push_str("    this.canvas.removeEventListener('mouseup', this._onMouseUp);\n");
+    s.push_str("    this.canvas.removeEventListener('touchstart', this._onTouchStart);\n");
+    s.push_str("    this.canvas.removeEventListener('touchmove', this._onTouchMove);\n");
+    s.push_str("    this.canvas.removeEventListener('touchend', this._onTouchEnd);\n");
+    s.push_str("    this.device?.destroy();\n");
+    s.push_str("  }\n");
 
     s.push_str("}\n");
 
@@ -344,7 +459,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("    this.running = false;\n");
     s.push_str("    this.startTime = performance.now() / 1000;\n");
     s.push_str("    this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };\n");
-    s.push_str("    this.mouseX = 0; this.mouseY = 0;\n");
+    s.push_str("    this.mouseX = 0; this.mouseY = 0; this.mouseDown = 0;\n");
     s.push_str("    this.userParams = {};\n");
     s.push_str("    for (const u of uniformDefs) this.userParams[u.name] = u.default;\n");
     s.push_str("    this._onMouseMove = (e) => {\n");
@@ -352,7 +467,28 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("      this.mouseX = (e.clientX - r.left) / r.width;\n");
     s.push_str("      this.mouseY = 1.0 - (e.clientY - r.top) / r.height;\n");
     s.push_str("    };\n");
+    s.push_str("    this._onMouseDown = () => { this.mouseDown = 1; };\n");
+    s.push_str("    this._onMouseUp = () => { this.mouseDown = 0; };\n");
+    s.push_str("    this._onTouchStart = (e) => {\n");
+    s.push_str("      this.mouseDown = 1;\n");
+    s.push_str("      const r = this.canvas.getBoundingClientRect();\n");
+    s.push_str("      const t = e.touches[0];\n");
+    s.push_str("      this.mouseX = (t.clientX - r.left) / r.width;\n");
+    s.push_str("      this.mouseY = 1.0 - (t.clientY - r.top) / r.height;\n");
+    s.push_str("    };\n");
+    s.push_str("    this._onTouchMove = (e) => {\n");
+    s.push_str("      const r = this.canvas.getBoundingClientRect();\n");
+    s.push_str("      const t = e.touches[0];\n");
+    s.push_str("      this.mouseX = (t.clientX - r.left) / r.width;\n");
+    s.push_str("      this.mouseY = 1.0 - (t.clientY - r.top) / r.height;\n");
+    s.push_str("    };\n");
+    s.push_str("    this._onTouchEnd = () => { this.mouseDown = 0; };\n");
     s.push_str("    this.canvas.addEventListener('mousemove', this._onMouseMove);\n");
+    s.push_str("    this.canvas.addEventListener('mousedown', this._onMouseDown);\n");
+    s.push_str("    this.canvas.addEventListener('mouseup', this._onMouseUp);\n");
+    s.push_str("    this.canvas.addEventListener('touchstart', this._onTouchStart, {passive: true});\n");
+    s.push_str("    this.canvas.addEventListener('touchmove', this._onTouchMove, {passive: true});\n");
+    s.push_str("    this.canvas.addEventListener('touchend', this._onTouchEnd);\n");
     s.push_str("  }\n\n");
 
     // ── init() ───────────────────────────────────────────────────────
@@ -385,6 +521,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("      beat: gl.getUniformLocation(this.program, 'u_audio_beat'),\n");
     s.push_str("      resolution: gl.getUniformLocation(this.program, 'u_resolution'),\n");
     s.push_str("      mouse: gl.getUniformLocation(this.program, 'u_mouse'),\n");
+    s.push_str("      mouse_down: gl.getUniformLocation(this.program, 'u_mouse_down'),\n");
     s.push_str("    };\n");
     s.push_str("    this.paramLocs = {};\n");
     s.push_str("    for (const u of this.uniformDefs) {\n");
@@ -452,6 +589,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("    gl.uniform1f(this.locs.beat, this.audioData.beat);\n");
     s.push_str("    gl.uniform2f(this.locs.resolution, this.canvas.width, this.canvas.height);\n");
     s.push_str("    gl.uniform2f(this.locs.mouse, this.mouseX, this.mouseY);\n");
+    s.push_str("    gl.uniform1f(this.locs.mouse_down, this.mouseDown);\n");
     s.push_str("    for (const u of this.uniformDefs) {\n");
     s.push_str(
         "      gl.uniform1f(this.paramLocs[u.name], this.userParams[u.name] ?? u.default);\n",
@@ -521,7 +659,15 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     // ── Utility methods ──────────────────────────────────────────────
     s.push_str("  setParam(name, value) { this.userParams[name] = value; }\n");
     s.push_str("  setAudioData(d) { Object.assign(this.audioData, d); }\n");
-    s.push_str("  destroy() { this.stop(); this.canvas.removeEventListener('mousemove', this._onMouseMove); }\n");
+    s.push_str("  destroy() {\n");
+    s.push_str("    this.stop();\n");
+    s.push_str("    this.canvas.removeEventListener('mousemove', this._onMouseMove);\n");
+    s.push_str("    this.canvas.removeEventListener('mousedown', this._onMouseDown);\n");
+    s.push_str("    this.canvas.removeEventListener('mouseup', this._onMouseUp);\n");
+    s.push_str("    this.canvas.removeEventListener('touchstart', this._onTouchStart);\n");
+    s.push_str("    this.canvas.removeEventListener('touchmove', this._onTouchMove);\n");
+    s.push_str("    this.canvas.removeEventListener('touchend', this._onTouchEnd);\n");
+    s.push_str("  }\n");
 
     s.push_str("}\n");
 

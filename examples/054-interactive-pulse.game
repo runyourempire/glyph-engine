@@ -1,0 +1,40 @@
+cinematic "interactive-pulse" {
+  layer config {
+    intensity: 0.5
+  }
+
+  layer field memory: 0.92 {
+    warp(scale: 2.5, octaves: 4, strength: 0.15)
+    | fbm(scale: 3.0, octaves: 5) | palette(twilight)
+  }
+
+  layer core memory: 0.95 {
+    translate(mouse_x * 2.0 - 1.0, mouse_y * 2.0 - 1.0)
+    | circle(0.08 + mouse_down * 0.12)
+    | glow(2.0 + mouse_down * 2.5)
+    | tint(1.0, 0.6 + mouse_down * 0.3, 0.2)
+  }
+
+  layer ring memory: 0.88 {
+    translate(mouse_x * 2.0 - 1.0, mouse_y * 2.0 - 1.0)
+    | ring(0.2 + mouse_down * 0.15, 0.015)
+    | glow(1.5 + mouse_down * 1.0)
+    | tint(0.8, 0.5, 1.0)
+  }
+
+  layer edge {
+    ring(0.45, 0.003) | glow(0.8) | tint(0.3, 0.3, 0.35)
+  }
+
+  arc {
+    intensity: 0.5 -> 1.0 over 8s ease-in-out
+  }
+
+  resonate {
+    intensity -> core.brightness * 0.3
+    intensity -> ring.scale * 0.2
+  }
+
+  pass glow_pass { blur(1.5) }
+  pass frame { vignette(0.4) }
+}

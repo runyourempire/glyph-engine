@@ -70,6 +70,48 @@ impl Parser {
         }
     }
 
+    /// Convert a keyword token to its string name. Returns None for non-keyword tokens.
+    /// Used to allow keywords as identifiers in contexts like layer names, param names, etc.
+    fn token_to_name(tok: &Token) -> Option<String> {
+        Some(match tok {
+            Token::Opacity => "opacity",
+            Token::Blend => "blend",
+            Token::Memory => "memory",
+            Token::Cast => "cast",
+            Token::Score => "score",
+            Token::Flow => "flow",
+            Token::React => "react",
+            Token::Swarm => "swarm",
+            Token::Gravity => "gravity",
+            Token::Voice => "voice",
+            Token::Listen => "listen",
+            Token::Feedback => "feedback",
+            Token::Play => "play",
+            Token::Pass => "pass",
+            Token::Matrix => "matrix",
+            Token::Arc => "arc",
+            Token::Resonate => "resonate",
+            Token::Over => "over",
+            Token::Breed => "breed",
+            Token::From => "from",
+            Token::Inherit => "inherit",
+            Token::Mutate => "mutate",
+            Token::Project => "project",
+            Token::Scene => "scene",
+            Token::Transition => "transition",
+            _ => return None,
+        }.into())
+    }
+
+    /// Check if the token at `pos` is a name-like token (Ident or keyword usable as name).
+    fn is_name_token_at(&self, pos: usize) -> bool {
+        match self.tokens.get(pos) {
+            Some((Token::Ident(_), _, _)) => true,
+            Some((tok, _, _)) => Self::token_to_name(tok).is_some(),
+            None => false,
+        }
+    }
+
     // -- expect helpers ----------------------------------------------------
 
     fn expect(&mut self, expected: &Token) -> Result<Token, CompileError> {
@@ -109,27 +151,15 @@ impl Parser {
     }
 
     /// Accept an identifier OR a keyword that can appear as a name in certain contexts
-    /// (e.g., field names after `.`, parameter names, etc.)
+    /// (e.g., layer names, field names after `.`, parameter names, stage names).
+    /// AI-generated code frequently uses keywords as names (e.g., `layer flow { ... }`).
     fn expect_ident_or_keyword(&mut self) -> Result<String, CompileError> {
         let (line, col) = self.current_pos();
         match self.advance() {
             Some(Token::Ident(s)) => Ok(s),
-            // Keywords that are valid as field/variable names
-            Some(Token::Opacity) => Ok("opacity".into()),
-            Some(Token::Blend) => Ok("blend".into()),
-            Some(Token::Memory) => Ok("memory".into()),
-            Some(Token::Cast) => Ok("cast".into()),
-            Some(Token::Score) => Ok("score".into()),
-            Some(Token::Flow) => Ok("flow".into()),
-            Some(Token::React) => Ok("react".into()),
-            Some(Token::Swarm) => Ok("swarm".into()),
-            Some(Token::Gravity) => Ok("gravity".into()),
-            Some(Token::Voice) => Ok("voice".into()),
-            Some(Token::Listen) => Ok("listen".into()),
-            Some(Token::Feedback) => Ok("feedback".into()),
-            Some(Token::Play) => Ok("play".into()),
-            Some(Token::Pass) => Ok("pass".into()),
-            Some(Token::Matrix) => Ok("matrix".into()),
+            Some(tok) if Self::token_to_name(&tok).is_some() => {
+                Ok(Self::token_to_name(&tok).unwrap())
+            }
             Some(tok) => Err(CompileError::ParseError {
                 message: format!("expected identifier, found `{tok}`"),
                 line,
@@ -595,7 +625,7 @@ impl Parser {
 
     fn parse_layer(&mut self) -> Result<Layer, CompileError> {
         self.expect(&Token::Layer)?;
-        let name = self.expect_ident()?;
+        let name = self.expect_ident_or_keyword()?;
 
         // optional layer-level params: (key: val, ...)
         let opts = if self.check(&Token::LParen) {
@@ -711,24 +741,28 @@ impl Parser {
             return self.parse_conditional_body();
         }
 
-        match (self.tokens.get(self.pos), self.tokens.get(self.pos + 1)) {
-            (Some((Token::Ident(_), _, _)), Some((Token::Colon, _, _))) => self.parse_param_list(),
-            (Some((Token::Ident(_), _, _)), Some((Token::LParen, _, _))) => {
-                self.parse_stage_pipeline()
+        // Check if first token is a name-like token (ident or keyword usable as name)
+        let first_is_name = self.is_name_token_at(self.pos);
+        let second = self.tokens.get(self.pos + 1).map(|(t, _, _)| t.clone());
+
+        if first_is_name {
+            match second.as_ref() {
+                Some(Token::Colon) => self.parse_param_list(),
+                Some(Token::LParen) => self.parse_stage_pipeline(),
+                Some(Token::Pipe) => {
+                    // Pipeline starting with parameterless stage: `polar | simplex(6.0)`
+                    self.parse_stage_pipeline()
+                }
+                Some(Token::RBrace) => {
+                    // Single bare stage: `layer x { polar }`
+                    self.parse_stage_pipeline()
+                }
+                _ => self.parse_param_list(),
             }
-            (Some((Token::Ident(_), _, _)), Some((Token::Pipe, _, _))) => {
-                // Pipeline starting with parameterless stage: `polar | simplex(6.0)`
-                self.parse_stage_pipeline()
-            }
-            (Some((Token::Ident(_), _, _)), Some((Token::RBrace, _, _))) => {
-                // Single bare stage: `layer x { polar }`
-                self.parse_stage_pipeline()
-            }
-            _ => {
-                // Could be a single-token expression param or error --
-                // try params first, fall back to error.
-                self.parse_param_list()
-            }
+        } else {
+            // Could be a single-token expression param or error --
+            // try params first, fall back to error.
+            self.parse_param_list()
         }
     }
 
@@ -762,7 +796,7 @@ impl Parser {
     fn parse_param_list(&mut self) -> Result<LayerBody, CompileError> {
         let mut params = Vec::new();
         while !self.at_end() && !self.check(&Token::RBrace) {
-            let name = self.expect_ident()?;
+            let name = self.expect_ident_or_keyword()?;
             self.expect(&Token::Colon)?;
             let value = self.parse_expr()?;
 
@@ -831,7 +865,7 @@ impl Parser {
     }
 
     pub fn parse_stage(&mut self) -> Result<Stage, CompileError> {
-        let name = self.expect_ident()?;
+        let name = self.expect_ident_or_keyword()?;
         let args = if matches!(self.peek(), Some(Token::LParen)) {
             self.advance(); // consume (
             let a = self.parse_arg_list()?;
@@ -857,12 +891,15 @@ impl Parser {
     }
 
     fn parse_arg(&mut self) -> Result<Arg, CompileError> {
-        // Named arg: IDENT COLON expr  or  positional: expr
-        // Lookahead for IDENT ':'
-        if let (Some((Token::Ident(_), _, _)), Some((Token::Colon, _, _))) =
-            (self.tokens.get(self.pos), self.tokens.get(self.pos + 1))
-        {
-            let name = self.expect_ident()?;
+        // Named arg: NAME COLON expr  or  positional: expr
+        // Lookahead for NAME ':' (where NAME is ident or keyword-as-name)
+        let is_named = if let Some((Token::Colon, _, _)) = self.tokens.get(self.pos + 1) {
+            self.is_name_token_at(self.pos)
+        } else {
+            false
+        };
+        if is_named {
+            let name = self.expect_ident_or_keyword()?;
             self.expect(&Token::Colon)?;
             let value = self.parse_expr()?;
             Ok(Arg {
@@ -1732,6 +1769,26 @@ impl Parser {
                 self.advance();
                 let inner = self.parse_factor()?;
                 Ok(Expr::Neg(Box::new(inner)))
+            }
+            // Keywords used as identifiers in expressions (AI-generated code)
+            Some(ref tok) if Self::token_to_name(tok).is_some() => {
+                let name = Self::token_to_name(tok).unwrap();
+                self.advance();
+                if matches!(self.peek(), Some(Token::LParen)) {
+                    self.advance();
+                    let args = self.parse_arg_list()?;
+                    self.expect(&Token::RParen)?;
+                    Ok(Expr::Call { name, args })
+                } else if matches!(self.peek(), Some(Token::Dot)) {
+                    self.advance();
+                    let field = self.expect_ident_or_keyword()?;
+                    Ok(Expr::DottedIdent {
+                        object: name,
+                        field,
+                    })
+                } else {
+                    Ok(Expr::Ident(name))
+                }
             }
             Some(tok) => Err(CompileError::ParseError {
                 message: format!("unexpected token `{tok}` in expression"),

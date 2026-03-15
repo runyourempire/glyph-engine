@@ -322,6 +322,45 @@ fn emit_pass_stage(s: &mut String, stage: &Stage, indent: &str) {
                 "{indent}color_result = vec4<f32>(color_result.rgb * vign, color_result.a * vign);\n"
             ));
         }
+        "chromatic" | "chromatic_aberration" => {
+            let strength = if !args.is_empty() {
+                get_arg(args, "strength", 0, "chromatic")
+            } else {
+                "0.005".to_string()
+            };
+            s.push_str(&format!("{indent}// chromatic aberration\n"));
+            s.push_str(&format!("{indent}let ca_dir = normalize(uv - 0.5) * {strength};\n"));
+            s.push_str(&format!("{indent}let ca_r = textureSample(pass_tex, pass_sampler, uv + ca_dir).r;\n"));
+            s.push_str(&format!("{indent}let ca_g = color_result.g;\n"));
+            s.push_str(&format!("{indent}let ca_b = textureSample(pass_tex, pass_sampler, uv - ca_dir).b;\n"));
+            s.push_str(&format!("{indent}color_result = vec4<f32>(ca_r, ca_g, ca_b, color_result.a);\n"));
+        }
+        "sharpen" => {
+            let amount = if !args.is_empty() {
+                get_arg(args, "amount", 0, "sharpen")
+            } else {
+                "0.5".to_string()
+            };
+            s.push_str(&format!("{indent}// unsharp mask\n"));
+            s.push_str(&format!("{indent}let sh_texel = 1.0 / u.resolution;\n"));
+            s.push_str(&format!("{indent}let sh_n = textureSample(pass_tex, pass_sampler, uv + vec2<f32>(0.0, -sh_texel.y));\n"));
+            s.push_str(&format!("{indent}let sh_s = textureSample(pass_tex, pass_sampler, uv + vec2<f32>(0.0, sh_texel.y));\n"));
+            s.push_str(&format!("{indent}let sh_e = textureSample(pass_tex, pass_sampler, uv + vec2<f32>(sh_texel.x, 0.0));\n"));
+            s.push_str(&format!("{indent}let sh_w = textureSample(pass_tex, pass_sampler, uv + vec2<f32>(-sh_texel.x, 0.0));\n"));
+            s.push_str(&format!("{indent}let sh_avg = (sh_n + sh_s + sh_e + sh_w) * 0.25;\n"));
+            s.push_str(&format!("{indent}color_result = vec4<f32>(mix(sh_avg.rgb, color_result.rgb, 1.0 + {amount}), color_result.a);\n"));
+        }
+        "film_grain" => {
+            let amount = if !args.is_empty() {
+                get_arg(args, "amount", 0, "film_grain")
+            } else {
+                "0.05".to_string()
+            };
+            s.push_str(&format!("{indent}// film grain\n"));
+            s.push_str(&format!("{indent}let grain_seed = uv * u.resolution + vec2<f32>(u.time * 1000.0, 0.0);\n"));
+            s.push_str(&format!("{indent}let grain_val = (fract(sin(dot(grain_seed, vec2<f32>(12.9898, 78.233))) * 43758.5453) - 0.5) * {amount};\n"));
+            s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb + grain_val, color_result.a);\n"));
+        }
         _ => {
             // Unknown pass stage — passthrough
             s.push_str(&format!("{indent}// unknown pass stage: {}\n", stage.name));
@@ -346,6 +385,7 @@ fn generate_fragment_inner(
     s.push_str("    audio_beat: f32,\n");
     s.push_str("    resolution: vec2<f32>,\n");
     s.push_str("    mouse: vec2<f32>,\n");
+    s.push_str("    mouse_down: f32,\n");
     for u in uniforms {
         s.push_str(&format!("    p_{}: f32,\n", u.name));
     }
@@ -353,8 +393,36 @@ fn generate_fragment_inner(
     s.push_str("@group(0) @binding(0) var<uniform> u: Uniforms;\n\n");
 
     // Memory bindings (Group 1) — only when any layer uses memory
-    if memory::any_layer_uses_memory(&cinematic.layers) {
+    let has_memory = memory::any_layer_uses_memory(&cinematic.layers);
+    if has_memory {
         memory::emit_wgsl_memory_bindings(&mut s);
+    }
+
+    // Compute field binding — storage buffer from compute shader output
+    let compute_kind = if cinematic.react.is_some() {
+        Some("react")
+    } else if cinematic.swarm.is_some() {
+        Some("swarm")
+    } else if cinematic.flow.is_some() {
+        Some("flow")
+    } else {
+        None
+    };
+    let compute_group = if has_memory { 2 } else { 1 };
+    if let Some(kind) = compute_kind {
+        match kind {
+            "react" | "flow" => {
+                s.push_str(&format!(
+                    "@group({compute_group}) @binding(0) var<storage, read> compute_field: array<vec2<f32>>;\n\n"
+                ));
+            }
+            "swarm" => {
+                s.push_str(&format!(
+                    "@group({compute_group}) @binding(0) var<storage, read> compute_field: array<f32>;\n\n"
+                ));
+            }
+            _ => {}
+        }
     }
 
     // Vertex output struct
@@ -365,6 +433,37 @@ fn generate_fragment_inner(
 
     // Built-in helper functions
     emit_wgsl_builtins(&mut s, cinematic);
+
+    // Compute field sampling function
+    if let Some(kind) = compute_kind {
+        match kind {
+            "react" => {
+                s.push_str("fn sample_compute(uv: vec2<f32>) -> f32 {\n");
+                s.push_str("    let cw = 256u; let ch = 256u;\n");
+                s.push_str("    let x = clamp(u32(uv.x * f32(cw)), 0u, cw - 1u);\n");
+                s.push_str("    let y = clamp(u32(uv.y * f32(ch)), 0u, ch - 1u);\n");
+                s.push_str("    return compute_field[y * cw + x].y;\n");
+                s.push_str("}\n\n");
+            }
+            "swarm" => {
+                s.push_str("fn sample_compute(uv: vec2<f32>) -> f32 {\n");
+                s.push_str("    let cw = 512u; let ch = 512u;\n");
+                s.push_str("    let x = clamp(u32(uv.x * f32(cw)), 0u, cw - 1u);\n");
+                s.push_str("    let y = clamp(u32(uv.y * f32(ch)), 0u, ch - 1u);\n");
+                s.push_str("    return compute_field[y * cw + x];\n");
+                s.push_str("}\n\n");
+            }
+            "flow" => {
+                s.push_str("fn sample_compute(uv: vec2<f32>) -> f32 {\n");
+                s.push_str("    let cw = 256u; let ch = 256u;\n");
+                s.push_str("    let x = clamp(u32(uv.x * f32(cw)), 0u, cw - 1u);\n");
+                s.push_str("    let y = clamp(u32(uv.y * f32(ch)), 0u, ch - 1u);\n");
+                s.push_str("    return length(compute_field[y * cw + x]);\n");
+                s.push_str("}\n\n");
+            }
+            _ => {}
+        }
+    }
 
     // Color matrix function (if present)
     if let Some(ref mc) = cinematic.matrix_color {
@@ -377,7 +476,10 @@ fn generate_fragment_inner(
     s.push_str("fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {\n");
     s.push_str("    let uv = input.uv * 2.0 - 1.0;\n");
     s.push_str("    let aspect = u.resolution.x / u.resolution.y;\n");
-    s.push_str("    let time = fract(u.time / 120.0) * 120.0;\n\n");
+    s.push_str("    let time = fract(u.time / 120.0) * 120.0;\n");
+    s.push_str("    let mouse_x = u.mouse.x;\n");
+    s.push_str("    let mouse_y = u.mouse.y;\n");
+    s.push_str("    let mouse_down = u.mouse_down;\n\n");
 
     // Uniform param aliases
     for u in uniforms {
@@ -408,13 +510,24 @@ fn generate_fragment_inner(
             multi_layer,
             fns,
             cinematic.matrix_color.is_some(),
+            compute_kind,
         );
     }
 
     if multi_layer {
+        // Compute field visualization (composited over layer stack)
+        if compute_kind.is_some() {
+            s.push_str("    // Compute field visualization\n");
+            s.push_str("    let cv = sample_compute(input.uv);\n");
+            s.push_str("    let compute_color = vec4<f32>(cv * 1.5, cv * 0.8, cv * 0.3, cv);\n");
+            s.push_str("    final_color = final_color + compute_color * (1.0 - final_color.a);\n\n");
+        }
         if cinematic.matrix_color.is_some() {
             s.push_str("    final_color = vec4<f32>(apply_color_matrix(final_color.rgb), final_color.a);\n");
         }
+        // Quality output pipeline: tonemap + dither
+        s.push_str("    final_color = vec4<f32>(aces_tonemap(final_color.rgb), final_color.a);\n");
+        s.push_str("    final_color = final_color + (dither_noise(input.uv * u.resolution) - 0.5) / 255.0;\n");
         s.push_str("    return final_color;\n");
     }
     s.push_str("}\n");
@@ -556,6 +669,17 @@ fn emit_wgsl_builtins(s: &mut String, cinematic: &Cinematic) {
         s.push_str("    return k - ra;\n");
         s.push_str("}\n\n");
     }
+
+    // Always emit tonemapping and dithering helpers
+    s.push_str("fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {\n");
+    s.push_str("    let a = x * (2.51 * x + 0.03);\n");
+    s.push_str("    let b = x * (2.43 * x + 0.59) + 0.14;\n");
+    s.push_str("    return clamp(a / b, vec3<f32>(0.0), vec3<f32>(1.0));\n");
+    s.push_str("}\n\n");
+
+    s.push_str("fn dither_noise(uv: vec2<f32>) -> f32 {\n");
+    s.push_str("    return fract(52.9829189 * fract(dot(uv, vec2<f32>(0.06711056, 0.00583715))));\n");
+    s.push_str("}\n\n");
 }
 
 fn emit_wgsl_star(s: &mut String) {
@@ -651,6 +775,7 @@ fn emit_wgsl_layer(
     multi: bool,
     fns: &[FnDef],
     has_color_matrix: bool,
+    compute_kind: Option<&str>,
 ) {
     s.push_str(&format!("    // ── Layer {idx}: {} ──\n", layer.name));
     if multi {
@@ -750,9 +875,19 @@ fn emit_wgsl_layer(
         }
         s.push_str("    }\n\n");
     } else {
+        // Compute field visualization (single-layer path)
+        if compute_kind.is_some() {
+            s.push_str(&format!("{indent}// Compute field visualization\n"));
+            s.push_str(&format!("{indent}let cv = sample_compute(input.uv);\n"));
+            s.push_str(&format!("{indent}let compute_color = vec4<f32>(cv * 1.5, cv * 0.8, cv * 0.3, cv);\n"));
+            s.push_str(&format!("{indent}color_result = color_result + compute_color * (1.0 - color_result.a);\n\n"));
+        }
         if has_color_matrix {
             s.push_str(&format!("{indent}color_result = vec4<f32>(apply_color_matrix(color_result.rgb), color_result.a);\n"));
         }
+        // Quality output pipeline: tonemap + dither
+        s.push_str(&format!("{indent}color_result = vec4<f32>(aces_tonemap(color_result.rgb), color_result.a);\n"));
+        s.push_str(&format!("{indent}color_result = color_result + (dither_noise(input.uv * u.resolution) - 0.5) / 255.0;\n"));
         s.push_str(&format!("{indent}return color_result;\n"));
     }
 }
@@ -768,6 +903,9 @@ pub fn emit_wgsl_expr(expr: &Expr) -> String {
             "treble" => "u.audio_treble".to_string(),
             "energy" => "u.audio_energy".to_string(),
             "beat" => "u.audio_beat".to_string(),
+            "mouse_down" => "u.mouse_down".to_string(),
+            "mouse_x" => "u.mouse.x".to_string(),
+            "mouse_y" => "u.mouse.y".to_string(),
             _ => name.clone(),
         },
         Expr::DottedIdent { object, field } => {
@@ -959,7 +1097,9 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let r = get_arg(args, "r", 0, "shade");
             let g = get_arg(args, "g", 1, "shade");
             let b = get_arg(args, "b", 2, "shade");
-            s.push_str(&format!("{indent}var color_result = vec4<f32>(vec3<f32>({r}, {g}, {b}) * (1.0 - clamp(sdf_result, 0.0, 1.0)), 1.0 - clamp(sdf_result, 0.0, 1.0));\n"));
+            s.push_str(&format!("{indent}let shade_fw = fwidth(sdf_result);
+{indent}let shade_alpha = 1.0 - smoothstep(-shade_fw, shade_fw, sdf_result);
+{indent}var color_result = vec4<f32>(vec3<f32>({r}, {g}, {b}) * shade_alpha, shade_alpha);\n"));
         }
         "emissive" => {
             let intensity = get_arg(args, "intensity", 0, "emissive");
@@ -1118,7 +1258,8 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 "{indent}{{ let out_lum = dot(color_result.rgb, vec3<f32>(0.299, 0.587, 0.114));\n"
             ));
             s.push_str(&format!("{indent}let out_edge = abs(out_lum) - {w};\n"));
-            s.push_str(&format!("{indent}color_result = vec4<f32>(color_result.rgb * (1.0 - smoothstep(0.0, 0.02, out_edge)), color_result.a * (1.0 - smoothstep(0.0, 0.02, out_edge))); }}\n"));
+            s.push_str(&format!("{indent}let out_fw = fwidth(out_edge);
+{indent}color_result = vec4<f32>(color_result.rgb * (1.0 - smoothstep(0.0, out_fw, out_edge)), color_result.a * (1.0 - smoothstep(0.0, out_fw, out_edge))); }}\n"));
         }
         // ── New SDF primitives ──────────────────────────
         "line" => {

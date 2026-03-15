@@ -1,6 +1,6 @@
 //! Stage pipeline state machine for shader codegen.
 
-use crate::ast::{Arg, Expr, FnDef, Stage};
+use crate::ast::{Arg, BinOp, Expr, FnDef, Stage};
 
 /// Auto-insert bridge stages (glow) when SDF→Color gap is detected.
 /// Returns the augmented pipeline and any compiler notes.
@@ -131,8 +131,47 @@ fn suggest_bridge(stage_name: &str, state: ShaderState) -> Option<String> {
     None
 }
 
+/// Emit a generic expression string for shader code.
+///
+/// Produces syntax valid in both WGSL and GLSL for basic math.
+/// Identifiers are emitted as-is — callers must declare aliases
+/// (e.g., `let mouse_down = u.mouse_down;` in WGSL).
+pub fn emit_expr(expr: &Expr) -> String {
+    match expr {
+        Expr::Number(v) => format!("{v:.6}"),
+        Expr::Ident(name) => name.clone(),
+        Expr::DottedIdent { object, field } => format!("{object}_{field}"),
+        Expr::Color(r, _g, _b) => format!("{r:.6}"),
+        Expr::BinOp { op, left, right } => {
+            let l = emit_expr(left);
+            let r = emit_expr(right);
+            let op_str = match op {
+                BinOp::Add => "+",
+                BinOp::Sub => "-",
+                BinOp::Mul => "*",
+                BinOp::Div => "/",
+                BinOp::Pow => return format!("pow({l}, {r})"),
+                BinOp::Gt => ">",
+                BinOp::Lt => "<",
+                BinOp::Gte => ">=",
+                BinOp::Lte => "<=",
+                BinOp::Eq => "==",
+                BinOp::NotEq => "!=",
+            };
+            format!("({l} {op_str} {r})")
+        }
+        Expr::Neg(inner) => format!("(-{})", emit_expr(inner)),
+        Expr::Paren(inner) => format!("({})", emit_expr(inner)),
+        Expr::Call { name, args } => {
+            let arg_strs: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
+            format!("{}({})", name, arg_strs.join(", "))
+        }
+        _ => "0.0".into(),
+    }
+}
+
 /// Resolve an argument value to a float string for shader emission.
-pub fn resolve_arg(arg: &Arg, idx: usize, builtin_name: &str) -> String {
+pub fn resolve_arg(arg: &Arg, idx: usize, _builtin_name: &str) -> String {
     match &arg.value {
         Expr::Number(v) => format!("{v:.6}"),
         Expr::Color(r, g, b) => {
@@ -145,14 +184,7 @@ pub fn resolve_arg(arg: &Arg, idx: usize, builtin_name: &str) -> String {
         }
         Expr::Ident(name) => name.clone(),
         Expr::DottedIdent { object, field } => format!("{object}_{field}"),
-        _ => {
-            // Fallback: use builtin default if available
-            builtins::lookup(builtin_name)
-                .and_then(|b| b.params.get(idx))
-                .and_then(|p| p.default)
-                .map(|d| format!("{d:.6}"))
-                .unwrap_or_else(|| "0.0".into())
-        }
+        other => emit_expr(other),
     }
 }
 

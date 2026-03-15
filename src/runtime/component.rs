@@ -76,10 +76,22 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     }
     s.push('\n');
 
+    // Determine compute type for fragment shader wiring
+    let compute_type = if shader.react_wgsl.is_some() {
+        Some(super::helpers::ComputeType::React)
+    } else if shader.swarm_agent_wgsl.is_some() {
+        Some(super::helpers::ComputeType::Swarm)
+    } else if shader.flow_wgsl.is_some() {
+        Some(super::helpers::ComputeType::Flow)
+    } else {
+        None
+    };
+
     // WebGPU renderer (with features)
     s.push_str(&super::helpers::webgpu_renderer(
         needs_prev_frame,
         pass_count,
+        compute_type,
     ));
     s.push_str("\n\n");
 
@@ -125,6 +137,14 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     if has_passes {
         s.push_str(", PASS_SHADERS");
     }
+    if let Some(ct) = compute_type {
+        let ct_str = match ct {
+            super::helpers::ComputeType::React => "react",
+            super::helpers::ComputeType::Swarm => "swarm",
+            super::helpers::ComputeType::Flow => "flow",
+        };
+        s.push_str(&format!(", '{ct_str}'"));
+    }
     s.push_str(");\n");
     s.push_str("    if (await gpu.init()) {\n");
     s.push_str("      this._renderer = gpu;\n");
@@ -161,6 +181,9 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
             s.push_str("        const sim = new GameReactionField(dev, REACT_WGSL);\n");
             s.push_str("        await sim.init();\n");
             s.push_str("        this._reactSim = sim;\n");
+            if compute_type == Some(super::helpers::ComputeType::React) {
+                s.push_str("        this._renderer.setComputeBuffer(sim.fieldBuffer, sim.width, sim.height);\n");
+            }
             s.push_str("      }\n");
         }
         if shader.swarm_agent_wgsl.is_some() {
@@ -170,6 +193,9 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
             );
             s.push_str("        await sim.init();\n");
             s.push_str("        this._swarmSim = sim;\n");
+            if compute_type == Some(super::helpers::ComputeType::Swarm) {
+                s.push_str("        this._renderer.setComputeBuffer(sim.trailBuffer, sim._w, sim._h);\n");
+            }
             s.push_str("      }\n");
         }
         if shader.flow_wgsl.is_some() {
@@ -177,22 +203,40 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
             s.push_str("        const sim = new GameFlowField(dev, FLOW_WGSL);\n");
             s.push_str("        await sim.init();\n");
             s.push_str("        this._flowSim = sim;\n");
+            if compute_type == Some(super::helpers::ComputeType::Flow) {
+                s.push_str("        this._renderer.setComputeBuffer(sim.fieldBuffer, sim.width, sim.height);\n");
+            }
             s.push_str("      }\n");
         }
-        // Wire pre-render dispatch
+        // Wire pre-render dispatch + buffer updates
         s.push_str("      this._renderer._preRender = () => {\n");
         s.push_str("        const dt = 1/60;\n");
         if shader.compute_wgsl.is_some() {
             s.push_str("        if (this._gravitySim) this._gravitySim.dispatch(dt);\n");
         }
         if shader.react_wgsl.is_some() {
-            s.push_str("        if (this._reactSim) this._reactSim.dispatch(4);\n");
+            s.push_str("        if (this._reactSim) {\n");
+            s.push_str("          this._reactSim.dispatch(4);\n");
+            if compute_type == Some(super::helpers::ComputeType::React) {
+                s.push_str("          this._renderer.setComputeBuffer(this._reactSim.fieldBuffer, this._reactSim.width, this._reactSim.height);\n");
+            }
+            s.push_str("        }\n");
         }
         if shader.swarm_agent_wgsl.is_some() {
-            s.push_str("        if (this._swarmSim) this._swarmSim.dispatch(dt);\n");
+            s.push_str("        if (this._swarmSim) {\n");
+            s.push_str("          this._swarmSim.dispatch(dt);\n");
+            if compute_type == Some(super::helpers::ComputeType::Swarm) {
+                s.push_str("          this._renderer.setComputeBuffer(this._swarmSim.trailBuffer, this._swarmSim._w, this._swarmSim._h);\n");
+            }
+            s.push_str("        }\n");
         }
         if shader.flow_wgsl.is_some() {
-            s.push_str("        if (this._flowSim) this._flowSim.dispatch(dt);\n");
+            s.push_str("        if (this._flowSim) {\n");
+            s.push_str("          this._flowSim.dispatch(dt);\n");
+            if compute_type == Some(super::helpers::ComputeType::Flow) {
+                s.push_str("          this._renderer.setComputeBuffer(this._flowSim.fieldBuffer, this._flowSim.width, this._flowSim.height);\n");
+            }
+            s.push_str("        }\n");
         }
         s.push_str("      };\n");
         s.push_str("    }\n");

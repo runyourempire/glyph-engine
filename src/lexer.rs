@@ -9,7 +9,7 @@ use crate::token::Token;
 
 /// Internal logos token — maps 1:1 to our Token enum but with logos derives.
 #[derive(Logos, Debug, Clone, PartialEq)]
-#[logos(skip r"[ \t\r\n]+")]
+#[logos(skip r"[ \t\r\n;]+")]
 #[logos(skip r"//[^\n]*")]
 enum LexToken {
     // ── Keywords ─────────────────────────────────────────

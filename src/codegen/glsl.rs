@@ -234,6 +234,7 @@ fn generate_fragment_inner(
     s.push_str("uniform float u_audio_beat;\n");
     s.push_str("uniform vec2 u_resolution;\n");
     s.push_str("uniform vec2 u_mouse;\n");
+    s.push_str("uniform float u_mouse_down;\n");
     for u in uniforms {
         s.push_str(&format!("uniform float u_p_{};\n", u.name));
     }
@@ -258,7 +259,10 @@ fn generate_fragment_inner(
     s.push_str("void main(){\n");
     s.push_str("    vec2 uv = v_uv * 2.0 - 1.0;\n");
     s.push_str("    float aspect = u_resolution.x / u_resolution.y;\n");
-    s.push_str("    float time = fract(u_time / 120.0) * 120.0;\n\n");
+    s.push_str("    float time = fract(u_time / 120.0) * 120.0;\n");
+    s.push_str("    float mouse_x = u_mouse.x;\n");
+    s.push_str("    float mouse_y = u_mouse.y;\n");
+    s.push_str("    float mouse_down = u_mouse_down;\n\n");
 
     // Uniform param aliases
     for u in uniforms {
@@ -298,6 +302,13 @@ fn generate_fragment_inner(
                 "    final_color = vec4(apply_color_matrix(final_color.rgb), final_color.a);\n",
             );
         }
+        // Quality output pipeline: tonemap + dither
+        s.push_str(
+            "    final_color = vec4(aces_tonemap(final_color.rgb), final_color.a);\n",
+        );
+        s.push_str(
+            "    final_color += (dither_noise(v_uv * u_resolution) - 0.5) / 255.0;\n",
+        );
         s.push_str("    fragColor = final_color;\n");
     }
     s.push_str("}\n");
@@ -428,6 +439,9 @@ fn emit_glsl_builtins(s: &mut String, cinematic: &Cinematic) {
         s.push_str("    return k - ra;\n");
         s.push_str("}\n\n");
     }
+
+    // Quality output helpers — always emitted for tonemap + dither pipeline
+    emit_glsl_quality_helpers(s);
 }
 
 fn emit_glsl_star(s: &mut String) {
@@ -513,6 +527,201 @@ fn emit_glsl_palette(s: &mut String) {
     s.push_str("vec3 cosine_palette(float t, vec3 a, vec3 b, vec3 c, vec3 d){\n");
     s.push_str("    return a + b * cos(6.28318 * (c * t + d));\n");
     s.push_str("}\n\n");
+}
+
+fn emit_glsl_quality_helpers(s: &mut String) {
+    s.push_str("vec3 aces_tonemap(vec3 x) {\n");
+    s.push_str("    vec3 a = x * (2.51 * x + 0.03);\n");
+    s.push_str("    vec3 b = x * (2.43 * x + 0.59) + 0.14;\n");
+    s.push_str("    return clamp(a / b, 0.0, 1.0);\n");
+    s.push_str("}\n\n");
+
+    s.push_str("float dither_noise(vec2 uv) {\n");
+    s.push_str("    return fract(52.9829189 * fract(dot(uv, vec2(0.06711056, 0.00583715))));\n");
+    s.push_str("}\n\n");
+}
+
+/// Generate a GLSL ES 3.0 post-processing pass fragment shader.
+///
+/// A pass reads from a texture (previous pass output) and writes a processed result.
+/// The pass pipeline operates on UV-sampled color values.
+pub fn generate_pass_fragment_glsl(pass: &PassBlock) -> String {
+    let mut s = String::with_capacity(2048);
+
+    s.push_str("#version 300 es\nprecision highp float;\n\n");
+
+    s.push_str("// Post-processing pass: ");
+    s.push_str(&pass.name);
+    s.push_str("\n\n");
+
+    // Uniforms
+    s.push_str("uniform float u_time;\n");
+    s.push_str("uniform vec2 u_resolution;\n");
+    s.push_str("uniform sampler2D u_pass_tex;\n\n");
+
+    s.push_str("in vec2 v_uv;\nout vec4 fragColor;\n\n");
+
+    s.push_str("void main(){\n");
+    s.push_str("    vec2 uv = v_uv;\n");
+    s.push_str("    vec4 pixel = texture(u_pass_tex, uv);\n");
+    s.push_str("    vec4 color_result = pixel;\n\n");
+
+    // Emit pass pipeline stages (operate on color_result)
+    for stage in &pass.body {
+        emit_pass_stage_glsl(&mut s, stage, "    ");
+    }
+
+    s.push_str("    fragColor = color_result;\n");
+    s.push_str("}\n");
+
+    s
+}
+
+/// Emit a GLSL post-processing stage operating on `color_result` and `pixel`.
+fn emit_pass_stage_glsl(s: &mut String, stage: &Stage, indent: &str) {
+    let args = &stage.args;
+    match stage.name.as_str() {
+        "blur" | "gaussian_blur" => {
+            // Simple box blur approximation
+            let radius = if !args.is_empty() {
+                get_arg(args, "radius", 0, "blur")
+            } else {
+                "2.0".to_string()
+            };
+            s.push_str(&format!("{indent}// blur pass\n"));
+            s.push_str(&format!("{indent}vec4 blurred = vec4(0.0);\n"));
+            s.push_str(&format!("{indent}vec2 texel = 1.0 / u_resolution;\n"));
+            s.push_str(&format!("{indent}int r = int({radius});\n"));
+            s.push_str(&format!("{indent}float count = 0.0;\n"));
+            s.push_str(&format!(
+                "{indent}for (int dy = -r; dy <= r; dy++) {{\n"
+            ));
+            s.push_str(&format!(
+                "{indent}    for (int dx = -r; dx <= r; dx++) {{\n"
+            ));
+            s.push_str(&format!(
+                "{indent}        vec2 offset = vec2(float(dx), float(dy)) * texel;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}        blurred += texture(u_pass_tex, uv + offset);\n"
+            ));
+            s.push_str(&format!("{indent}        count += 1.0;\n"));
+            s.push_str(&format!("{indent}    }}\n"));
+            s.push_str(&format!("{indent}}}\n"));
+            s.push_str(&format!("{indent}color_result = blurred / count;\n"));
+        }
+        "threshold" => {
+            let t = if !args.is_empty() {
+                get_arg(args, "value", 0, "threshold")
+            } else {
+                "0.5".to_string()
+            };
+            s.push_str(&format!(
+                "{indent}float lum = dot(color_result.rgb, vec3(0.299, 0.587, 0.114));\n"
+            ));
+            // GLSL: use ternary, NOT select()
+            s.push_str(&format!(
+                "{indent}color_result = (lum > {t}) ? color_result : vec4(0.0, 0.0, 0.0, 0.0);\n"
+            ));
+        }
+        "invert" => {
+            s.push_str(&format!(
+                "{indent}color_result = vec4(1.0 - color_result.rgb, color_result.a);\n"
+            ));
+        }
+        "blend_add" => {
+            s.push_str(&format!(
+                "{indent}color_result = vec4(min(pixel.rgb + color_result.rgb, vec3(1.0)), max(pixel.a, color_result.a));\n"
+            ));
+        }
+        "vignette" => {
+            let strength = if !args.is_empty() {
+                get_arg(args, "strength", 0, "vignette")
+            } else {
+                "0.5".to_string()
+            };
+            s.push_str(&format!(
+                "{indent}float vign = 1.0 - {strength} * length(uv - 0.5);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}color_result = vec4(color_result.rgb * vign, color_result.a * vign);\n"
+            ));
+        }
+        "chromatic_aberration" => {
+            let strength = if !args.is_empty() {
+                get_arg(args, "strength", 0, "chromatic_aberration")
+            } else {
+                "0.005".to_string()
+            };
+            s.push_str(&format!("{indent}// chromatic aberration\n"));
+            s.push_str(&format!(
+                "{indent}vec2 ca_dir = normalize(uv - 0.5) * {strength};\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float ca_r = texture(u_pass_tex, uv + ca_dir).r;\n"
+            ));
+            s.push_str(&format!("{indent}float ca_g = color_result.g;\n"));
+            s.push_str(&format!(
+                "{indent}float ca_b = texture(u_pass_tex, uv - ca_dir).b;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}color_result = vec4(ca_r, ca_g, ca_b, color_result.a);\n"
+            ));
+        }
+        "sharpen" => {
+            let strength = if !args.is_empty() {
+                get_arg(args, "strength", 0, "sharpen")
+            } else {
+                "0.5".to_string()
+            };
+            s.push_str(&format!("{indent}// unsharp mask sharpen\n"));
+            s.push_str(&format!(
+                "{indent}vec2 sh_texel = 1.0 / u_resolution;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 sh_n = texture(u_pass_tex, uv + vec2(0.0, sh_texel.y));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 sh_s = texture(u_pass_tex, uv - vec2(0.0, sh_texel.y));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 sh_e = texture(u_pass_tex, uv + vec2(sh_texel.x, 0.0));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 sh_w = texture(u_pass_tex, uv - vec2(sh_texel.x, 0.0));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 sh_avg = (sh_n + sh_s + sh_e + sh_w) * 0.25;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}color_result = mix(color_result, color_result + (color_result - sh_avg), {strength});\n"
+            ));
+        }
+        "film_grain" => {
+            let amount = if !args.is_empty() {
+                get_arg(args, "amount", 0, "film_grain")
+            } else {
+                "0.05".to_string()
+            };
+            s.push_str(&format!("{indent}// film grain\n"));
+            s.push_str(&format!(
+                "{indent}vec2 grain_seed = uv * u_resolution + vec2(u_time * 1000.0, 0.0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float grain_val = (fract(sin(dot(grain_seed, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * {amount};\n"
+            ));
+            s.push_str(&format!(
+                "{indent}color_result = vec4(color_result.rgb + grain_val, color_result.a);\n"
+            ));
+        }
+        _ => {
+            // Unknown pass stage — passthrough
+            s.push_str(&format!(
+                "{indent}// unknown pass stage: {}\n",
+                stage.name
+            ));
+        }
+    }
 }
 
 fn emit_glsl_layer(
@@ -618,6 +827,13 @@ fn emit_glsl_layer(
         if has_color_matrix {
             s.push_str(&format!("{indent}color_result = vec4(apply_color_matrix(color_result.rgb), color_result.a);\n"));
         }
+        // Quality output pipeline: tonemap + dither
+        s.push_str(&format!(
+            "{indent}color_result = vec4(aces_tonemap(color_result.rgb), color_result.a);\n"
+        ));
+        s.push_str(&format!(
+            "{indent}color_result += (dither_noise(v_uv * u_resolution) - 0.5) / 255.0;\n"
+        ));
         s.push_str(&format!("{indent}fragColor = color_result;\n"));
     }
 }
@@ -633,6 +849,9 @@ fn emit_glsl_expr(expr: &Expr) -> String {
             "treble" => "u_audio_treble".to_string(),
             "energy" => "u_audio_energy".to_string(),
             "beat" => "u_audio_beat".to_string(),
+            "mouse_down" => "u_mouse_down".to_string(),
+            "mouse_x" => "u_mouse.x".to_string(),
+            "mouse_y" => "u_mouse.y".to_string(),
             _ => name.clone(),
         },
         Expr::DottedIdent { object, field } => format!("{object}_{field}"),
@@ -770,7 +989,9 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let r = get_arg(args, "r", 0, "shade");
             let g = get_arg(args, "g", 1, "shade");
             let b = get_arg(args, "b", 2, "shade");
-            s.push_str(&format!("{indent}vec4 color_result = vec4(vec3({r}, {g}, {b}) * (1.0 - clamp(sdf_result, 0.0, 1.0)), 1.0 - clamp(sdf_result, 0.0, 1.0));\n"));
+            s.push_str(&format!("{indent}float shade_fw = fwidth(sdf_result);
+{indent}float shade_alpha = 1.0 - smoothstep(-shade_fw, shade_fw, sdf_result);
+{indent}vec4 color_result = vec4(vec3({r}, {g}, {b}) * shade_alpha, shade_alpha);\n"));
         }
         "emissive" => {
             let intensity = get_arg(args, "intensity", 0, "emissive");
@@ -938,7 +1159,8 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 "{indent}{{ float out_lum = dot(color_result.rgb, vec3(0.299, 0.587, 0.114));\n"
             ));
             s.push_str(&format!("{indent}float out_edge = abs(out_lum) - {w};\n"));
-            s.push_str(&format!("{indent}color_result = vec4(color_result.rgb * (1.0 - smoothstep(0.0, 0.02, out_edge)), color_result.a * (1.0 - smoothstep(0.0, 0.02, out_edge))); }}\n"));
+            s.push_str(&format!("{indent}float out_fw = fwidth(out_edge);
+{indent}color_result = vec4(color_result.rgb * (1.0 - smoothstep(0.0, out_fw, out_edge)), color_result.a * (1.0 - smoothstep(0.0, out_fw, out_edge))); }}\n"));
         }
         // ── New SDF primitives ──────────────────────────
         "line" => {

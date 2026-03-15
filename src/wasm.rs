@@ -34,9 +34,28 @@ pub fn compile_game(source: &str, target: &str) -> Result<String, String> {
 
     let results = crate::compile(source, &config).map_err(|e| e.to_string())?;
 
+    // Re-parse to extract uniform metadata for the API consumer
+    let program = crate::compile_to_ast(source).map_err(|e| e.to_string())?;
+
     let output: Vec<serde_json::Value> = results
         .iter()
-        .map(|r| {
+        .enumerate()
+        .map(|(i, r)| {
+            let uniforms_json: Vec<serde_json::Value> = if i < program.cinematics.len() {
+                let uniforms =
+                    crate::codegen::extract_uniforms_public(&program.cinematics[i]);
+                uniforms
+                    .iter()
+                    .map(|u| {
+                        serde_json::json!({
+                            "name": u.name,
+                            "default": u.default,
+                        })
+                    })
+                    .collect()
+            } else {
+                vec![]
+            };
             serde_json::json!({
                 "name": r.name,
                 "js": r.js,
@@ -44,6 +63,7 @@ pub fn compile_game(source: &str, target: &str) -> Result<String, String> {
                 "glsl": r.glsl,
                 "html": r.html,
                 "dts": r.dts,
+                "uniforms": uniforms_json,
             })
         })
         .collect();

@@ -53,6 +53,7 @@ pub fn generate_html(shader: &ShaderOutput) -> String {
     s.push_str(&super::helpers::webgpu_renderer(
         needs_prev_frame,
         pass_count,
+        None,
     ));
     s.push_str("\n\n");
     s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame));
@@ -164,6 +165,7 @@ pub fn generate_artblocks_html(shader: &ShaderOutput, seed: Option<u64>) -> Stri
     s.push_str(&super::helpers::webgpu_renderer(
         needs_prev_frame_ab,
         pass_count_ab,
+        None,
     ));
     s.push_str("\n\n");
     s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame_ab));
