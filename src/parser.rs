@@ -673,9 +673,10 @@ impl Parser {
                 "screen" => BlendMode::Screen,
                 "multiply" => BlendMode::Multiply,
                 "overlay" => BlendMode::Overlay,
+                "occlude" => BlendMode::Occlude,
                 _ => {
                     return Err(CompileError::validation(format!(
-                        "unknown blend mode '{}', expected: add, screen, multiply, overlay",
+                        "unknown blend mode '{}', expected: add, screen, multiply, overlay, occlude",
                         mode_str
                     )));
                 }

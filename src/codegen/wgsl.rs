@@ -890,6 +890,12 @@ fn emit_wgsl_layer(
                     "{indent}final_color = vec4<f32>(select(hi, lo, base < vec3<f32>(0.5)), max(final_color.a, la)); }}\n"
                 ));
             }
+            BlendMode::Occlude => {
+                // Standard alpha blending — creates opaque surfaces that mask what's underneath
+                s.push_str(&format!(
+                    "{indent}final_color = vec4<f32>(mix(final_color.rgb, lc, la), final_color.a + la * (1.0 - final_color.a));\n"
+                ));
+            }
         }
         s.push_str("    }\n\n");
     } else {

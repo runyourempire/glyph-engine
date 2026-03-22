@@ -73,6 +73,9 @@ pub enum BlendMode {
     Screen,
     Multiply,
     Overlay,
+    /// Standard alpha blending: src*alpha + dst*(1-alpha).
+    /// Creates opaque surfaces that mask what's underneath.
+    Occlude,
 }
 
 /// `layer ident [(opts)] [memory: f] [opacity: f] [cast kind] [blend mode] [feedback: bool] { body }`

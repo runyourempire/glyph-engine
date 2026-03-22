@@ -1,0 +1,61 @@
+// Notification Card — CRITICAL (full GPU render)
+// Uses `occlude` blend mode for opaque card body.
+// The shader renders everything: card, border, sweep, halo.
+// Text is overlaid as transparent HTML.
+
+cinematic "notif-card-critical" {
+  layer config {
+    intensity: 1.0
+    hover: 0.0
+  }
+
+  // Canvas is 440x160 → aspect 2.75:1. p.x ranges ±2.75, p.y ranges ±1.0
+  // Card ~92% of width: 2.75*0.92 = 2.53, ~82% of height: 0.82
+
+  // Outer halo
+  layer halo opacity: 0.05 {
+    box(2.60, 0.86) | round(0.08) | shell(0.06)
+    | glow(0.4)
+    | tint(0.3, 0.05, 0.03)
+  }
+
+  // Sweep trail — rotating accent
+  layer sweep memory: 0.72 {
+    rotate(0.8)
+    | box(2.53, 0.82) | round(0.07) | shell(0.015)
+    | mask_arc(0.5)
+    | glow(0.25)
+    | tint(0.5, 0.08, 0.05)
+  }
+
+  // Border track — thin outline
+  layer track {
+    box(2.53, 0.82) | round(0.07) | shell(0.005)
+    | glow(0.12)
+    | tint(0.15, 0.04, 0.03)
+  }
+
+  // Card body — OCCLUDE: solid dark fill blocking sweep interior
+  layer card blend: occlude {
+    box(2.54, 0.83) | round(0.065)
+    | shade(0.055, 0.055, 0.055)
+  }
+
+  // Inner atmosphere — subtle living noise
+  layer noise memory: 0.95 opacity: 0.015 {
+    warp(scale: 2.0, octaves: 2, strength: 0.03)
+    | fbm(scale: 3.0, octaves: 3)
+    | glow(0.4)
+    | tint(0.12, 0.025, 0.02)
+  }
+
+  resonate {
+    intensity -> sweep.brightness * 0.35
+    hover -> sweep.brightness * 0.12
+    hover -> noise.brightness * 0.1
+  }
+
+  pass soft {
+    vignette(0.06)
+  }
+}
