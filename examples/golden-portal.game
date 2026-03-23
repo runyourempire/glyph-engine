@@ -1,0 +1,59 @@
+// Golden Portal — rotating vortex gateway in 4DA gold
+// Radial symmetry + polar warp creates a spiraling tunnel effect.
+// Multiple ring layers at different speeds create parallax depth.
+
+cinematic "golden-portal" {
+  // Void behind the portal — solid dark base
+  layer void blend: occlude {
+    fbm(scale: 3.0, octaves: 2) | glow(0.04) | tint(0.02, 0.01, 0.0)
+  }
+
+  // Outer energy field — slow rotating polar noise
+  layer outer memory: 0.94 {
+    polar()
+    | warp(scale: 2.0, octaves: 4, persistence: 0.5, lacunarity: 2.0, strength: 0.2)
+    | rotate(speed: 0.15)
+    | fbm(scale: 4.0, octaves: 5, persistence: 0.5)
+    | palette(gold)
+  }
+
+  // Mid ring — faster rotation, tighter pattern
+  layer mid memory: 0.92 {
+    polar()
+    | warp(scale: 3.0, octaves: 3, persistence: 0.4, lacunarity: 2.0, strength: 0.15)
+    | rotate(speed: 0.3)
+    | fbm(scale: 5.0, octaves: 4, persistence: 0.4)
+    | palette(ember)
+  }
+
+  // Inner vortex — rapid spin, high detail
+  layer vortex memory: 0.90 {
+    polar()
+    | warp(scale: 4.0, octaves: 4, persistence: 0.5, lacunarity: 2.0, strength: 0.25)
+    | rotate(speed: 0.5)
+    | simplex(scale: 6.0)
+    | glow(0.6)
+    | tint(1.0, 0.85, 0.4)
+  }
+
+  // Structural rings — concentric geometry
+  layer rings {
+    radial(count: 1)
+    | ring(radius: 0.38, width: 0.006) | glow(2.0) | tint(0.83, 0.69, 0.22)
+  }
+
+  layer ring_inner {
+    radial(count: 1)
+    | ring(radius: 0.22, width: 0.004) | glow(1.5) | tint(0.6, 0.5, 0.2)
+  }
+
+  // Center — bright gateway
+  layer center {
+    circle(0.06) | glow(5.0) | tint(1.0, 0.95, 0.7)
+  }
+
+  // Depth vignette
+  layer vignette {
+    radial_fade(inner: 0.15, outer: 0.9) | glow(0.9) | tint(0.0, 0.0, 0.0)
+  }
+}

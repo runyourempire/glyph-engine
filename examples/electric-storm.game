@@ -1,0 +1,51 @@
+// Electric Storm — chaotic energy discharge with branching lightning
+// High-contrast voronoi creates lightning-like branching.
+// Memory with low persistence makes bolts appear and fade fast.
+
+cinematic "electric-storm" {
+  // Storm clouds — solid dark base
+  layer clouds memory: 0.95 blend: occlude {
+    warp(scale: 1.5, octaves: 4, persistence: 0.5, lacunarity: 2.0, strength: 0.15)
+    | fbm(scale: 2.0, octaves: 5, persistence: 0.6)
+    | glow(0.12)
+    | tint(0.04, 0.03, 0.08)
+  }
+
+  // Lightning field — voronoi edges glow like discharge paths
+  layer lightning memory: 0.7 {
+    warp(scale: 3.0, octaves: 3, persistence: 0.4, lacunarity: 2.0, strength: 0.3)
+    | distort(scale: 3.0, speed: 0.8, strength: 0.25)
+    | voronoi(scale: 4.0)
+    | shell(width: 0.005)
+    | glow(4.0)
+    | tint(0.7, 0.8, 1.0)
+  }
+
+  // Secondary discharge — purple/magenta
+  layer discharge memory: 0.65 {
+    warp(scale: 4.0, octaves: 2, persistence: 0.3, lacunarity: 2.5, strength: 0.35)
+    | distort(scale: 4.0, speed: 1.2, strength: 0.3)
+    | voronoi(scale: 6.0)
+    | shell(width: 0.003)
+    | glow(3.5)
+    | tint(0.5, 0.2, 0.9)
+  }
+
+  // Core flash — bright white pulse
+  layer flash memory: 0.5 {
+    distort(scale: 2.0, speed: 1.5, strength: 0.2)
+    | circle(0.2)
+    | glow(1.5)
+    | tint(0.9, 0.95, 1.0)
+  }
+
+  // Ambient electric glow
+  layer ambient {
+    fbm(scale: 6.0, octaves: 3) | glow(0.15) | tint(0.15, 0.1, 0.3)
+  }
+
+  // Vignette
+  layer vignette {
+    radial_fade(inner: 0.1, outer: 0.85) | glow(0.8) | tint(0.0, 0.0, 0.0)
+  }
+}

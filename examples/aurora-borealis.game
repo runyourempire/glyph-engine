@@ -1,0 +1,48 @@
+// Aurora Borealis — flowing curtains of light across a dark sky
+// Layered polar noise creates vertical curtain movement.
+// Memory persistence gives the northern lights their signature trailing glow.
+
+cinematic "aurora-borealis" {
+  // Deep sky — solid dark base
+  layer sky blend: occlude {
+    warp(scale: 1.5, octaves: 3, persistence: 0.4, lacunarity: 2.0, strength: 0.05)
+    | fbm(scale: 2.0, octaves: 3, persistence: 0.3)
+    | glow(0.15)
+    | tint(0.02, 0.04, 0.08)
+  }
+
+  // Primary curtain — green aurora, flowing vertically
+  layer curtain_green memory: 0.94 {
+    warp(scale: 2.0, octaves: 4, persistence: 0.5, lacunarity: 2.0, strength: 0.25)
+    | distort(scale: 1.5, speed: 0.3, strength: 0.15)
+    | fbm(scale: 3.0, octaves: 5, persistence: 0.6)
+    | palette(aurora)
+  }
+
+  // Secondary curtain — magenta/violet edge, offset and slower
+  layer curtain_violet memory: 0.92 {
+    translate(0.3, 0.0)
+    | warp(scale: 1.8, octaves: 3, persistence: 0.4, lacunarity: 2.2, strength: 0.2)
+    | distort(scale: 1.2, speed: 0.2, strength: 0.12)
+    | fbm(scale: 2.5, octaves: 4, persistence: 0.5)
+    | palette(twilight)
+  }
+
+  // Bright core — narrow band of intense light
+  layer core memory: 0.96 {
+    warp(scale: 3.0, octaves: 5, persistence: 0.5, lacunarity: 2.0, strength: 0.3)
+    | simplex(scale: 4.0)
+    | glow(0.4)
+    | tint(0.2, 0.9, 0.4)
+  }
+
+  // Star field — scattered points
+  layer stars {
+    voronoi(scale: 40.0) | glow(0.8) | tint(0.8, 0.85, 1.0)
+  }
+
+  // Vignette — darkens edges for depth
+  layer vignette {
+    radial_fade(inner: 0.2, outer: 0.95) | glow(0.8) | tint(0.0, 0.0, 0.0)
+  }
+}

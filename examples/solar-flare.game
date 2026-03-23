@@ -1,0 +1,42 @@
+// Solar Flare — radiant energy eruption from a stellar surface
+// Polar-warped noise creates radial corona tendrils.
+// Memory persistence makes the plasma flow outward over time.
+
+cinematic "solar-flare" {
+  // Deep space background — solid dark base
+  layer void blend: occlude {
+    fbm(scale: 8.0, octaves: 2) | glow(0.05) | tint(0.01, 0.01, 0.03)
+  }
+
+  // Outer corona — flowing plasma tendrils
+  layer corona memory: 0.93 {
+    polar()
+    | warp(scale: 2.0, octaves: 4, persistence: 0.6, lacunarity: 2.0, strength: 0.4)
+    | distort(scale: 2.5, speed: 0.4, strength: 0.2)
+    | fbm(scale: 3.0, octaves: 5, persistence: 0.5)
+    | palette(fire)
+  }
+
+  // Inner corona — brighter, tighter
+  layer inner memory: 0.95 {
+    polar()
+    | warp(scale: 3.0, octaves: 3, persistence: 0.5, lacunarity: 2.0, strength: 0.25)
+    | fbm(scale: 4.0, octaves: 4, persistence: 0.4)
+    | palette(lava)
+  }
+
+  // Stellar core — bright white-gold center
+  layer core {
+    circle(0.12) | glow(4.0) | tint(1.0, 0.95, 0.8)
+  }
+
+  // Core halo
+  layer halo {
+    circle(0.18) | glow(2.0) | tint(1.0, 0.7, 0.3)
+  }
+
+  // Edge darkening
+  layer vignette {
+    radial_fade(inner: 0.1, outer: 0.8) | glow(1.0) | tint(0.0, 0.0, 0.0)
+  }
+}

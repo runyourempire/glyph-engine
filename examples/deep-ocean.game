@@ -1,0 +1,50 @@
+// Deep Ocean — bioluminescent abyss with layered currents
+// Multiple noise layers at different scales create depth.
+// Memory persistence simulates underwater particle drift.
+
+cinematic "deep-ocean" {
+  // Abyssal background — solid dark base
+  layer abyss blend: occlude {
+    fbm(scale: 1.0, octaves: 2, persistence: 0.3)
+    | glow(0.1)
+    | tint(0.01, 0.02, 0.05)
+  }
+
+  // Deep current — slow-moving massive shapes
+  layer deep_current memory: 0.96 {
+    warp(scale: 1.2, octaves: 3, persistence: 0.4, lacunarity: 2.0, strength: 0.12)
+    | distort(scale: 0.8, speed: 0.1, strength: 0.08)
+    | fbm(scale: 2.0, octaves: 4, persistence: 0.5)
+    | palette(deep_sea)
+  }
+
+  // Mid-water plankton — medium scale, moderate movement
+  layer plankton memory: 0.93 {
+    warp(scale: 2.5, octaves: 4, persistence: 0.5, lacunarity: 2.0, strength: 0.18)
+    | distort(scale: 1.5, speed: 0.2, strength: 0.12)
+    | voronoi(scale: 8.0)
+    | palette(ocean)
+  }
+
+  // Bioluminescent organisms — bright scattered points
+  layer biolum memory: 0.88 {
+    warp(scale: 4.0, octaves: 3, persistence: 0.4, lacunarity: 2.0, strength: 0.1)
+    | distort(scale: 2.0, speed: 0.3, strength: 0.1)
+    | voronoi(scale: 15.0)
+    | glow(1.2)
+    | tint(0.1, 0.6, 0.9)
+  }
+
+  // Jellyfish glow — central radial pulse
+  layer jellyfish {
+    distort(scale: 1.5, speed: 0.4, strength: 0.06)
+    | circle(0.15)
+    | glow(2.5)
+    | tint(0.3, 0.1, 0.8)
+  }
+
+  // Depth gradient — darker at edges
+  layer depth {
+    radial_fade(inner: 0.15, outer: 0.85) | glow(0.9) | tint(0.0, 0.0, 0.02)
+  }
+}

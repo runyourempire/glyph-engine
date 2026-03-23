@@ -1,0 +1,45 @@
+// Liquid Crystal — morphing geometric form with organic refraction
+// Voronoi cells create crystal facets. Warp makes them flow like liquid.
+// Memory persistence creates a trailing iridescence effect.
+
+cinematic "liquid-crystal" {
+  // Deep substrate — solid dark base
+  layer substrate blend: occlude {
+    warp(scale: 1.0, octaves: 2, persistence: 0.3, lacunarity: 2.0, strength: 0.03)
+    | fbm(scale: 1.5, octaves: 2)
+    | glow(0.08)
+    | tint(0.03, 0.02, 0.06)
+  }
+
+  // Crystal facets — voronoi cells warped into flowing shapes
+  layer facets memory: 0.91 {
+    warp(scale: 2.5, octaves: 4, persistence: 0.5, lacunarity: 2.0, strength: 0.2)
+    | distort(scale: 1.8, speed: 0.25, strength: 0.15)
+    | voronoi(scale: 6.0)
+    | palette(ice)
+  }
+
+  // Internal glow — radial energy
+  layer glow_field memory: 0.93 {
+    polar()
+    | warp(scale: 3.0, octaves: 3, persistence: 0.4, lacunarity: 2.0, strength: 0.15)
+    | simplex(scale: 5.0)
+    | palette(vapor)
+  }
+
+  // Crystal boundary — hex shape with organic edge
+  layer boundary {
+    warp(scale: 4.0, octaves: 2, persistence: 0.3, lacunarity: 2.0, strength: 0.04)
+    | hex(radius: 0.35) | shell(width: 0.008) | glow(2.5) | tint(0.6, 0.7, 1.0)
+  }
+
+  // Center focus
+  layer center {
+    circle(0.04) | glow(3.5) | tint(0.8, 0.9, 1.0)
+  }
+
+  // Vignette
+  layer vignette {
+    radial_fade(inner: 0.25, outer: 0.9) | glow(0.7) | tint(0.0, 0.0, 0.0)
+  }
+}
