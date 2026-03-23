@@ -1586,6 +1586,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         }
     }
 
@@ -1731,6 +1735,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         }
     }
 
@@ -2341,6 +2349,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let output = generate_fragment(&cin, &[]);
         assert!(output.contains("select("), "conditional uses select()");

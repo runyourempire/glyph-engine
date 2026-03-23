@@ -100,6 +100,8 @@ impl Parser {
                 Token::Project => "project",
                 Token::Scene => "scene",
                 Token::Transition => "transition",
+                Token::Props => "props",
+                Token::Dom => "dom",
                 _ => return None,
             }
             .into(),
@@ -558,6 +560,10 @@ impl Parser {
         let mut cinematic_uses = Vec::new();
         let mut matrix_coupling = None;
         let mut matrix_color = None;
+        let mut props = None;
+        let mut dom = None;
+        let mut events = Vec::new();
+        let mut role = None;
 
         while !self.at_end() && !self.check(&Token::RBrace) {
             match self.peek() {
@@ -573,6 +579,8 @@ impl Parser {
                 Some(Token::Flow) => flow = Some(self.parse_flow()?),
                 Some(Token::Pass) => passes.push(self.parse_pass_block()?),
                 Some(Token::Use) => cinematic_uses.push(self.parse_cinematic_use()?),
+                Some(Token::Props) => props = Some(self.parse_props_block()?),
+                Some(Token::Dom) => dom = Some(self.parse_dom_block()?),
                 Some(Token::Matrix) => {
                     let matrix = self.parse_matrix_block()?;
                     match matrix {
@@ -588,11 +596,18 @@ impl Parser {
                         }
                     }
                 }
+                // `on "event" { ... }` and `role: "value"` are parsed from ident context
+                Some(Token::Ident(s)) if s == "on" => {
+                    events.push(self.parse_event_handler()?);
+                }
+                Some(Token::Ident(s)) if s == "role" => {
+                    role = Some(self.parse_role()?);
+                }
                 _ => {
                     let (line, col) = self.current_pos();
                     return Err(CompileError::ParseError {
                         message: format!(
-                            "expected `layer`, `arc`, `resonate`, `listen`, `voice`, `score`, `gravity`, `react`, `swarm`, `flow`, `pass`, `use`, or `matrix` inside cinematic, found `{}`",
+                            "expected `layer`, `arc`, `resonate`, `listen`, `voice`, `score`, `gravity`, `react`, `swarm`, `flow`, `pass`, `use`, `matrix`, `props`, `dom`, `on`, or `role` inside cinematic, found `{}`",
                             self.peek().map_or("EOF".into(), |t| t.to_string())
                         ),
                         line,
@@ -619,6 +634,10 @@ impl Parser {
             cinematic_uses,
             matrix_coupling,
             matrix_color,
+            props,
+            dom,
+            events,
+            role,
         })
     }
 
@@ -2307,6 +2326,154 @@ impl Parser {
                 col,
             }),
         }
+    }
+
+    // ======================================================================
+    // Phase v0.8: Component UI Layer
+    // ======================================================================
+
+    /// Parse `props { name: default, ... }`
+    ///
+    /// Properties with string defaults become string props (DOM-bound).
+    /// Properties with number defaults become number props (shader uniforms).
+    /// Properties ending with `: event` become event emitters.
+    fn parse_props_block(&mut self) -> Result<PropsBlock, CompileError> {
+        self.expect(&Token::Props)?;
+        self.expect(&Token::LBrace)?;
+
+        let mut props = Vec::new();
+        while !self.check(&Token::RBrace) && !self.at_end() {
+            let name = self.expect_ident_or_keyword()?;
+            self.expect(&Token::Colon)?;
+
+            // Check for `event` keyword (no default value)
+            if let Some(Token::Ident(s)) = self.peek() {
+                if s == "event" {
+                    self.advance();
+                    props.push(PropDef {
+                        name,
+                        default: Expr::String(String::new()),
+                        is_event: true,
+                    });
+                    // Optional comma
+                    if self.check(&Token::Comma) {
+                        self.advance();
+                    }
+                    continue;
+                }
+            }
+
+            // Parse default value (string or number expression)
+            let default = self.parse_expr()?;
+            let is_event = false;
+            props.push(PropDef {
+                name,
+                default,
+                is_event,
+            });
+
+            // Optional comma
+            if self.check(&Token::Comma) {
+                self.advance();
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(PropsBlock { props })
+    }
+
+    /// Parse `dom { text "name" { at: x y, style: "css", bind: "prop" } ... }`
+    fn parse_dom_block(&mut self) -> Result<DomBlock, CompileError> {
+        self.expect(&Token::Dom)?;
+        self.expect(&Token::LBrace)?;
+
+        let mut elements = Vec::new();
+        while !self.check(&Token::RBrace) && !self.at_end() {
+            let tag = self.expect_ident()?; // "text", "div", etc.
+            let name = self.expect_string()?;
+            self.expect(&Token::LBrace)?;
+
+            let mut x: f64 = 0.0;
+            let mut y: f64 = 0.0;
+            let mut style = String::new();
+            let mut bind = None;
+
+            while !self.check(&Token::RBrace) && !self.at_end() {
+                let key = self.expect_ident_or_keyword()?;
+                self.expect(&Token::Colon)?;
+                match key.as_str() {
+                    "at" => {
+                        x = self.parse_number_value()?;
+                        y = self.parse_number_value()?;
+                    }
+                    "style" => {
+                        style = self.expect_string()?;
+                    }
+                    "bind" => {
+                        bind = Some(self.expect_string()?);
+                    }
+                    _ => {
+                        let (line, col) = self.current_pos();
+                        return Err(CompileError::ParseError {
+                            message: format!(
+                                "expected `at`, `style`, or `bind` in dom element, found `{key}`"
+                            ),
+                            line,
+                            col,
+                        });
+                    }
+                }
+            }
+            self.expect(&Token::RBrace)?;
+
+            elements.push(DomElement {
+                tag,
+                name,
+                x,
+                y,
+                style,
+                bind,
+            });
+        }
+
+        self.expect(&Token::RBrace)?;
+        Ok(DomBlock { elements })
+    }
+
+    /// Parse `on "event" { emit: "name" }`
+    fn parse_event_handler(&mut self) -> Result<EventHandler, CompileError> {
+        // Consume the "on" identifier
+        self.advance();
+        let event = self.expect_string()?;
+        self.expect(&Token::LBrace)?;
+
+        let mut emit = None;
+        while !self.check(&Token::RBrace) && !self.at_end() {
+            let key = self.expect_ident()?;
+            self.expect(&Token::Colon)?;
+            match key.as_str() {
+                "emit" => {
+                    emit = Some(self.expect_string()?);
+                }
+                _ => {
+                    let (line, col) = self.current_pos();
+                    return Err(CompileError::ParseError {
+                        message: format!("expected `emit` in on block, found `{key}`"),
+                        line,
+                        col,
+                    });
+                }
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(EventHandler { event, emit })
+    }
+
+    /// Parse `role: "alert"` — accessibility role declaration.
+    fn parse_role(&mut self) -> Result<String, CompileError> {
+        // Consume the "role" identifier
+        self.advance();
+        self.expect(&Token::Colon)?;
+        self.expect_string()
     }
 }
 

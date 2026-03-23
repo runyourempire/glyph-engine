@@ -7,6 +7,7 @@ pub mod arc;
 pub mod automaton;
 pub mod breed;
 pub mod cast;
+pub mod dom;
 pub mod flow;
 pub mod glsl;
 pub mod gravity;
@@ -67,6 +68,29 @@ pub struct ShaderOutput {
     pub uses_feedback: bool,
     /// Whether this cinematic has a coupling matrix (CPU-side parameter propagation).
     pub has_coupling_matrix: bool,
+    /// String-typed component properties (for DOM binding).
+    pub string_props: Vec<StringPropInfo>,
+    /// Generated DOM overlay HTML (if dom block present).
+    pub dom_html: Option<String>,
+    /// Generated DOM overlay CSS (if dom block present).
+    pub dom_css: Option<String>,
+    /// Event handler mappings: (dom_event, custom_event_to_emit).
+    pub event_handlers: Vec<(String, Option<String>)>,
+    /// ARIA role attribute value.
+    pub aria_role: Option<String>,
+}
+
+/// A string-typed property for DOM binding.
+#[derive(Debug, Clone)]
+pub struct StringPropInfo {
+    pub name: String,
+    pub default: String,
+}
+
+/// An event property that emits custom events.
+#[derive(Debug, Clone)]
+pub struct EventPropInfo {
+    pub name: String,
 }
 
 /// Returns true if the name is a built-in shader variable (time, mouse, audio).
@@ -122,10 +146,35 @@ fn is_palette_name(name: &str) -> bool {
     )
 }
 
+/// Recursively collect all `Ident` names from an expression tree.
+fn collect_idents_from_expr(expr: &Expr, callback: &mut dyn FnMut(&str)) {
+    match expr {
+        Expr::Ident(name) => callback(name),
+        Expr::BinOp { left, right, .. } => {
+            collect_idents_from_expr(left, callback);
+            collect_idents_from_expr(right, callback);
+        }
+        Expr::Neg(inner) | Expr::Paren(inner) => collect_idents_from_expr(inner, callback),
+        Expr::Call { args, .. } => {
+            for arg in args {
+                collect_idents_from_expr(&arg.value, callback);
+            }
+        }
+        Expr::Array(items) => {
+            for item in items {
+                collect_idents_from_expr(item, callback);
+            }
+        }
+        Expr::Number(_) | Expr::String(_) | Expr::Color(..) | Expr::DottedIdent { .. }
+        | Expr::Duration(_) => {}
+    }
+}
+
 /// Extract user-defined uniform parameters from a cinematic's layers.
 ///
 /// Any layer with `LayerBody::Params` contributes named uniforms.
-/// Pipeline stages with `Ident` args that are NOT builtin names are also uniforms.
+/// Pipeline stages with ident args that are NOT builtin names are also uniforms.
+/// Walks the full expression tree to catch idents inside complex expressions.
 fn extract_uniforms(cinematic: &Cinematic) -> Vec<UniformInfo> {
     let mut uniforms = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -159,18 +208,18 @@ fn extract_uniforms(cinematic: &Cinematic) -> Vec<UniformInfo> {
         };
         for stage in stages_to_scan {
             for arg in &stage.args {
-                if let Expr::Ident(name) = &arg.value {
+                collect_idents_from_expr(&arg.value, &mut |name| {
                     if builtins::lookup(name).is_none()
                         && !is_builtin_variable(name)
                         && !is_palette_name(name)
-                        && seen.insert(name.clone())
+                        && seen.insert(name.to_string())
                     {
                         uniforms.push(UniformInfo {
-                            name: name.clone(),
+                            name: name.to_string(),
                             default: 0.0,
                         });
                     }
-                }
+                });
             }
         }
     }
@@ -349,6 +398,16 @@ pub fn generate_with_fns(
     // Feedback detection
     let uses_feedback = cinematic.layers.iter().any(|l| l.feedback);
 
+    // Extract string props and DOM from props/dom blocks
+    let string_props = dom::extract_string_props(cinematic);
+    let (dom_html, dom_css) = dom::generate_dom(cinematic);
+    let event_handlers: Vec<(String, Option<String>)> = cinematic
+        .events
+        .iter()
+        .map(|e| (e.event.clone(), e.emit.clone()))
+        .collect();
+    let aria_role = cinematic.role.clone();
+
     Ok(ShaderOutput {
         name: cinematic.name.clone(),
         wgsl_fragment,
@@ -367,6 +426,11 @@ pub fn generate_with_fns(
         pass_count,
         uses_feedback,
         has_coupling_matrix,
+        string_props,
+        dom_html,
+        dom_css,
+        event_handlers,
+        aria_role,
     })
 }
 
@@ -401,6 +465,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         }
     }
 
@@ -484,6 +552,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let uniforms = extract_uniforms(&cin);
         assert_eq!(uniforms.len(), 1);
@@ -521,6 +593,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         assert!(generate(&cin).is_ok());
     }
@@ -561,6 +637,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let err = generate(&cin).unwrap_err();
         assert!(err.to_string().contains("cast as 'sdf'"));
@@ -608,6 +688,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let output = generate(&cin).unwrap();
         assert_eq!(output.js_modules.len(), 1);
@@ -655,6 +739,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output.compute_wgsl.is_some());
@@ -725,6 +813,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output
@@ -777,6 +869,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output
@@ -837,6 +933,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let output = generate(&cin).unwrap();
         let has_resonate = output
@@ -887,6 +987,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output.react_wgsl.is_some());
@@ -937,6 +1041,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output.swarm_agent_wgsl.is_some());
@@ -982,6 +1090,10 @@ mod tests {
             cinematic_uses: vec![],
             matrix_coupling: None,
             matrix_color: None,
+            props: None,
+            dom: None,
+            events: vec![],
+            role: None,
         };
         let output = generate(&cin).unwrap();
         assert!(output.flow_wgsl.is_some());

@@ -236,6 +236,11 @@ mod tests {
             pass_count: 0,
             uses_feedback: false,
             has_coupling_matrix: false,
+            string_props: vec![],
+            dom_html: None,
+            dom_css: None,
+            event_handlers: vec![],
+            aria_role: None,
         };
         let html = generate_html(&shader);
         assert!(html.contains("<!DOCTYPE html>"));

@@ -105,6 +105,10 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
         s.push_str("\n\n");
     }
 
+    let has_dom = shader.dom_html.is_some();
+    let has_string_props = !shader.string_props.is_empty();
+    let has_events = !shader.event_handlers.is_empty();
+
     // Custom element class
     s.push_str(&format!("class {class} extends HTMLElement {{\n"));
     s.push_str("  constructor() {\n");
@@ -112,15 +116,74 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     s.push_str("    this.attachShadow({ mode: 'open' });\n");
     s.push_str("    this._renderer = null;\n");
     s.push_str("    this._resizeObserver = null;\n");
+    s.push_str("    this._pendingParams = {};\n");
+    if has_string_props {
+        s.push_str("    this._stringProps = {\n");
+        for sp in &shader.string_props {
+            s.push_str(&format!(
+                "      '{}': '{}',\n",
+                sp.name,
+                escape_js(&sp.default)
+            ));
+        }
+        s.push_str("    };\n");
+    }
     s.push_str("  }\n\n");
+
+    // Build CSS: base + optional DOM overlay styles
+    let mut css = String::from(":host{display:block;width:100%;height:100%;position:relative}canvas{width:100%;height:100%;display:block}");
+    if has_dom {
+        css.push_str(".game-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden}.game-overlay>*{pointer-events:auto}");
+        if let Some(ref dom_css) = shader.dom_css {
+            css.push_str(dom_css);
+        }
+    }
 
     s.push_str("  connectedCallback() {\n");
     s.push_str("    const style = document.createElement('style');\n");
-    s.push_str("    style.textContent = ':host{display:block;width:100%;height:100%}canvas{width:100%;height:100%;display:block}';\n");
+    s.push_str(&format!(
+        "    style.textContent = '{}';\n",
+        escape_js(&css)
+    ));
     s.push_str("    const canvas = document.createElement('canvas');\n");
     s.push_str("    this.shadowRoot.appendChild(style);\n");
     s.push_str("    this.shadowRoot.appendChild(canvas);\n");
     s.push_str("    this._canvas = canvas;\n");
+
+    // DOM overlay
+    if has_dom {
+        s.push_str("    const overlay = document.createElement('div');\n");
+        s.push_str("    overlay.className = 'game-overlay';\n");
+        if let Some(ref aria_role) = shader.aria_role {
+            s.push_str(&format!(
+                "    overlay.setAttribute('role', '{}');\n",
+                escape_js(aria_role)
+            ));
+        }
+        if let Some(ref dom_html) = shader.dom_html {
+            s.push_str(&format!(
+                "    overlay.innerHTML = '{}';\n",
+                escape_js(dom_html)
+            ));
+        }
+        s.push_str("    this.shadowRoot.appendChild(overlay);\n");
+        s.push_str("    this._overlay = overlay;\n");
+        s.push_str("    this._updateDOM();\n");
+    }
+
+    // Event handlers
+    if has_events {
+        for (event, emit) in &shader.event_handlers {
+            if let Some(emit_name) = emit {
+                s.push_str(&format!(
+                    "    this.addEventListener('{}', () => this.dispatchEvent(new CustomEvent('{}', {{bubbles:true}})));\n",
+                    escape_js(event),
+                    escape_js(emit_name)
+                ));
+            }
+        }
+    }
+
     s.push_str("    this._initRenderer();\n");
     s.push_str("    this._resizeObserver = new ResizeObserver(() => this._resize());\n");
     s.push_str("    this._resizeObserver.observe(this);\n");
@@ -261,6 +324,10 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
         s.push_str("    };\n");
     }
 
+    // Apply any params set before renderer was ready
+    s.push_str("    for (const [k, v] of Object.entries(this._pendingParams)) {\n");
+    s.push_str("      this._renderer.setParam(k, v);\n");
+    s.push_str("    }\n");
     s.push_str("    this._renderer.start();\n");
     s.push_str("  }\n\n");
 
@@ -275,11 +342,47 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     }
     s.push_str("  }\n\n");
 
-    s.push_str("  setParam(name, value) { this._renderer?.setParam(name, value); }\n");
+    s.push_str("  setParam(name, value) {\n");
+    s.push_str("    this._pendingParams[name] = value;\n");
+    s.push_str("    this._renderer?.setParam(name, value);\n");
+    s.push_str("  }\n");
     s.push_str("  setAudioData(data) { this._renderer?.setAudioData(data); }\n");
     s.push_str(
         "  setAudioSource(bridge) { bridge?.subscribe(d => this._renderer?.setAudioData(d)); }\n\n",
     );
+
+    // DOM update method — syncs string props to bound DOM elements
+    if has_dom && has_string_props {
+        s.push_str("  _updateDOM() {\n");
+        s.push_str("    if (!this._overlay) return;\n");
+        s.push_str("    const els = this._overlay.querySelectorAll('[data-bind]');\n");
+        s.push_str("    for (const el of els) {\n");
+        s.push_str("      const prop = el.dataset.bind;\n");
+        s.push_str("      if (prop in this._stringProps) el.textContent = this._stringProps[prop];\n");
+        s.push_str("    }\n");
+        s.push_str("  }\n\n");
+
+        // String prop setters
+        s.push_str("  setStringProp(name, value) {\n");
+        s.push_str("    if (this._stringProps && name in this._stringProps) {\n");
+        s.push_str("      this._stringProps[name] = value;\n");
+        s.push_str("      this._updateDOM();\n");
+        s.push_str("    }\n");
+        s.push_str("  }\n\n");
+
+        // Individual string prop getters/setters
+        for sp in &shader.string_props {
+            let name = &sp.name;
+            let default = escape_js(&sp.default);
+            s.push_str(&format!(
+                "  get {name}() {{ return this._stringProps?.['{name}'] ?? '{default}'; }}\n"
+            ));
+            s.push_str(&format!(
+                "  set {name}(v) {{ this._stringProps['{name}'] = v; this._updateDOM(); }}\n"
+            ));
+        }
+        s.push('\n');
+    }
 
     // Frame export API
     s.push_str("  getFrame() {\n");
@@ -302,8 +405,9 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     s.push_str("  // Property accessors for each uniform\n");
     for u in &shader.uniforms {
         let name = &u.name;
+        let default = u.default;
         s.push_str(&format!(
-            "  get {name}() {{ return this._renderer?.userParams['{name}'] ?? 0; }}\n"
+            "  get {name}() {{ return this._renderer?.userParams['{name}'] ?? this._pendingParams['{name}'] ?? {default}; }}\n"
         ));
         s.push_str(&format!(
             "  set {name}(v) {{ this.setParam('{name}', v); }}\n"
@@ -327,10 +431,32 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     }
     s.push_str("\n");
 
-    s.push_str("  static get observedAttributes() { return UNIFORMS.map(u => u.name); }\n");
-    s.push_str("  attributeChangedCallback(name, _, val) {\n");
-    s.push_str("    if (val !== null) this.setParam(name, parseFloat(val));\n");
-    s.push_str("  }\n");
+    // Observed attributes: uniforms (numeric) + string props
+    if has_string_props {
+        let sp_names: Vec<String> = shader
+            .string_props
+            .iter()
+            .map(|sp| format!("'{}'", sp.name))
+            .collect();
+        s.push_str(&format!(
+            "  static get observedAttributes() {{ return [...UNIFORMS.map(u => u.name), {}]; }}\n",
+            sp_names.join(",")
+        ));
+        s.push_str("  attributeChangedCallback(name, _, val) {\n");
+        s.push_str("    if (val === null) return;\n");
+        s.push_str("    if (this._stringProps && name in this._stringProps) {\n");
+        s.push_str("      this._stringProps[name] = val;\n");
+        s.push_str("      this._updateDOM();\n");
+        s.push_str("    } else {\n");
+        s.push_str("      this.setParam(name, parseFloat(val));\n");
+        s.push_str("    }\n");
+        s.push_str("  }\n");
+    } else {
+        s.push_str("  static get observedAttributes() { return UNIFORMS.map(u => u.name); }\n");
+        s.push_str("  attributeChangedCallback(name, _, val) {\n");
+        s.push_str("    if (val !== null) this.setParam(name, parseFloat(val));\n");
+        s.push_str("  }\n");
+    }
     s.push_str("}\n\n");
 
     s.push_str(&format!("customElements.define('game-{tag}', {class});\n"));
@@ -400,6 +526,11 @@ mod tests {
             pass_count: 0,
             uses_feedback: false,
             has_coupling_matrix: false,
+            string_props: vec![],
+            dom_html: None,
+            dom_css: None,
+            event_handlers: vec![],
+            aria_role: None,
         }
     }
 

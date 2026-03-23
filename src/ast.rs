@@ -50,6 +50,14 @@ pub struct Cinematic {
     pub matrix_coupling: Option<MatrixCoupling>,
     /// Color matrix for 3x3 RGB color grading.
     pub matrix_color: Option<MatrixColor>,
+    /// Component properties (string, number, event).
+    pub props: Option<PropsBlock>,
+    /// DOM overlay elements (text, positioned on top of canvas).
+    pub dom: Option<DomBlock>,
+    /// Event handlers (click, hover, etc.).
+    pub events: Vec<EventHandler>,
+    /// ARIA role for accessibility.
+    pub role: Option<String>,
 }
 
 /// `pass name { pipeline }` — post-processing pass within a cinematic.
@@ -519,6 +527,56 @@ pub struct MatrixTransitions {
     pub states: Vec<String>,
     pub weights: Vec<f64>,
     pub hold: Duration,
+}
+
+// ── Phase v0.8: Component UI Layer ──────────────────────
+
+/// `props { name: default, ... }` — typed component properties.
+#[derive(Debug, Clone)]
+pub struct PropsBlock {
+    pub props: Vec<PropDef>,
+}
+
+/// A single property definition.
+#[derive(Debug, Clone)]
+pub struct PropDef {
+    pub name: String,
+    /// Default value — `Expr::String` for string props, `Expr::Number` for number props.
+    pub default: Expr,
+    /// True if declared as an event (no default, emits custom events).
+    pub is_event: bool,
+}
+
+/// `dom { text "name" { at: x y, style: "css", bind: "prop" } ... }`
+#[derive(Debug, Clone)]
+pub struct DomBlock {
+    pub elements: Vec<DomElement>,
+}
+
+/// A positioned DOM element overlaid on the GPU canvas.
+#[derive(Debug, Clone)]
+pub struct DomElement {
+    /// Element type: "text", "div", etc.
+    pub tag: String,
+    /// Identifier for this element.
+    pub name: String,
+    /// X position from left in pixels.
+    pub x: f64,
+    /// Y position from top in pixels.
+    pub y: f64,
+    /// CSS style string.
+    pub style: String,
+    /// Prop name whose value is bound to textContent.
+    pub bind: Option<String>,
+}
+
+/// `on "click" { emit: "dismiss" }` — event handler declaration.
+#[derive(Debug, Clone)]
+pub struct EventHandler {
+    /// DOM event name (click, mouseenter, mouseleave, etc.)
+    pub event: String,
+    /// Custom event to dispatch when triggered.
+    pub emit: Option<String>,
 }
 
 // ── Phase v0.5: Scene sequencing ─────────────────────────

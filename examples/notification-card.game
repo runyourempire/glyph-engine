@@ -1,0 +1,78 @@
+// Notification Card — GAME v0.8 Component UI Demo
+//
+// A professional notification card with GPU-rendered visual effects
+// and DOM-overlaid text content. Demonstrates the full component
+// model: props, dom, events, accessibility, and shader layers.
+
+cinematic "notification-card" {
+
+  // ── Typed Properties ──────────────────────────────────
+  // String props bind to DOM text. Number props become shader uniforms.
+  props {
+    title: "New Signal Detected"
+    body: "3 articles match your interests"
+    priority: "medium"
+    color_r: 0.831
+    color_g: 0.686
+    color_b: 0.216
+    glow_intensity: 1.5
+    pulse_speed: 1.0
+    bg_opacity: 0.95
+  }
+
+  // ── GPU Layers ────────────────────────────────────────
+
+  // Background card — dark rounded rectangle
+  layer bg blend: occlude {
+    box(0.98, 0.92) | shade(0.078, 0.078, 0.078)
+  }
+
+  // Left edge accent — priority color sweep
+  layer accent {
+    translate(-0.47, 0.0) | box(0.02, 0.88) | shade(color_r, color_g, color_b)
+  }
+
+  // Pulsing indicator orb — breathes with glow
+  layer indicator {
+    translate(-0.35, 0.0) | circle(0.06) | glow(glow_intensity) | tint(color_r, color_g, color_b)
+  }
+
+  // Subtle background texture — organic warp noise
+  layer texture {
+    warp(4.0, 3, 0.4, 2.0, 0.008) | fbm(3.0) | glow(0.15) | tint(color_r, color_g, color_b)
+  }
+
+  // ── Animation ─────────────────────────────────────────
+  arc {
+    glow_intensity: 1.2 -> 2.0 over 2s ease-in-out
+    pulse_speed: 0.8 -> 1.2 over 3s ease-in-out
+  }
+
+  // ── DOM Overlay ───────────────────────────────────────
+  // Text content positioned over the GPU canvas
+  dom {
+    text "title" {
+      at: 88 20
+      style: "font:600 15px/1.3 Inter,system-ui,-apple-system,sans-serif;color:#FFFFFF;letter-spacing:-0.01em"
+      bind: "title"
+    }
+    text "body" {
+      at: 88 44
+      style: "font:400 13px/1.4 Inter,system-ui,-apple-system,sans-serif;color:#A0A0A0"
+      bind: "body"
+    }
+    text "badge" {
+      at: 88 68
+      style: "font:500 11px/1 Inter,system-ui,-apple-system,sans-serif;color:#D4AF37;text-transform:uppercase;letter-spacing:0.05em"
+      bind: "priority"
+    }
+  }
+
+  // ── Events ────────────────────────────────────────────
+  on "click" {
+    emit: "dismiss"
+  }
+
+  // ── Accessibility ─────────────────────────────────────
+  role: "alert"
+}

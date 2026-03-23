@@ -81,6 +81,10 @@ enum LexToken {
     Feedback,
     #[token("matrix")]
     Matrix,
+    #[token("props")]
+    Props,
+    #[token("dom")]
+    Dom,
     #[token("true")]
     True,
     #[token("false")]
@@ -242,6 +246,8 @@ fn convert(lt: LexToken, slice: &str) -> Result<Token, CompileError> {
         LexToken::For => Token::For,
         LexToken::Feedback => Token::Feedback,
         LexToken::Matrix => Token::Matrix,
+        LexToken::Props => Token::Props,
+        LexToken::Dom => Token::Dom,
         LexToken::True => Token::Ident("true".into()),
         LexToken::False => Token::Ident("false".into()),
 

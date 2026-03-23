@@ -115,6 +115,33 @@ pub fn generate_typescript_defs(shader: &ShaderOutput) -> String {
         s.push_str("  health: number;\n");
     }
 
+    // String properties (from props block)
+    if !shader.string_props.is_empty() {
+        s.push_str("\n  // String properties\n");
+        s.push_str("  /** Set a string property by name. */\n");
+        s.push_str("  setStringProp(name: string, value: string): void;\n\n");
+        for sp in &shader.string_props {
+            s.push_str(&format!(
+                "  /** Default: \"{}\" */\n",
+                sp.default
+            ));
+            s.push_str(&format!("  {}: string;\n", sp.name));
+        }
+    }
+
+    // Event handlers
+    if !shader.event_handlers.is_empty() {
+        s.push_str("\n  // Custom events\n");
+        for (_, emit) in &shader.event_handlers {
+            if let Some(name) = emit {
+                s.push_str(&format!(
+                    "  addEventListener(type: '{}', listener: (ev: CustomEvent) => void, options?: boolean | AddEventListenerOptions): void;\n",
+                    name
+                ));
+            }
+        }
+    }
+
     s.push_str("}\n\n");
 
     // Global augmentation
@@ -153,6 +180,11 @@ mod tests {
             pass_count: 0,
             uses_feedback: false,
             has_coupling_matrix: false,
+            string_props: vec![],
+            dom_html: None,
+            dom_css: None,
+            event_handlers: vec![],
+            aria_role: None,
         }
     }
 

@@ -39,6 +39,8 @@ pub enum Token {
     For,
     Feedback,
     Matrix,
+    Props,
+    Dom,
 
     // --- punctuation ---
     Pipe,       // |
@@ -126,6 +128,8 @@ impl std::fmt::Display for Token {
             Token::For => write!(f, "for"),
             Token::Feedback => write!(f, "feedback"),
             Token::Matrix => write!(f, "matrix"),
+            Token::Props => write!(f, "props"),
+            Token::Dom => write!(f, "dom"),
             Token::Pipe => write!(f, "|"),
             Token::Tilde => write!(f, "~"),
             Token::LBrace => write!(f, "{{"),
