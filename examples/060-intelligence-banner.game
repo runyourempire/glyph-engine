@@ -1,0 +1,107 @@
+// Intelligence Banner — full-width living header for 4DA.
+// Wide-format ambient field with cursor-reactive lensing and
+// VoidSignal-driven intelligence metabolism visualization.
+// 13 config uniforms: 11 from VoidSignal + cursor_x/cursor_y for mouse tracking.
+// Designed for ~1200x100px wide banner behind header content.
+
+cinematic "intelligence-banner" {
+  layer config {
+    pulse: 0.0
+    heat: 0.0
+    burst: 0.0
+    morph: 0.0
+    error_val: 0.0
+    staleness: 0.0
+    opacity_val: 0.9
+    signal_intensity: 0.0
+    color_shift: 0.0
+    critical_count: 0.0
+    metabolism: 0.0
+    cursor_x: 0.5
+    cursor_y: 0.5
+  }
+
+  // Organic substrate — slow drifting deep-space field
+  layer substrate memory: 0.93 {
+    warp(scale: 1.8, octaves: 5, persistence: 0.5, strength: 0.12 + metabolism * 0.04)
+    | fbm(scale: 2.5, octaves: 5, persistence: 0.5)
+    | palette(
+        a_r: 0.02, a_g: 0.015, a_b: 0.04,
+        b_r: 0.05, b_g: 0.03, b_b: 0.12,
+        c_r: 0.15, c_g: 0.1, c_b: 0.3,
+        d_r: 0.0, d_g: 0.08, d_b: 0.22
+      )
+  }
+
+  // Intelligence flow — data streams suggesting movement
+  layer flow memory: 0.88 blend: add {
+    warp(scale: 3.0, octaves: 4, persistence: 0.45, strength: 0.15 + pulse * 0.08)
+    | simplex(5.0)
+    | palette(
+        a_r: 0.0, a_g: 0.01, a_b: 0.03,
+        b_r: 0.04, b_g: 0.03, b_b: 0.1,
+        c_r: 0.3, c_g: 0.2, c_b: 0.55,
+        d_r: 0.0, d_g: 0.12, d_b: 0.35
+      )
+  }
+
+  // Discovery sparks — voronoi cells that brighten on burst
+  layer sparks memory: 0.78 blend: add {
+    warp(scale: 3.5, octaves: 3, strength: 0.2 + burst * 0.15)
+    | voronoi(8.0)
+    | glow(0.2 + burst * 2.5)
+    | tint(0.85, 0.68, 0.2)
+  }
+
+  // Cursor attraction — luminous point tracking mouse position
+  layer cursor memory: 0.82 blend: add {
+    translate(cursor_x * 2.0 - 1.0, cursor_y * 2.0 - 1.0)
+    | circle(0.035 + heat * 0.015)
+    | glow(2.8 + signal_intensity * 2.0)
+    | tint(0.35, 0.3, 0.8)
+  }
+
+  // Cursor halo — wider glow ring around cursor position
+  layer halo memory: 0.80 blend: add {
+    translate(cursor_x * 2.0 - 1.0, cursor_y * 2.0 - 1.0)
+    | ring(0.06 + pulse * 0.025, 0.003)
+    | glow(1.5 + pulse * 1.0)
+    | tint(0.3, 0.25, 0.65)
+  }
+
+  // Error signal — red distortion driven by error_val intensity
+  layer alert_field memory: 0.80 blend: add {
+    distort(scale: 3.5, speed: 1.2, strength: error_val * 0.1)
+    | fbm(scale: 3.0, octaves: 3)
+    | glow(error_val * 1.5)
+    | tint(0.9, 0.12, 0.05)
+  }
+
+  // Breathing animation
+  arc {
+    morph: 0.0 -> 0.25 over 10s ease-in-out
+  }
+
+  // Data-driven coupling — VoidSignal drives visual behavior
+  resonate {
+    pulse -> flow.intensity * 0.4
+    heat -> substrate.brightness * 0.3
+    metabolism -> flow.brightness * 0.2
+    signal_intensity -> cursor.brightness * 0.5
+    burst -> sparks.brightness * 0.8
+    morph -> substrate.scale * 0.12
+  }
+
+  // Cinematic color grading — subtle blue shift
+  matrix color {
+    [
+      0.93, -0.01, 0.08,
+      0.0, 0.91, 0.05,
+      0.05, 0.02, 1.12
+    ]
+  }
+
+  // Post-processing
+  pass glow { blur(1.5) }
+  pass frame_edge { vignette(0.3) }
+}

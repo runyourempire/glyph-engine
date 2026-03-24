@@ -1,0 +1,106 @@
+// Galactic Spiral — a spiral galaxy with rotating arms, dense core,
+// and scattered star clusters. Polar coordinates with rotation create
+// the spiral structure. Voronoi star fields and warped noise form the
+// interstellar dust lanes. Memory creates trailing star streams.
+
+cinematic "galactic-spiral" {
+  layer config {
+    spin: 0.2
+    luminosity: 0.4
+  }
+
+  // Deep space background — faint distant stars
+  layer deep_space {
+    warp(scale: 1.0, octaves: 3, strength: 0.05)
+    | voronoi(30.0)
+    | palette(
+        a_r: 0.0, a_g: 0.0, a_b: 0.01,
+        b_r: 0.05, b_g: 0.05, b_b: 0.08,
+        c_r: 0.8, c_g: 0.8, c_b: 0.9,
+        d_r: 0.0, d_g: 0.0, d_b: 0.0
+      )
+  }
+
+  // Primary spiral arm — main galactic structure
+  layer arm_a memory: 0.92 blend: add {
+    rotate(spin * 0.3)
+    | polar
+    | warp(scale: 2.5, octaves: 5, persistence: 0.5, strength: 0.3 + spin * 0.1)
+    | fbm(scale: 3.0, octaves: 6, persistence: 0.55)
+    | palette(twilight)
+  }
+
+  // Secondary arm — offset by rotation
+  layer arm_b memory: 0.90 blend: add {
+    rotate(spin * 0.3 + 3.14)
+    | polar
+    | warp(scale: 2.5, octaves: 5, persistence: 0.5, strength: 0.28)
+    | fbm(scale: 3.0, octaves: 5)
+    | palette(
+        a_r: 0.02, a_g: 0.01, a_b: 0.05,
+        b_r: 0.2, b_g: 0.1, b_b: 0.3,
+        c_r: 0.8, c_g: 0.6, c_b: 1.0,
+        d_r: 0.1, d_g: 0.2, d_b: 0.5
+      )
+  }
+
+  // Dust lanes — dark interstellar matter
+  layer dust memory: 0.88 {
+    rotate(spin * 0.15)
+    | warp(scale: 3.0, octaves: 6, persistence: 0.6, strength: 0.25)
+    | fbm(scale: 4.0, octaves: 6)
+    | palette(
+        a_r: 0.01, a_g: 0.005, a_b: 0.02,
+        b_r: 0.08, b_g: 0.04, b_b: 0.12,
+        c_r: 0.3, c_g: 0.2, c_b: 0.4,
+        d_r: 0.0, d_g: 0.1, d_b: 0.25
+      )
+  }
+
+  // Galactic core — dense bright center
+  layer core memory: 0.95 {
+    distort(scale: 2.0, speed: 0.3, strength: 0.02)
+    | circle(0.06 + luminosity * 0.02)
+    | glow(5.0 + luminosity * 3.0)
+    | tint(1.0, 0.9, 0.7)
+  }
+
+  // Core halo — warm glow surrounding nucleus
+  layer core_halo memory: 0.91 blend: add {
+    distort(scale: 1.5, speed: 0.2, strength: 0.015)
+    | circle(0.15)
+    | glow(2.0 + luminosity * 1.0)
+    | tint(0.8, 0.6, 0.4)
+  }
+
+  // Star clusters — bright knots in the arms
+  layer clusters memory: 0.84 blend: add {
+    rotate(spin * 0.2)
+    | warp(scale: 5.0, octaves: 3, strength: 0.15)
+    | voronoi(15.0)
+    | palette(silver)
+  }
+
+  arc {
+    spin: 0.2 -> 1.0 over 20s ease-in-out
+    luminosity: 0.4 -> 1.0 over 15s ease-in-out
+  }
+
+  resonate {
+    spin -> arm_a.intensity * 0.3
+    spin -> arm_b.intensity * 0.3
+    luminosity -> core.brightness * 0.5
+    luminosity -> core_halo.brightness * 0.4
+  }
+
+  matrix color {
+    [
+      1.0, -0.02, 0.08,
+      0.0, 0.95, 0.05,
+      0.05, 0.0, 1.15
+    ]
+  }
+
+  pass soft { blur(1.5) }
+  pass frame { vignette(0.4) }
+}

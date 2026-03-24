@@ -223,10 +223,50 @@
   #ai-status.generating { color: var(--accent); }
   #ai-status.error { color: var(--error); }
 
+  /* Gallery Modal */
+  #gallery-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(12px);
+    display: none; overflow-y: auto;
+  }
+  #gallery-overlay.open { display: block; }
+  .gallery-inner {
+    max-width: 1200px; margin: 0 auto; padding: 32px 24px;
+  }
+  .gallery-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .gallery-header h2 { font-size: 18px; color: var(--accent); font-weight: 600; letter-spacing: 1px; }
+  .gallery-header span { color: var(--text-dim); font-size: 12px; font-weight: 400; }
+  .gallery-close {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    padding: 6px 14px; border-radius: 4px; font-family: var(--font); font-size: 12px; cursor: pointer;
+  }
+  .gallery-close:hover { border-color: var(--accent); color: var(--accent); }
+  .gallery-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .gallery-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; cursor: pointer; transition: border-color 0.2s, transform 0.2s;
+  }
+  .gallery-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .gallery-card h3 { font-size: 13px; color: var(--text); margin-bottom: 6px; font-weight: 600; }
+  .gallery-card .card-num { color: var(--accent); font-size: 11px; font-weight: 400; margin-right: 6px; }
+  .gallery-card p { font-size: 11px; color: var(--text-dim); line-height: 1.5; margin-bottom: 8px; }
+  .gallery-card .card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .gallery-card .card-tag {
+    font-size: 9px; color: var(--accent); background: rgba(212,175,55,0.1);
+    padding: 2px 6px; border-radius: 3px; letter-spacing: 0.5px;
+  }
+
   /* Responsive */
   @media (max-width: 768px) {
     main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
     .editor-panel { border-right: none; border-bottom: 1px solid var(--border); }
+    .gallery-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -235,16 +275,43 @@
   <header>
     <h1>GAME <span>Playground v0.7.0</span></h1>
     <div class="header-controls">
+      <button id="btn-gallery" style="border-color: var(--accent); color: var(--accent)">Gallery</button>
       <select id="template-select">
         <option value="">Load Example...</option>
-        <option value="hello">Hello Glow</option>
-        <option value="organism">Living Organism</option>
-        <option value="mandala">Mandala Bloom</option>
-        <option value="cosmos">Cosmos</option>
-        <option value="portal">Deep Portal</option>
-        <option value="interactive">Interactive Pulse (Mouse)</option>
-        <option value="turing">Turing Patterns (Compute)</option>
-        <option value="physarum">Physarum Network (Compute)</option>
+        <optgroup label="Basics">
+          <option value="hello">Hello Glow</option>
+          <option value="organism">Living Organism</option>
+          <option value="mandala">Mandala Bloom</option>
+          <option value="cosmos">Cosmos</option>
+          <option value="portal">Deep Portal</option>
+          <option value="interactive">Interactive Pulse (Mouse)</option>
+        </optgroup>
+        <optgroup label="Compute">
+          <option value="turing">Turing Patterns</option>
+          <option value="physarum">Physarum Network</option>
+        </optgroup>
+        <optgroup label="Showcase">
+          <option value="sc01">Event Horizon</option>
+          <option value="sc02">Aurora Borealis</option>
+          <option value="sc03">Bioluminescent Abyss</option>
+          <option value="sc04">Sacred Geometry</option>
+          <option value="sc05">Plasma Storm</option>
+          <option value="sc06">Solar Flare</option>
+          <option value="sc07">Frozen Aether</option>
+          <option value="sc08">Neural Web</option>
+          <option value="sc09">Galactic Spiral</option>
+          <option value="sc10">Cyberpunk Rain</option>
+          <option value="sc11">Quantum Flux</option>
+          <option value="sc12">Living Coral</option>
+          <option value="sc13">Volcanic Core</option>
+          <option value="sc14">Stellar Nursery</option>
+          <option value="sc15">Digital Consciousness</option>
+          <option value="sc16">Tidal Forces</option>
+          <option value="sc17">Prismatic Cascade</option>
+          <option value="sc18">Mycelium Network</option>
+          <option value="sc19">Supernova</option>
+          <option value="sc20">Void Engine</option>
+        </optgroup>
       </select>
       <select id="target-select">
         <option value="both">WebGPU + WebGL2</option>
@@ -319,15 +386,41 @@
   </footer>
 </div>
 
+<div id="gallery-overlay">
+  <div class="gallery-inner">
+    <div class="gallery-header">
+      <h2>GAME Showcase <span>20 GPU-accelerated visuals</span></h2>
+      <button class="gallery-close" id="gallery-close">Close</button>
+    </div>
+    <div class="gallery-grid" id="gallery-grid"></div>
+  </div>
+</div>
+
 <script type="module">
 import init, { compileGame, validateGame, getBuiltins, getPaletteNames } from '../pkg/game_compiler.js';
 
 // ── Templates ──
 const TEMPLATES = {
   hello: `cinematic "hello-glow" {
-  layer main {
-    circle(0.3) | glow(2.0) | tint(0.831, 0.686, 0.216)
+  layer config {
+    intensity: 0.5
   }
+  layer field memory: 0.92 {
+    warp(scale: 2.0, octaves: 4, strength: 0.15)
+    | fbm(scale: 3.0, octaves: 5) | palette(gold)
+  }
+  layer core memory: 0.95 {
+    distort(scale: 2.0, speed: 0.5, strength: 0.02)
+    | circle(0.15 + intensity * 0.05) | glow(3.5) | tint(1.0, 0.85, 0.4)
+  }
+  layer halo memory: 0.88 {
+    ring(0.28, 0.02) | glow(2.0 + intensity * 1.0) | tint(0.9, 0.7, 0.3)
+  }
+  layer edge { ring(0.45, 0.003) | glow(0.8) | tint(0.4, 0.35, 0.25) }
+  arc { intensity: 0.5 -> 1.0 over 6s ease-in-out }
+  resonate { intensity -> core.brightness * 0.3 }
+  pass glow_pass { blur(1.5) }
+  pass frame { vignette(0.4) }
 }`,
   organism: `// Living Organism — arc + resonate + memory = visual creature
 cinematic "organism" {
@@ -599,6 +692,30 @@ cinematic "physarum-network" {
   }
 }`
 };
+
+// ── Showcase Gallery Data ──
+const SHOWCASE = [
+  { id: 'sc01', file: '01-event-horizon', title: 'Event Horizon', desc: 'Black hole with gravitational lensing, accretion disk, and photon ring. Absolute darkness at center surrounded by violent energy.', tags: ['polar', 'voronoi', 'ring', 'shade', 'memory'] },
+  { id: 'sc02', file: '02-aurora-borealis', title: 'Aurora Borealis', desc: 'Northern lights rippling across a dark sky. Vertical curtains of light wave through green, blue, and violet.', tags: ['warp', 'fbm', 'translate', 'memory', 'palette'] },
+  { id: 'sc03', file: '03-bioluminescent-abyss', title: 'Bioluminescent Abyss', desc: 'Deep ocean creatures pulsing with cold light. Jellyfish textures via voronoi, ghostly trails through darkness.', tags: ['voronoi', 'onion', 'mouse', 'memory', 'translate'] },
+  { id: 'sc04', file: '04-sacred-geometry', title: 'Sacred Geometry', desc: 'Radially symmetric mandala that breathes and evolves. Geometric precision softened by organic distortion.', tags: ['radial', 'smooth_subtract', 'star', 'capsule', 'boolean'] },
+  { id: 'sc05', file: '05-plasma-storm', title: 'Plasma Storm', desc: 'Violent electric energy crackling through space. High-frequency noise creates lightning tendrils.', tags: ['simplex', 'polar', 'warp', 'chromatic', 'ring'] },
+  { id: 'sc06', file: '06-solar-flare', title: 'Solar Flare', desc: 'Coronal mass ejection erupting from a stellar surface. Radial erupting plasma tendrils.', tags: ['polar', 'fbm', 'fire', 'memory', 'rotate'] },
+  { id: 'sc07', file: '07-frozen-aether', title: 'Frozen Aether', desc: 'Crystalline ice structures suspended in still air. Voronoi fracture patterns with subtle shimmer.', tags: ['voronoi', 'ice', 'arctic', 'star', 'chromatic'] },
+  { id: 'sc08', file: '08-neural-web', title: 'Neural Web', desc: 'Living network of synaptic connections firing. Cell bodies with propagating electrical impulses.', tags: ['voronoi', 'onion', 'translate', 'circle', 'memory'] },
+  { id: 'sc09', file: '09-galactic-spiral', title: 'Galactic Spiral', desc: 'Spiral galaxy with rotating arms, dense core, and scattered star clusters. Polar + rotation.', tags: ['polar', 'rotate', 'voronoi', 'fbm', 'twilight'] },
+  { id: 'sc10', file: '10-cyberpunk-rain', title: 'Cyberpunk Rain', desc: 'Neon-soaked digital rain through dark cityscape. Grid patterns with vertical streaking noise.', tags: ['grid', 'simplex', 'neon', 'chromatic', 'vapor'] },
+  { id: 'sc11', file: '11-quantum-flux', title: 'Quantum Flux', desc: 'Probability waves collapsing into particles. Interference patterns simulate wave-particle duality.', tags: ['simplex', 'mirror', 'onion', 'mouse', 'plasma'] },
+  { id: 'sc12', file: '12-living-coral', title: 'Living Coral', desc: 'Vibrant underwater reef with organic growth. Voronoi coral polyps and bioluminescent plankton.', tags: ['voronoi', 'radial', 'capsule', 'coral', 'deep_sea'] },
+  { id: 'sc13', file: '13-volcanic-core', title: 'Volcanic Core', desc: 'Erupting magma chamber seen from above. White-hot core through orange lava to dark obsidian crust.', tags: ['voronoi', 'onion', 'lava', 'magma', 'ember'] },
+  { id: 'sc14', file: '14-stellar-nursery', title: 'Stellar Nursery', desc: 'Nebula where new stars are born. Dense gas clouds with bright protostellar cores.', tags: ['fbm', 'circle', 'glow', 'sunset', 'voronoi'] },
+  { id: 'sc15', file: '15-digital-consciousness', title: 'Digital Consciousness', desc: 'Emergent awareness inside a machine. Matrix-green data cascades through circuit patterns.', tags: ['grid', 'matrix', 'onion', 'cyber', 'chromatic'] },
+  { id: 'sc16', file: '16-tidal-forces', title: 'Tidal Forces', desc: 'Gravitational pull warping an ocean surface. Concentric wave patterns with water refraction.', tags: ['onion', 'ocean', 'simplex', 'chromatic', 'circle'] },
+  { id: 'sc17', file: '17-prismatic-cascade', title: 'Prismatic Cascade', desc: 'Light refracting through crystal, splitting into spectral bands that cascade and overlap.', tags: ['simplex', 'translate', 'triangle', 'blood', 'royal'] },
+  { id: 'sc18', file: '18-mycelium-network', title: 'Mycelium Network', desc: 'Underground fungal intelligence connecting trees. Bioluminescent threads spreading through dark soil.', tags: ['fbm', 'voronoi', 'onion', 'earth', 'moss'] },
+  { id: 'sc19', file: '19-supernova', title: 'Supernova', desc: 'Massive star detonating. Expanding shockwave while the collapsing core forms a neutron star.', tags: ['ring', 'polar', 'voronoi', 'inferno', 'plasma'] },
+  { id: 'sc20', file: '20-void-engine', title: 'Void Engine', desc: 'The signature 4DA visual. A sentient void that breathes, processes, and radiates intelligence.', tags: ['polar', 'shade', 'onion', 'translate', 'twilight'] },
+];
 
 // ── Reference Panel Content ──
 const REFERENCE_HTML = `
@@ -936,7 +1053,18 @@ function renderPreview(compiled) {
       el.style.display = 'block';
       previewContainer.appendChild(el);
       activeComponent = el;
+
+      // Build controls immediately (params are buffered in _pendingParams)
       buildControls(activeUniforms);
+
+      // Also poll for renderer readiness — update control status
+      let readyChecks = 0;
+      const checkReady = setInterval(() => {
+        readyChecks++;
+        if (el._renderer || readyChecks > 50) {
+          clearInterval(checkReady);
+        }
+      }, 100);
     }, 200);
   } catch (e) {
     window.removeEventListener('error', errorHandler);
@@ -978,10 +1106,10 @@ sourceEl.addEventListener('keydown', (e) => {
   }
 });
 
-// Template selector
+// Template selector (basic templates only — showcase handled separately)
 document.getElementById('template-select').addEventListener('change', (e) => {
   const key = e.target.value;
-  if (key && TEMPLATES[key]) {
+  if (key && !key.startsWith('sc') && TEMPLATES[key]) {
     sourceEl.value = TEMPLATES[key];
     validateSource();
     e.target.value = '';
@@ -1111,87 +1239,130 @@ aiPromptEl.addEventListener('keydown', (e) => {
 });
 btnGenerate.addEventListener('click', generateFromAI);
 
-const GAME_SYSTEM_PROMPT = `You write .game code — a DSL that compiles to GPU shaders. Output ONLY raw .game code, nothing else.
+const GAME_SYSTEM_PROMPT = `You create stunning GPU-accelerated visuals in .game code. Output ONLY raw .game code, nothing else.
 
-CRITICAL: You may ONLY use the functions listed below. Do NOT invent functions. Do NOT use functions like "translateFromCenter", "smoothRotate", "pulse", "breathe", "orbit", "neon", "shimmer", "wave", "ripple" — they do not exist and will fail.
+CRITICAL: You may ONLY use functions listed below. NEVER invent functions. Functions like translateFromCenter, smoothRotate, pulse, breathe, orbit, neon, shimmer, wave, ripple DO NOT EXIST.
 
 ## Syntax
 cinematic "kebab-name" {
-  layer config { param_name: 0.5 }
-  layer snake_name memory: 0.93 opacity: 0.8 blend: add {
-    transform(args) | shape(args) | glow(intensity) | tint(r, g, b)
-  }
+  layer config { param: 0.5 }
+  layer name memory: 0.93 opacity: 0.8 blend: add { pipeline }
   arc { param: 0.0 -> 1.0 over 5s ease-in-out }
-  resonate { param -> layer_name.scale * 0.3 }
+  resonate { param -> layer.scale * 0.3 }
+  matrix color { [1.0,0.0,0.0, 0.0,1.0,0.0, 0.0,0.0,1.0] }
   pass name { vignette(0.4) }
 }
+Layer modifiers (memory, opacity, blend) go on the SAME LINE, BEFORE the brace.
 
-Layer modifiers (memory, opacity, blend) go BEFORE the opening brace on the SAME LINE.
-
-## ALL Functions (nothing else exists)
+## ALL Functions
 Transforms: translate(x,y), rotate(speed), scale(s), warp(scale,octaves,persistence,lacunarity,strength), distort(scale,speed,strength), polar, repeat(sx,sy), mirror, radial(count)
 Shapes: circle(r), ring(r,w), star(pts,r,inner), box(w,h), hex(r), triangle(size), line(x1,y1,x2,y2,w), capsule(len,r), arc_sdf(r,angle,w), cross(size,arm), heart(size), egg(r,k), spiral(turns,w), grid(spacing,w), fbm(scale,oct,pers,lac), simplex(scale), voronoi(scale), radial_fade(inner,outer)
 Booleans: union(a,b), subtract(a,b), intersect(a,b), smooth_union(a,b,k), smooth_subtract(a,b,k), smooth_intersect(a,b,k), xor(a,b), morph(a,b,t)
 Modifiers: round(r), shell(w), onion(count,w), mask_arc(angle)
-Bridges (REQUIRED): glow(intensity), shade(r,g,b), emissive(intensity), palette(name)
+Bridges (REQUIRED — every layer must end with one): glow(intensity), shade(r,g,b), emissive(intensity), palette(name)
 Color: tint(r,g,b), bloom(threshold,strength), grain(amount), outline(width)
 Passes: blur(radius), vignette(strength), chromatic(offset), sharpen(strength), film_grain(amount)
 
-## Palettes (use as: palette(name))
+## 30 Palettes
 fire, ocean, neon, aurora, sunset, ice, ember, lava, magma, inferno, plasma, electric, cyber, matrix, forest, moss, earth, desert, blood, rose, candy, royal, deep_sea, coral, arctic, twilight, vapor, gold, silver, monochrome
 
-## Built-in Variables
-time (continuous seconds), mouse_x, mouse_y (0-1), mouse_down (0/1), bass, mid, treble, energy, beat
+## Built-in Variables (use in expressions)
+time, mouse_x, mouse_y, mouse_down, bass, mid, treble, energy, beat
 Math: sin, cos, abs, min, max, pow, fract, clamp, mix, smoothstep. Ops: + - * / ^
+Resonate properties: .scale, .brightness, .intensity, .opacity
+Easing: linear, ease-in, ease-out, ease-in-out
 
-## How to Map Concepts to Code
-- "rings" → use ring(radius, width), NOT circle
-- "floating/drifting" → translate(sin(time * speed) * range, cos(time * speed) * range)
-- "orbiting" → translate(sin(time * speed) * radius, cos(time * speed) * radius)
-- "pulsing/breathing" → use config param in expressions: circle(0.1 + pulse * 0.15)
-- "glowing" → glow(2.0-4.0) for soft, glow(0.5-1.0) for tight
-- "organic/flowing" → warp() before fbm() or simplex()
-- "vortex/spiral" → polar | warp() | noise
-- "trails/persistence" → memory: 0.85-0.95
-- "particles/cells" → voronoi(scale)
-- "multiple rings" → each ring is its OWN layer with different translate/radius/color
-- "interactive" → mouse_x, mouse_y, mouse_down in expressions
-- "color shifting" → palette(name) on noise, tint(r,g,b) on shapes
+## Concept-to-Code Mapping
+- rings → ring(r, width)
+- floating/drifting → translate(sin(time*speed)*range, cos(time*speed)*range)
+- pulsing → circle(base + param * range) with arc animation on param
+- organic/flowing → warp() before fbm() or simplex()
+- vortex → polar | warp() | fbm() | palette()
+- trails → memory: 0.85-0.95
+- cells/particles → voronoi(scale)
+- interactive → mouse_x, mouse_y, mouse_down
+- multiple copies → each is its OWN layer with unique translate/size/color
 
-## Config Params MUST Be Used
-If you declare params in config, USE them in layer expressions. Example: if config has pulse: 0.0, then a layer should reference it: circle(0.1 + pulse * 0.15). Unused params make sliders do nothing.
+## Quality Principles (FOLLOW ALL)
+1. ALWAYS 4-6 layers: background field + primary subject + 1-2 secondary + detail/edge
+2. ALWAYS use memory: 0.85-0.95 on visual layers — this creates life and flow
+3. ALWAYS use warp() before noise (fbm/simplex/voronoi) — raw noise looks flat
+4. ALWAYS add post-processing: blur(1.5-2.5) for bloom + vignette(0.3-0.5) for framing
+5. ALWAYS add a thin edge ring: ring(0.45, 0.003) | glow(0.8) | tint(0.3, 0.3, 0.35)
+6. Use glow(2.5-4.0) for luminous feel — low values look dim
+7. Use DIFFERENT time speeds per layer (0.3, 0.5, 0.7, 1.0) for visual richness
+8. Use arc + resonate for evolution and inter-layer coupling
+9. Use matrix color for cinematic color grading (warm: boost R/G, cool: boost B)
+10. Config params MUST be used in expressions — unused params make sliders dead
+11. Give each layer a DISTINCT color via tint() — avoid monochrome
+12. Use distort() + memory for living, breathing elements
 
-## Resonate properties: .scale, .brightness, .intensity, .opacity
-## Easing: linear, ease-in, ease-out, ease-in-out
-
-## Example: "floating rings"
-cinematic "floating-rings" {
+## Example 1: "cosmic portal" (organic + geometric + depth)
+cinematic "cosmic-portal" {
   layer config {
-    drift: 0.0
-    glow_power: 2.0
+    intensity: 0.5
+    depth: 0.0
   }
-  layer field memory: 0.90 {
-    warp(scale: 2.0, octaves: 4, strength: 0.15) | fbm(scale: 3.0, octaves: 5) | palette(twilight)
+  layer void memory: 0.94 {
+    polar | warp(scale: 4.0, octaves: 5, strength: 0.3 + intensity * 0.15)
+    | fbm(scale: 3.0, octaves: 5) | palette(twilight)
   }
-  layer ring_a memory: 0.88 {
-    translate(sin(time * 0.7) * 0.2, cos(time * 0.5) * 0.15)
-    | ring(0.25, 0.012) | glow(glow_power) | tint(0.8, 0.6, 1.0)
+  layer corona memory: 0.90 blend: add {
+    distort(scale: 3.0, speed: 0.4, strength: 0.04)
+    | ring(0.28, 0.025) | glow(3.5 + intensity * 1.5) | tint(0.9, 0.4, 1.0)
   }
-  layer ring_b memory: 0.85 {
-    translate(cos(time * 0.5) * 0.15, sin(time * 0.8) * 0.2)
-    | ring(0.35, 0.01) | glow(glow_power * 0.8) | tint(0.3, 0.8, 1.0)
+  layer core memory: 0.95 {
+    distort(scale: 2.0, speed: 0.6, strength: 0.02)
+    | circle(0.08 + intensity * 0.04) | glow(4.0) | tint(1.0, 0.8, 0.95)
   }
-  layer ring_c memory: 0.82 {
-    translate(sin(time * 0.3) * 0.1, cos(time * 0.6) * 0.25)
-    | ring(0.18, 0.015) | glow(glow_power * 1.2) | tint(1.0, 0.5, 0.3)
+  layer filaments memory: 0.88 blend: add {
+    warp(scale: 5.0, octaves: 4, strength: 0.25)
+    | simplex(8.0) | palette(plasma)
   }
-  layer edge { ring(0.45, 0.003) | glow(0.8) | tint(0.3, 0.3, 0.35) }
-  arc { drift: 0.0 -> 1.0 over 8s ease-in-out }
+  layer outer_ring {
+    ring(0.42, 0.004) | glow(1.0) | tint(0.4, 0.3, 0.5)
+  }
+  arc { depth: 0.0 -> 1.0 over 12s ease-in-out }
   resonate {
-    drift -> ring_a.scale * 0.15
-    drift -> ring_b.scale * 0.1
+    intensity -> corona.brightness * 0.4
+    depth -> void.scale * 0.15
   }
-  pass glow_pass { blur(1.5) }
+  matrix color { [1.05, -0.02, 0.1, 0.0, 0.95, 0.05, 0.08, 0.0, 1.15] }
+  pass glow_pass { blur(2.0) }
+  pass detail { chromatic(0.003) }
+  pass frame { vignette(0.35) }
+}
+
+## Example 2: "living ember" (warm + breathing + radiant)
+cinematic "living-ember" {
+  layer config {
+    heat: 0.5
+    pulse: 0.0
+  }
+  layer smoke memory: 0.92 {
+    warp(scale: 2.5, octaves: 5, persistence: 0.6, strength: 0.2)
+    | fbm(scale: 4.0, octaves: 5) | palette(ember)
+  }
+  layer flame memory: 0.93 blend: add {
+    distort(scale: 2.0, speed: 0.8, strength: 0.03 + heat * 0.02)
+    | circle(0.12 + pulse * 0.06) | glow(3.5 + heat * 2.0) | tint(1.0, 0.6, 0.15)
+  }
+  layer sparks memory: 0.85 blend: add {
+    warp(scale: 6.0, octaves: 3, strength: 0.15)
+    | voronoi(12.0) | palette(fire)
+  }
+  layer halo memory: 0.88 {
+    distort(scale: 1.5, speed: 0.3, strength: 0.02)
+    | ring(0.22, 0.02) | glow(2.5 + pulse * 1.0) | tint(1.0, 0.4, 0.1)
+  }
+  layer edge { ring(0.45, 0.003) | glow(0.8) | tint(0.35, 0.2, 0.15) }
+  arc { pulse: 0.0 -> 1.0 over 6s ease-in-out }
+  resonate {
+    heat -> flame.brightness * 0.5
+    pulse -> halo.intensity * 0.3
+  }
+  matrix color { [1.1, 0.0, -0.05, 0.02, 1.0, -0.02, 0.0, 0.0, 0.85] }
+  pass glow_pass { blur(2.0) }
   pass frame { vignette(0.4) }
 }`;
 
@@ -1345,6 +1516,78 @@ async function callOpenAI(apiKey, _prompt, messages) {
   const data = await resp.json();
   return data.choices[0].message.content;
 }
+
+// ── Gallery ──
+const galleryOverlay = document.getElementById('gallery-overlay');
+const galleryGrid = document.getElementById('gallery-grid');
+
+function buildGallery() {
+  galleryGrid.innerHTML = '';
+  for (const item of SHOWCASE) {
+    const card = document.createElement('div');
+    card.className = 'gallery-card';
+    card.innerHTML = `
+      <h3><span class="card-num">${item.id.replace('sc','#')}</span>${item.title}</h3>
+      <p>${item.desc}</p>
+      <div class="card-tags">${item.tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>
+    `;
+    card.addEventListener('click', () => loadShowcase(item));
+    galleryGrid.appendChild(card);
+  }
+}
+
+async function loadShowcase(item) {
+  galleryOverlay.classList.remove('open');
+  // Try fetching from examples directory
+  try {
+    const resp = await fetch(`../examples/showcase/${item.file}.game`);
+    if (resp.ok) {
+      sourceEl.value = await resp.text();
+    } else {
+      // Fallback: check if it's in TEMPLATES
+      if (TEMPLATES[item.id]) {
+        sourceEl.value = TEMPLATES[item.id];
+      } else {
+        showError(`Could not load ${item.file}.game`);
+        return;
+      }
+    }
+  } catch {
+    if (TEMPLATES[item.id]) {
+      sourceEl.value = TEMPLATES[item.id];
+    } else {
+      showError(`Could not load ${item.file}.game — serve playground from project root`);
+      return;
+    }
+  }
+  validateSource();
+  compile();
+}
+
+document.getElementById('btn-gallery').addEventListener('click', () => {
+  if (!galleryGrid.children.length) buildGallery();
+  galleryOverlay.classList.toggle('open');
+});
+document.getElementById('gallery-close').addEventListener('click', () => {
+  galleryOverlay.classList.remove('open');
+});
+galleryOverlay.addEventListener('click', (e) => {
+  if (e.target === galleryOverlay) galleryOverlay.classList.remove('open');
+});
+
+// Also handle showcase selections from dropdown
+const origTemplateHandler = document.getElementById('template-select');
+origTemplateHandler.addEventListener('change', (e) => {
+  const key = e.target.value;
+  if (key && key.startsWith('sc')) {
+    const item = SHOWCASE.find(s => s.id === key);
+    if (item) {
+      e.target.value = '';
+      loadShowcase(item);
+      e.stopImmediatePropagation();
+    }
+  }
+});
 
 // ── Boot ──
 initWasm();

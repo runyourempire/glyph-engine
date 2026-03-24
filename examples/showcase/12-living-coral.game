@@ -1,0 +1,94 @@
+// Living Coral — a vibrant underwater reef teeming with organic growth.
+// Voronoi creates the coral polyp texture while layered warp gives
+// the branching, fractal structure of real coral formations.
+// Warm, saturated colors pulse with the rhythm of ocean currents.
+
+cinematic "living-coral" {
+  layer config {
+    current: 0.0
+    bloom_cycle: 0.4
+  }
+
+  // Ocean water — deep blue background with gentle current
+  layer water memory: 0.92 {
+    warp(scale: 1.5, octaves: 5, persistence: 0.5, strength: 0.15 + current * 0.05)
+    | fbm(scale: 2.0, octaves: 5)
+    | palette(deep_sea)
+  }
+
+  // Coral mass A — branching structure
+  layer coral_a memory: 0.90 blend: add {
+    warp(scale: 3.0, octaves: 6, persistence: 0.6, lacunarity: 2.2, strength: 0.25)
+    | voronoi(8.0)
+    | palette(coral)
+  }
+
+  // Coral mass B — different species, offset
+  layer coral_b memory: 0.88 blend: add {
+    translate(0.15, -0.1)
+    | warp(scale: 4.0, octaves: 5, persistence: 0.55, strength: 0.2)
+    | voronoi(10.0)
+    | palette(rose)
+  }
+
+  // Anemone center — pulsing organism
+  layer anemone memory: 0.93 {
+    distort(scale: 2.0, speed: 0.3, strength: 0.03 + bloom_cycle * 0.02)
+    | circle(0.1 + bloom_cycle * 0.04)
+    | glow(3.5 + bloom_cycle * 1.5)
+    | tint(1.0, 0.4, 0.5)
+  }
+
+  // Tentacle fronds — radiating from anemone
+  layer fronds memory: 0.87 blend: add {
+    radial(8)
+    | distort(scale: 3.0, speed: 0.4, strength: 0.04)
+    | capsule(0.18 + current * 0.03, 0.008)
+    | glow(1.8)
+    | tint(0.9, 0.5, 0.6)
+  }
+
+  // Bioluminescent plankton — floating specks
+  layer plankton memory: 0.83 blend: add {
+    warp(scale: 6.0, octaves: 3, strength: 0.18 + current * 0.08)
+    | voronoi(22.0)
+    | palette(
+        a_r: 0.0, a_g: 0.03, a_b: 0.02,
+        b_r: 0.1, b_g: 0.2, b_b: 0.1,
+        c_r: 0.4, c_g: 1.0, c_b: 0.6,
+        d_r: 0.2, d_g: 0.4, d_b: 0.1
+      )
+  }
+
+  // Sunbeam — light filtering from above
+  layer sunbeam memory: 0.85 blend: add {
+    translate(0.0, 0.25)
+    | warp(scale: 1.0, octaves: 3, strength: 0.1)
+    | radial_fade(0.0, 0.4)
+    | glow(1.2)
+    | tint(0.3, 0.5, 0.6)
+  }
+
+  arc {
+    current: 0.0 -> 0.8 over 10s ease-in-out
+    bloom_cycle: 0.4 -> 1.0 over 8s ease-in-out
+  }
+
+  resonate {
+    current -> coral_a.intensity * 0.3
+    current -> plankton.intensity * 0.4
+    bloom_cycle -> anemone.brightness * 0.5
+    bloom_cycle -> fronds.brightness * 0.3
+  }
+
+  matrix color {
+    [
+      1.1, 0.03, -0.02,
+      0.0, 1.0, 0.05,
+      -0.03, 0.08, 1.05
+    ]
+  }
+
+  pass soft { blur(1.5) }
+  pass frame { vignette(0.4) }
+}

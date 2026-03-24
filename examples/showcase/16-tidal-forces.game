@@ -1,0 +1,97 @@
+// Tidal Forces — gravitational pull of an invisible moon warping
+// an ocean surface. Concentric wave patterns propagate outward while
+// the water surface distorts and refracts light. Memory creates
+// persistent wave interference patterns on the surface.
+
+cinematic "tidal-forces" {
+  layer config {
+    pull: 0.0
+    swell: 0.3
+  }
+
+  // Deep ocean — dark water body
+  layer ocean memory: 0.94 {
+    warp(scale: 1.5, octaves: 6, persistence: 0.55, strength: 0.2 + pull * 0.1)
+    | fbm(scale: 2.0, octaves: 6, persistence: 0.5)
+    | palette(ocean)
+  }
+
+  // Surface waves — wind-driven ripples
+  layer waves memory: 0.90 blend: add {
+    warp(scale: 3.0, octaves: 5, persistence: 0.6, strength: 0.25 + swell * 0.1)
+    | simplex(6.0)
+    | palette(
+        a_r: 0.0, a_g: 0.05, a_b: 0.1,
+        b_r: 0.05, b_g: 0.15, b_b: 0.3,
+        c_r: 0.3, c_g: 0.6, c_b: 0.9,
+        d_r: 0.0, d_g: 0.2, d_b: 0.4
+      )
+  }
+
+  // Tidal bulge — gravitational distortion at center
+  layer bulge memory: 0.93 {
+    distort(scale: 2.0, speed: 0.3, strength: 0.04 + pull * 0.03)
+    | circle(0.15 + pull * 0.06)
+    | glow(2.5 + pull * 2.0)
+    | tint(0.3, 0.6, 0.9)
+  }
+
+  // Wave rings — concentric tidal waves
+  layer tidal_rings memory: 0.88 blend: add {
+    distort(scale: 1.5, speed: 0.25, strength: 0.02)
+    | circle(0.25 + swell * 0.05)
+    | onion(5, 0.008)
+    | glow(1.2 + swell * 0.6)
+    | tint(0.2, 0.4, 0.7)
+  }
+
+  // Moon reflection — faint light source above
+  layer moonlight memory: 0.85 blend: add {
+    translate(0.0, 0.2)
+    | distort(scale: 3.0, speed: 0.4, strength: 0.05 + pull * 0.02)
+    | circle(0.04)
+    | glow(3.0)
+    | tint(0.8, 0.85, 0.95)
+  }
+
+  // Foam — surface turbulence
+  layer foam memory: 0.83 blend: add {
+    warp(scale: 5.0, octaves: 4, strength: 0.18 + swell * 0.08)
+    | voronoi(14.0)
+    | palette(
+        a_r: 0.0, a_g: 0.03, a_b: 0.06,
+        b_r: 0.1, b_g: 0.15, b_b: 0.25,
+        c_r: 0.5, c_g: 0.7, c_b: 0.9,
+        d_r: 0.0, d_g: 0.15, d_b: 0.3
+      )
+  }
+
+  // Depth boundary
+  layer edge {
+    ring(0.47, 0.002) | glow(0.4) | tint(0.05, 0.1, 0.2)
+  }
+
+  arc {
+    pull: 0.0 -> 1.0 over 10s ease-in-out
+    swell: 0.3 -> 0.9 over 15s ease-in-out
+  }
+
+  resonate {
+    pull -> bulge.brightness * 0.5
+    pull -> tidal_rings.brightness * 0.4
+    swell -> waves.intensity * 0.3
+    swell -> foam.intensity * 0.3
+  }
+
+  matrix color {
+    [
+      0.85, 0.0, 0.1,
+      0.0, 1.0, 0.05,
+      0.05, 0.08, 1.2
+    ]
+  }
+
+  pass depth { blur(2.0) }
+  pass refract { chromatic(0.003) }
+  pass frame { vignette(0.45) }
+}

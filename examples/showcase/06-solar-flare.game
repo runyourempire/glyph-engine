@@ -1,0 +1,89 @@
+// Solar Flare — coronal mass ejection erupting from a stellar surface.
+// Radial symmetry and polar coordinates create the star body while
+// layered warped noise forms the erupting plasma tendrils. Memory
+// leaves streaking fire trails as matter is flung outward.
+
+cinematic "solar-flare" {
+  layer config {
+    eruption: 0.0
+    corona: 0.4
+  }
+
+  // Stellar surface — boiling granular texture
+  layer surface memory: 0.90 {
+    warp(scale: 4.0, octaves: 6, persistence: 0.55, lacunarity: 2.1, strength: 0.25)
+    | fbm(scale: 5.0, octaves: 6, persistence: 0.5)
+    | palette(fire)
+  }
+
+  // Coronal loop — magnetic field lines arching outward
+  layer corona_loop memory: 0.93 blend: add {
+    polar
+    | warp(scale: 2.0, octaves: 5, persistence: 0.6, strength: 0.35 + corona * 0.15)
+    | fbm(scale: 3.0, octaves: 5)
+    | palette(ember)
+  }
+
+  // Primary flare — the eruption itself
+  layer flare memory: 0.88 blend: add {
+    translate(0.0, 0.15 + eruption * 0.1)
+    | warp(scale: 3.0, octaves: 4, strength: 0.3 + eruption * 0.2)
+    | simplex(6.0)
+    | palette(inferno)
+  }
+
+  // Solar core — intense white-hot center
+  layer core memory: 0.95 {
+    distort(scale: 2.0, speed: 0.5, strength: 0.02)
+    | circle(0.12 + eruption * 0.02)
+    | glow(5.0 + corona * 2.0)
+    | tint(1.0, 0.95, 0.7)
+  }
+
+  // Prominence — side eruption arc
+  layer prominence memory: 0.86 blend: add {
+    rotate(0.4)
+    | translate(0.18, 0.0)
+    | warp(scale: 5.0, octaves: 3, strength: 0.2 + eruption * 0.1)
+    | simplex(8.0)
+    | palette(lava)
+  }
+
+  // Chromosphere ring
+  layer chromo memory: 0.91 blend: add {
+    distort(scale: 3.0, speed: 0.6, strength: 0.04)
+    | ring(0.16, 0.02)
+    | glow(2.5 + eruption * 1.0)
+    | tint(1.0, 0.6, 0.2)
+  }
+
+  // Outer corona haze
+  layer haze memory: 0.80 blend: add {
+    warp(scale: 1.5, octaves: 4, strength: 0.15)
+    | fbm(scale: 2.0, octaves: 4)
+    | palette(sunset)
+  }
+
+  arc {
+    eruption: 0.0 -> 1.0 over 8s ease-out
+    corona: 0.4 -> 1.0 over 12s ease-in-out
+  }
+
+  resonate {
+    eruption -> flare.brightness * 0.6
+    eruption -> prominence.intensity * 0.4
+    corona -> corona_loop.brightness * 0.5
+    corona -> chromo.intensity * 0.3
+  }
+
+  matrix color {
+    [
+      1.2, 0.05, -0.03,
+      0.03, 0.95, -0.02,
+      -0.05, 0.0, 0.85
+    ]
+  }
+
+  pass heat { blur(1.5) }
+  pass frame { vignette(0.4) }
+}

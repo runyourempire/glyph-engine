@@ -1,0 +1,98 @@
+// Volcanic Core — looking straight down into an erupting magma chamber.
+// Concentric heat zones transition from white-hot core through orange
+// lava to dark obsidian crust. Turbulent warp creates the churning
+// magma surface. Memory preserves cooling lava flow patterns.
+
+cinematic "volcanic-core" {
+  layer config {
+    pressure: 0.0
+    heat: 0.6
+  }
+
+  // Obsidian crust — dark cracked surface
+  layer crust memory: 0.88 {
+    warp(scale: 3.0, octaves: 5, persistence: 0.55, strength: 0.2)
+    | voronoi(7.0)
+    | palette(
+        a_r: 0.03, a_g: 0.01, a_b: 0.01,
+        b_r: 0.08, b_g: 0.03, b_b: 0.02,
+        c_r: 0.15, c_g: 0.08, c_b: 0.05,
+        d_r: 0.0, d_g: 0.0, d_b: 0.0
+      )
+  }
+
+  // Magma flow — molten rock channels
+  layer magma memory: 0.92 blend: add {
+    warp(scale: 2.5, octaves: 6, persistence: 0.6, lacunarity: 2.1, strength: 0.3 + pressure * 0.15)
+    | fbm(scale: 3.0, octaves: 6, persistence: 0.55)
+    | palette(lava)
+  }
+
+  // Secondary flow — different magma current
+  layer flow_b memory: 0.90 blend: add {
+    rotate(0.5)
+    | warp(scale: 3.0, octaves: 5, persistence: 0.55, strength: 0.25 + heat * 0.1)
+    | fbm(scale: 4.0, octaves: 5)
+    | palette(magma)
+  }
+
+  // Volcanic vent — the eruption source
+  layer vent memory: 0.94 {
+    distort(scale: 2.5, speed: 0.8, strength: 0.04 + pressure * 0.03)
+    | circle(0.08 + pressure * 0.04)
+    | glow(5.0 + heat * 3.0)
+    | tint(1.0, 0.9, 0.5)
+  }
+
+  // Heat rings — concentric thermal zones
+  layer heat_zones memory: 0.89 blend: add {
+    distort(scale: 2.0, speed: 0.6, strength: 0.03)
+    | circle(0.18 + pressure * 0.04)
+    | onion(3, 0.02)
+    | glow(2.5 + heat * 1.0)
+    | tint(1.0, 0.5, 0.1)
+  }
+
+  // Ember particles — sparks rising from the vent
+  layer embers memory: 0.82 blend: add {
+    warp(scale: 7.0, octaves: 3, strength: 0.2 + pressure * 0.1)
+    | voronoi(18.0)
+    | palette(ember)
+  }
+
+  // Smoke plume — dark volcanic gas
+  layer smoke memory: 0.86 {
+    translate(0.0, 0.15)
+    | warp(scale: 2.0, octaves: 5, persistence: 0.5, strength: 0.3 + pressure * 0.15)
+    | fbm(scale: 2.5, octaves: 5)
+    | palette(
+        a_r: 0.02, a_g: 0.02, a_b: 0.02,
+        b_r: 0.1, b_g: 0.08, b_b: 0.06,
+        c_r: 0.2, c_g: 0.15, c_b: 0.1,
+        d_r: 0.0, d_g: 0.0, d_b: 0.0
+      )
+  }
+
+  arc {
+    pressure: 0.0 -> 1.0 over 6s ease-out
+    heat: 0.6 -> 1.0 over 10s ease-in-out
+  }
+
+  resonate {
+    pressure -> vent.brightness * 0.6
+    pressure -> embers.intensity * 0.5
+    heat -> magma.brightness * 0.4
+    heat -> heat_zones.brightness * 0.3
+  }
+
+  matrix color {
+    [
+      1.3, 0.05, -0.05,
+      0.03, 0.9, -0.03,
+      -0.08, -0.02, 0.8
+    ]
+  }
+
+  pass heat { blur(1.5) }
+  pass frame { vignette(0.45) }
+}

@@ -1,0 +1,101 @@
+// Prismatic Cascade — light refracting through invisible crystal,
+// splitting into spectral bands that cascade and overlap. Each color
+// layer is offset slightly, creating the rainbow decomposition effect.
+// Memory preserves the light trails as the prism rotates.
+
+cinematic "prismatic-cascade" {
+  layer config {
+    refraction: 0.0
+    intensity: 0.5
+  }
+
+  // Dark void — absence of light before refraction
+  layer void memory: 0.90 {
+    warp(scale: 1.5, octaves: 4, strength: 0.1)
+    | fbm(scale: 2.0, octaves: 5)
+    | palette(
+        a_r: 0.01, a_g: 0.01, a_b: 0.02,
+        b_r: 0.03, b_g: 0.03, b_b: 0.06,
+        c_r: 0.08, c_g: 0.06, c_b: 0.12,
+        d_r: 0.0, d_g: 0.0, d_b: 0.05
+      )
+  }
+
+  // Red band — longest wavelength, least refracted
+  layer red_band memory: 0.88 blend: add {
+    translate(-0.12 + refraction * 0.04, 0.05)
+    | warp(scale: 2.0, octaves: 4, strength: 0.15 + refraction * 0.08)
+    | simplex(4.0)
+    | palette(blood)
+  }
+
+  // Orange-yellow band
+  layer amber_band memory: 0.87 blend: add {
+    translate(-0.06 + refraction * 0.02, 0.02)
+    | warp(scale: 2.0, octaves: 4, strength: 0.15 + refraction * 0.06)
+    | simplex(4.0)
+    | palette(ember)
+  }
+
+  // Green band — middle of spectrum
+  layer green_band memory: 0.86 blend: add {
+    warp(scale: 2.0, octaves: 4, strength: 0.15 + refraction * 0.05)
+    | simplex(4.0)
+    | palette(forest)
+  }
+
+  // Blue band
+  layer blue_band memory: 0.85 blend: add {
+    translate(0.06 - refraction * 0.02, -0.02)
+    | warp(scale: 2.0, octaves: 4, strength: 0.15 + refraction * 0.06)
+    | simplex(4.0)
+    | palette(ocean)
+  }
+
+  // Violet band — shortest wavelength, most refracted
+  layer violet_band memory: 0.84 blend: add {
+    translate(0.12 - refraction * 0.04, -0.05)
+    | warp(scale: 2.0, octaves: 4, strength: 0.15 + refraction * 0.08)
+    | simplex(4.0)
+    | palette(royal)
+  }
+
+  // Light source — the white beam entering the prism
+  layer source memory: 0.93 blend: add {
+    distort(scale: 1.5, speed: 0.4, strength: 0.02)
+    | circle(0.05 + intensity * 0.02)
+    | glow(5.0 + intensity * 2.5)
+    | tint(1.0, 1.0, 0.95)
+  }
+
+  // Prism outline — the refracting crystal
+  layer prism {
+    distort(scale: 1.0, speed: 0.2, strength: 0.01)
+    | triangle(0.15)
+    | glow(1.0)
+    | tint(0.5, 0.5, 0.6)
+  }
+
+  arc {
+    refraction: 0.0 -> 1.0 over 8s ease-in-out
+    intensity: 0.5 -> 1.0 over 12s ease-in-out
+  }
+
+  resonate {
+    refraction -> red_band.intensity * 0.3
+    refraction -> violet_band.intensity * 0.3
+    intensity -> source.brightness * 0.5
+  }
+
+  matrix color {
+    [
+      1.05, 0.0, 0.0,
+      0.0, 1.05, 0.0,
+      0.0, 0.0, 1.05
+    ]
+  }
+
+  pass glow { blur(2.0) }
+  pass split { chromatic(0.008) }
+  pass frame { vignette(0.35) }
+}

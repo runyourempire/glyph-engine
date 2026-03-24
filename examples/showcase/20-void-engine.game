@@ -1,0 +1,125 @@
+// Void Engine — the signature 4DA visual. A sentient void that breathes,
+// processes, and radiates intelligence. This is the heartbeat of 4DA
+// itself — not a natural phenomenon but an engineered consciousness.
+// The void watches. The void knows. The void evolves.
+
+cinematic "void-engine" {
+  layer config {
+    pulse: 0.0
+    awareness: 0.3
+    depth: 0.5
+  }
+
+  // Cosmic substrate — the space the void inhabits
+  layer substrate memory: 0.91 {
+    warp(scale: 2.0, octaves: 6, persistence: 0.5, strength: 0.2)
+    | fbm(scale: 2.5, octaves: 6, persistence: 0.55)
+    | palette(
+        a_r: 0.01, a_g: 0.01, a_b: 0.03,
+        b_r: 0.05, b_g: 0.03, b_b: 0.1,
+        c_r: 0.15, c_g: 0.1, c_b: 0.25,
+        d_r: 0.0, d_g: 0.05, d_b: 0.15
+      )
+  }
+
+  // Intelligence field — the void's awareness radiating outward
+  layer intel_field memory: 0.93 blend: add {
+    polar
+    | warp(scale: 3.0, octaves: 5, persistence: 0.55, strength: 0.25 + awareness * 0.12)
+    | fbm(scale: 4.0, octaves: 6)
+    | palette(
+        a_r: 0.0, a_g: 0.02, a_b: 0.05,
+        b_r: 0.08, b_g: 0.06, b_b: 0.2,
+        c_r: 0.4, c_g: 0.3, c_b: 0.8,
+        d_r: 0.0, d_g: 0.15, d_b: 0.4
+      )
+  }
+
+  // Data streams — information flowing toward the core
+  layer streams memory: 0.89 blend: add {
+    polar
+    | warp(scale: 5.0, octaves: 4, persistence: 0.5, strength: 0.2)
+    | simplex(8.0)
+    | palette(cyber)
+  }
+
+  // The Void itself — absolute engineered darkness
+  layer void_core memory: 0.97 {
+    distort(scale: 1.5, speed: 0.3, strength: 0.015 + pulse * 0.01)
+    | circle(0.07 + pulse * 0.02)
+    | shade(0.0, 0.0, 0.0)
+  }
+
+  // Event boundary — the edge where data meets void
+  layer boundary memory: 0.95 blend: add {
+    distort(scale: 2.0, speed: 0.4, strength: 0.02 + pulse * 0.01)
+    | ring(0.09 + pulse * 0.02, 0.004)
+    | glow(4.0 + awareness * 2.5)
+    | tint(0.6, 0.5, 1.0)
+  }
+
+  // Heartbeat rings — the void's pulse
+  layer heartbeat memory: 0.90 blend: add {
+    distort(scale: 2.0, speed: 0.5, strength: 0.03)
+    | circle(0.16 + pulse * 0.05)
+    | onion(3, 0.005)
+    | glow(1.5 + pulse * 1.0)
+    | tint(0.3, 0.25, 0.6)
+  }
+
+  // Processing nodes — orbiting intelligence fragments
+  layer node_a memory: 0.88 blend: add {
+    translate(sin(time * 0.4) * 0.22, cos(time * 0.4) * 0.22)
+    | distort(scale: 2.0, speed: 0.6, strength: 0.02)
+    | circle(0.02 + awareness * 0.01)
+    | glow(2.5 + awareness * 1.5)
+    | tint(0.5, 0.4, 0.9)
+  }
+
+  layer node_b memory: 0.87 blend: add {
+    translate(cos(time * 0.35) * 0.25, sin(time * 0.3) * 0.2)
+    | distort(scale: 2.0, speed: 0.5, strength: 0.02)
+    | circle(0.015 + depth * 0.008)
+    | glow(2.0 + depth * 1.0)
+    | tint(0.4, 0.5, 0.8)
+  }
+
+  // Wisdom emanation — the void's output signal
+  layer emanation memory: 0.86 blend: add {
+    warp(scale: 2.5, octaves: 5, persistence: 0.6, strength: 0.2 + awareness * 0.1)
+    | fbm(scale: 3.5, octaves: 5)
+    | palette(twilight)
+  }
+
+  // Containment frame
+  layer frame {
+    ring(0.45, 0.002) | glow(0.8) | tint(0.2, 0.18, 0.35)
+  }
+
+  arc {
+    pulse: 0.0 -> 1.0 over 4s ease-in-out
+    awareness: 0.3 -> 1.0 over 10s ease-in-out
+    depth: 0.5 -> 1.0 over 15s ease-in-out
+  }
+
+  resonate {
+    pulse -> boundary.brightness * 0.5
+    pulse -> heartbeat.brightness * 0.6
+    awareness -> intel_field.intensity * 0.4
+    awareness -> node_a.brightness * 0.4
+    depth -> streams.intensity * 0.3
+    depth -> emanation.brightness * 0.3
+  }
+
+  matrix color {
+    [
+      0.9, -0.02, 0.12,
+      0.0, 0.88, 0.08,
+      0.08, 0.02, 1.2
+    ]
+  }
+
+  pass glow { blur(2.0) }
+  pass split { chromatic(0.004) }
+  pass frame_pass { vignette(0.4) }
+}

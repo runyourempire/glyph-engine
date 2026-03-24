@@ -1,0 +1,89 @@
+// Frozen Aether — crystalline ice structures suspended in still air.
+// Voronoi creates the fracture patterns of ice while subtle warp
+// gives organic imperfection. Memory freezes trails into permanent
+// frost patterns. Everything moves slowly, deliberately.
+
+cinematic "frozen-aether" {
+  layer config {
+    thaw: 0.0
+    shimmer: 0.3
+  }
+
+  // Deep frost background — crystalline voronoi structure
+  layer frost_field memory: 0.96 {
+    warp(scale: 2.0, octaves: 4, persistence: 0.4, strength: 0.12)
+    | voronoi(12.0)
+    | palette(ice)
+  }
+
+  // Secondary crystal layer — offset and finer
+  layer crystals memory: 0.94 blend: add {
+    rotate(0.1)
+    | warp(scale: 3.0, octaves: 3, strength: 0.08)
+    | voronoi(18.0)
+    | palette(arctic)
+  }
+
+  // Frost veins — organic ice crack patterns
+  layer veins memory: 0.92 blend: add {
+    warp(scale: 4.0, octaves: 5, persistence: 0.55, strength: 0.2)
+    | fbm(scale: 6.0, octaves: 6, persistence: 0.45)
+    | palette(silver)
+  }
+
+  // Central frozen gem — the heart of the formation
+  layer gem memory: 0.93 {
+    distort(scale: 1.5, speed: 0.15, strength: 0.01 + thaw * 0.01)
+    | star(6, 0.12 + shimmer * 0.02, 0.06)
+    | glow(3.5 + shimmer * 1.5)
+    | tint(0.7, 0.85, 1.0)
+  }
+
+  // Inner halo — faint glow around gem
+  layer halo memory: 0.90 blend: add {
+    distort(scale: 2.0, speed: 0.2, strength: 0.015)
+    | ring(0.16, 0.025)
+    | glow(2.0 + shimmer * 0.8)
+    | tint(0.5, 0.7, 0.95)
+  }
+
+  // Snowdust — fine floating particles
+  layer dust memory: 0.85 blend: add {
+    warp(scale: 6.0, octaves: 3, strength: 0.15)
+    | voronoi(25.0)
+    | palette(
+        a_r: 0.0, a_g: 0.02, a_b: 0.05,
+        b_r: 0.1, b_g: 0.15, b_b: 0.2,
+        c_r: 0.8, c_g: 0.9, c_b: 1.0,
+        d_r: 0.0, d_g: 0.1, d_b: 0.2
+      )
+  }
+
+  // Edge frost
+  layer edge {
+    ring(0.46, 0.003) | glow(0.6) | tint(0.4, 0.5, 0.7)
+  }
+
+  arc {
+    thaw: 0.0 -> 0.5 over 20s ease-in-out
+    shimmer: 0.3 -> 1.0 over 15s ease-in-out
+  }
+
+  resonate {
+    shimmer -> gem.brightness * 0.4
+    shimmer -> halo.brightness * 0.3
+    thaw -> crystals.intensity * 0.2
+  }
+
+  matrix color {
+    [
+      0.9, 0.0, 0.1,
+      0.0, 0.95, 0.08,
+      0.05, 0.1, 1.2
+    ]
+  }
+
+  pass frost { blur(1.0) }
+  pass split { chromatic(0.003) }
+  pass frame { vignette(0.35) }
+}

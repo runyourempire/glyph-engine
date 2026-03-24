@@ -1,0 +1,90 @@
+// Aurora Borealis — northern lights rippling across a dark sky.
+// Vertical curtains of light that wave and shift through green,
+// blue, and violet. Memory creates the characteristic streaking.
+
+cinematic "aurora-borealis" {
+  layer config {
+    activity: 0.5
+    curtain: 0.0
+  }
+
+  // Night sky — very subtle stars
+  layer stars {
+    warp(scale: 1.5, octaves: 3, strength: 0.1)
+    | voronoi(25.0)
+    | palette(
+        a_r: 0.0, a_g: 0.0, a_b: 0.02,
+        b_r: 0.08, b_g: 0.08, b_b: 0.12,
+        c_r: 1.0, c_g: 1.0, c_b: 1.0,
+        d_r: 0.0, d_g: 0.0, d_b: 0.0
+      )
+  }
+
+  // Primary aurora curtain — green dominant
+  layer curtain_green memory: 0.93 blend: add {
+    translate(0.0, 0.15)
+    | warp(scale: 1.5, octaves: 5, persistence: 0.6, strength: 0.35 + activity * 0.15)
+    | fbm(scale: 2.0, octaves: 6)
+    | palette(aurora)
+  }
+
+  // Secondary curtain — blue-violet, offset
+  layer curtain_blue memory: 0.91 blend: add {
+    translate(0.1, -0.1)
+    | warp(scale: 2.0, octaves: 4, persistence: 0.55, strength: 0.3 + curtain * 0.1)
+    | fbm(scale: 2.5, octaves: 5)
+    | palette(
+        a_r: 0.0, a_g: 0.1, a_b: 0.2,
+        b_r: 0.1, b_g: 0.3, b_b: 0.5,
+        c_r: 0.5, c_g: 0.8, c_b: 1.0,
+        d_r: 0.15, d_g: 0.25, d_b: 0.6
+      )
+  }
+
+  // Bright peak — concentrated glow at curtain peaks
+  layer peak memory: 0.89 blend: add {
+    translate(0.0, 0.2)
+    | warp(scale: 2.5, octaves: 4, strength: 0.2)
+    | simplex(3.0)
+    | palette(
+        a_r: 0.1, a_g: 0.4, a_b: 0.1,
+        b_r: 0.2, b_g: 0.5, b_b: 0.2,
+        c_r: 0.8, c_g: 1.0, c_b: 0.6,
+        d_r: 0.0, d_g: 0.33, d_b: 0.0
+      )
+  }
+
+  // Horizon glow — warm reflected light on snow
+  layer horizon memory: 0.95 {
+    translate(0.0, -0.35)
+    | radial_fade(0.0, 0.3)
+    | glow(1.5)
+    | tint(0.15, 0.2, 0.3)
+  }
+
+  // Subtle edge frame
+  layer edge {
+    ring(0.47, 0.002) | glow(0.4) | tint(0.1, 0.15, 0.2)
+  }
+
+  arc {
+    curtain: 0.0 -> 1.0 over 20s ease-in-out
+  }
+
+  resonate {
+    activity -> curtain_green.brightness * 0.4
+    activity -> curtain_blue.intensity * 0.3
+    curtain -> peak.brightness * 0.5
+  }
+
+  matrix color {
+    [
+      0.9, 0.0, 0.05,
+      0.0, 1.1, 0.0,
+      0.0, 0.05, 1.15
+    ]
+  }
+
+  pass soft_glow { blur(3.0) }
+  pass frame { vignette(0.5) }
+}

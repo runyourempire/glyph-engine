@@ -1,0 +1,96 @@
+// Neural Web — a living network of synaptic connections firing.
+// Voronoi creates the cell bodies, onion rings form axon pathways,
+// and pulsing glows simulate electrical impulses propagating through
+// the network. Memory creates persistent activation trails.
+
+cinematic "neural-web" {
+  layer config {
+    signal: 0.0
+    plasticity: 0.3
+  }
+
+  // Synaptic background — dense neural mesh
+  layer mesh memory: 0.93 {
+    warp(scale: 3.0, octaves: 5, persistence: 0.5, strength: 0.2)
+    | voronoi(10.0)
+    | palette(
+        a_r: 0.02, a_g: 0.0, a_b: 0.04,
+        b_r: 0.1, b_g: 0.05, b_b: 0.2,
+        c_r: 0.5, c_g: 0.3, c_b: 0.8,
+        d_r: 0.0, d_g: 0.2, d_b: 0.5
+      )
+  }
+
+  // Dendrite field — fine branching structure
+  layer dendrites memory: 0.91 blend: add {
+    warp(scale: 5.0, octaves: 6, persistence: 0.6, lacunarity: 2.3, strength: 0.3)
+    | fbm(scale: 8.0, octaves: 6, persistence: 0.55)
+    | palette(cyber)
+  }
+
+  // Primary neuron cluster — central cell body
+  layer neuron_a memory: 0.90 {
+    distort(scale: 2.0, speed: 0.4, strength: 0.02 + signal * 0.01)
+    | circle(0.08 + signal * 0.03)
+    | glow(4.0 + signal * 2.0)
+    | tint(0.3, 0.6, 1.0)
+  }
+
+  // Axon rings — propagating signal waves
+  layer axons memory: 0.87 blend: add {
+    distort(scale: 2.5, speed: 0.5, strength: 0.03)
+    | circle(0.2 + signal * 0.05)
+    | onion(4, 0.012)
+    | glow(1.8 + plasticity * 0.8)
+    | tint(0.2, 0.4, 0.9)
+  }
+
+  // Secondary neuron — offset firing
+  layer neuron_b memory: 0.88 blend: add {
+    translate(0.2, -0.15)
+    | distort(scale: 2.0, speed: 0.6, strength: 0.02)
+    | circle(0.05 + plasticity * 0.02)
+    | glow(3.0 + plasticity * 1.5)
+    | tint(0.5, 0.3, 0.9)
+  }
+
+  // Tertiary neuron — another node
+  layer neuron_c memory: 0.86 blend: add {
+    translate(-0.18, 0.12)
+    | distort(scale: 2.0, speed: 0.35, strength: 0.02)
+    | circle(0.04 + signal * 0.015)
+    | glow(2.5 + signal * 1.0)
+    | tint(0.4, 0.7, 0.8)
+  }
+
+  // Synaptic flash — rapid firing indicator
+  layer flash memory: 0.82 blend: add {
+    warp(scale: 6.0, octaves: 3, strength: 0.25)
+    | simplex(12.0)
+    | palette(electric)
+  }
+
+  arc {
+    signal: 0.0 -> 1.0 over 6s ease-out
+    plasticity: 0.3 -> 0.9 over 10s ease-in-out
+  }
+
+  resonate {
+    signal -> neuron_a.brightness * 0.5
+    signal -> axons.brightness * 0.4
+    plasticity -> neuron_b.brightness * 0.3
+    plasticity -> dendrites.intensity * 0.2
+  }
+
+  matrix color {
+    [
+      0.85, 0.0, 0.15,
+      0.0, 0.9, 0.1,
+      0.1, 0.1, 1.2
+    ]
+  }
+
+  pass glow { blur(2.0) }
+  pass split { chromatic(0.004) }
+  pass frame { vignette(0.45) }
+}

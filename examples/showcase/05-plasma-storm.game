@@ -1,0 +1,86 @@
+// Plasma Storm — violent electric energy crackling through space.
+// High-frequency noise creates lightning-like tendrils while
+// smooth warp fields create the background plasma clouds.
+// Memory at high values creates persistent energy trails.
+
+cinematic "plasma-storm" {
+  layer config {
+    voltage: 0.6
+    discharge: 0.0
+  }
+
+  // Storm clouds — turbulent plasma field
+  layer clouds memory: 0.92 {
+    warp(scale: 2.0, octaves: 6, persistence: 0.55, lacunarity: 2.2, strength: 0.3)
+    | fbm(scale: 3.0, octaves: 6, persistence: 0.6)
+    | palette(electric)
+  }
+
+  // Primary lightning channel — high-frequency noise for jagged look
+  layer lightning_a memory: 0.85 blend: add {
+    warp(scale: 8.0, octaves: 3, strength: 0.4 + voltage * 0.2)
+    | simplex(15.0)
+    | palette(
+        a_r: 0.1, a_g: 0.1, a_b: 0.3,
+        b_r: 0.3, b_g: 0.3, b_b: 0.8,
+        c_r: 0.8, c_g: 0.9, c_b: 1.0,
+        d_r: 0.0, d_g: 0.15, d_b: 0.5
+      )
+  }
+
+  // Secondary discharge — perpendicular energy
+  layer lightning_b memory: 0.83 blend: add {
+    rotate(0.7)
+    | warp(scale: 10.0, octaves: 3, strength: 0.35 + discharge * 0.15)
+    | simplex(12.0)
+    | palette(plasma)
+  }
+
+  // Core vortex — the storm eye
+  layer eye memory: 0.95 {
+    polar
+    | warp(scale: 4.0, octaves: 4, strength: 0.25)
+    | fbm(scale: 3.0, octaves: 5)
+    | palette(cyber)
+  }
+
+  // Central arc — bright plasma ball
+  layer arc_core memory: 0.90 blend: add {
+    distort(scale: 3.0, speed: 1.2, strength: 0.05 + voltage * 0.03)
+    | circle(0.08 + discharge * 0.04) | glow(4.5 + voltage * 2.0) | tint(0.7, 0.8, 1.0)
+  }
+
+  // Crackling ring — unstable energy boundary
+  layer crackle memory: 0.87 blend: add {
+    distort(scale: 5.0, speed: 1.5, strength: 0.06)
+    | ring(0.2, 0.008) | glow(2.5 + discharge * 1.5) | tint(0.5, 0.6, 1.0)
+  }
+
+  // Containment edge
+  layer edge {
+    ring(0.45, 0.003) | glow(0.7) | tint(0.2, 0.25, 0.4)
+  }
+
+  arc {
+    discharge: 0.0 -> 1.0 over 4s ease-out
+  }
+
+  resonate {
+    voltage -> arc_core.brightness * 0.5
+    voltage -> lightning_a.intensity * 0.4
+    discharge -> crackle.brightness * 0.6
+    discharge -> lightning_b.intensity * 0.3
+  }
+
+  matrix color {
+    [
+      0.9, 0.0, 0.15,
+      0.0, 0.95, 0.1,
+      0.1, 0.05, 1.2
+    ]
+  }
+
+  pass energy { blur(1.5) }
+  pass split { chromatic(0.005) }
+  pass frame { vignette(0.4) }
+}

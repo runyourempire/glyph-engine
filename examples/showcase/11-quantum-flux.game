@@ -1,0 +1,101 @@
+// Quantum Flux — probability waves collapsing into particles.
+// Interference patterns created by layered simplex at different
+// frequencies simulate wave-particle duality. The observer effect
+// is represented by mouse interaction disturbing the wave function.
+
+cinematic "quantum-flux" {
+  layer config {
+    coherence: 0.0
+    entanglement: 0.3
+  }
+
+  // Probability field — underlying wave function
+  layer wave_fn memory: 0.91 {
+    warp(scale: 2.0, octaves: 5, persistence: 0.5, strength: 0.2)
+    | fbm(scale: 4.0, octaves: 6, persistence: 0.55)
+    | palette(
+        a_r: 0.0, a_g: 0.02, a_b: 0.06,
+        b_r: 0.15, b_g: 0.1, b_b: 0.3,
+        c_r: 0.6, c_g: 0.4, c_b: 1.0,
+        d_r: 0.1, d_g: 0.25, d_b: 0.5
+      )
+  }
+
+  // Interference pattern A — horizontal wave
+  layer interference_a memory: 0.88 blend: add {
+    warp(scale: 1.5, octaves: 4, strength: 0.15 + coherence * 0.1)
+    | simplex(10.0)
+    | palette(plasma)
+  }
+
+  // Interference pattern B — perpendicular wave
+  layer interference_b memory: 0.86 blend: add {
+    rotate(1.57)
+    | warp(scale: 1.5, octaves: 4, strength: 0.15 + coherence * 0.08)
+    | simplex(10.0)
+    | palette(electric)
+  }
+
+  // Particle collapse — bright point of observation
+  layer particle memory: 0.93 {
+    distort(scale: 2.0, speed: 0.7, strength: 0.03 + coherence * 0.02)
+    | circle(0.04 + coherence * 0.03 + mouse_down * 0.05)
+    | glow(5.0 + coherence * 3.0)
+    | tint(0.8, 0.6, 1.0)
+  }
+
+  // Uncertainty halo — probability cloud around particle
+  layer uncertainty memory: 0.89 blend: add {
+    distort(scale: 3.0, speed: 0.5, strength: 0.05)
+    | circle(0.12 + entanglement * 0.04)
+    | onion(3, 0.008)
+    | glow(1.5 + entanglement * 0.8)
+    | tint(0.4, 0.3, 0.8)
+  }
+
+  // Entangled partner — mirror particle
+  layer entangled memory: 0.90 blend: add {
+    mirror
+    | translate(0.2, 0.0)
+    | distort(scale: 2.0, speed: 0.7, strength: 0.03)
+    | circle(0.03 + entanglement * 0.02)
+    | glow(3.0 + entanglement * 2.0)
+    | tint(1.0, 0.5, 0.7)
+  }
+
+  // Quantum foam — background fluctuations
+  layer foam memory: 0.83 blend: add {
+    warp(scale: 8.0, octaves: 3, strength: 0.2)
+    | voronoi(20.0)
+    | palette(
+        a_r: 0.0, a_g: 0.01, a_b: 0.03,
+        b_r: 0.05, b_g: 0.03, b_b: 0.1,
+        c_r: 0.4, c_g: 0.3, c_b: 0.7,
+        d_r: 0.0, d_g: 0.15, d_b: 0.3
+      )
+  }
+
+  arc {
+    coherence: 0.0 -> 1.0 over 8s ease-in-out
+    entanglement: 0.3 -> 1.0 over 12s ease-in-out
+  }
+
+  resonate {
+    coherence -> particle.brightness * 0.5
+    coherence -> interference_a.intensity * 0.4
+    entanglement -> entangled.brightness * 0.5
+    entanglement -> uncertainty.brightness * 0.3
+  }
+
+  matrix color {
+    [
+      0.9, 0.0, 0.15,
+      0.0, 0.85, 0.1,
+      0.12, 0.08, 1.2
+    ]
+  }
+
+  pass glow { blur(2.0) }
+  pass split { chromatic(0.005) }
+  pass frame { vignette(0.4) }
+}

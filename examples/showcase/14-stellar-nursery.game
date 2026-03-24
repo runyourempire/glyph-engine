@@ -1,0 +1,108 @@
+// Stellar Nursery — a nebula where new stars are being born.
+// Dense gas clouds rendered with multi-octave FBM, punctuated by
+// bright protostellar cores. The interplay of warm emission nebula
+// and cool dark lanes creates the pillars-of-creation aesthetic.
+
+cinematic "stellar-nursery" {
+  layer config {
+    formation: 0.0
+    radiation: 0.4
+  }
+
+  // Emission nebula — warm hydrogen gas
+  layer emission memory: 0.93 {
+    warp(scale: 2.0, octaves: 6, persistence: 0.6, lacunarity: 2.0, strength: 0.3)
+    | fbm(scale: 2.5, octaves: 7, persistence: 0.55)
+    | palette(
+        a_r: 0.05, a_g: 0.01, a_b: 0.02,
+        b_r: 0.3, b_g: 0.08, b_b: 0.15,
+        c_r: 0.8, c_g: 0.3, c_b: 0.5,
+        d_r: 0.0, d_g: 0.15, d_b: 0.3
+      )
+  }
+
+  // Reflection nebula — cooler blue scattered light
+  layer reflection memory: 0.91 blend: add {
+    translate(0.1, 0.05)
+    | warp(scale: 2.5, octaves: 5, persistence: 0.55, strength: 0.25)
+    | fbm(scale: 3.0, octaves: 6)
+    | palette(
+        a_r: 0.01, a_g: 0.02, a_b: 0.06,
+        b_r: 0.08, b_g: 0.15, b_b: 0.35,
+        c_r: 0.4, c_g: 0.6, c_b: 1.0,
+        d_r: 0.1, d_g: 0.2, d_b: 0.5
+      )
+  }
+
+  // Dark nebula — absorbing dust pillars
+  layer pillars memory: 0.89 {
+    warp(scale: 1.5, octaves: 5, persistence: 0.65, strength: 0.35)
+    | fbm(scale: 2.0, octaves: 6, persistence: 0.6)
+    | palette(
+        a_r: 0.01, a_g: 0.005, a_b: 0.01,
+        b_r: 0.04, b_g: 0.02, b_b: 0.05,
+        c_r: 0.1, c_g: 0.06, c_b: 0.12,
+        d_r: 0.0, d_g: 0.05, d_b: 0.1
+      )
+  }
+
+  // Protostar A — primary forming star
+  layer proto_a memory: 0.94 blend: add {
+    translate(-0.08, 0.05)
+    | distort(scale: 2.0, speed: 0.4, strength: 0.02 + formation * 0.015)
+    | circle(0.04 + formation * 0.025)
+    | glow(4.0 + formation * 3.0)
+    | tint(1.0, 0.9, 0.7)
+  }
+
+  // Protostar B — secondary forming star
+  layer proto_b memory: 0.92 blend: add {
+    translate(0.12, -0.1)
+    | distort(scale: 2.0, speed: 0.5, strength: 0.02)
+    | circle(0.03 + formation * 0.015)
+    | glow(3.0 + formation * 2.0)
+    | tint(0.8, 0.85, 1.0)
+  }
+
+  // Ionization front — edge where radiation meets gas
+  layer front memory: 0.87 blend: add {
+    warp(scale: 3.0, octaves: 4, strength: 0.2 + radiation * 0.1)
+    | simplex(5.0)
+    | palette(sunset)
+  }
+
+  // Background stars
+  layer stars {
+    warp(scale: 1.0, octaves: 2, strength: 0.03)
+    | voronoi(28.0)
+    | palette(
+        a_r: 0.0, a_g: 0.0, a_b: 0.01,
+        b_r: 0.05, b_g: 0.05, b_b: 0.08,
+        c_r: 0.9, c_g: 0.9, c_b: 1.0,
+        d_r: 0.0, d_g: 0.0, d_b: 0.0
+      )
+  }
+
+  arc {
+    formation: 0.0 -> 1.0 over 12s ease-in-out
+    radiation: 0.4 -> 1.0 over 15s ease-in-out
+  }
+
+  resonate {
+    formation -> proto_a.brightness * 0.6
+    formation -> proto_b.brightness * 0.5
+    radiation -> front.intensity * 0.4
+    radiation -> emission.brightness * 0.3
+  }
+
+  matrix color {
+    [
+      1.05, 0.02, 0.05,
+      0.0, 0.95, 0.03,
+      0.03, 0.0, 1.1
+    ]
+  }
+
+  pass soft { blur(2.5) }
+  pass frame { vignette(0.35) }
+}

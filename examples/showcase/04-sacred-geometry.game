@@ -1,0 +1,83 @@
+// Sacred Geometry — radially symmetric mandala that breathes and evolves.
+// Multiple layers of geometric precision softened by organic distortion.
+// The interplay between sharp SDF booleans and soft glow creates depth.
+
+cinematic "sacred-geometry" {
+  layer config {
+    breath: 0.0
+    bloom_power: 0.5
+    rotation: 0.3
+  }
+
+  // Ambient field — subtle sacred pattern background
+  layer field memory: 0.91 {
+    radial(12)
+    | warp(scale: 3.0, octaves: 4, strength: 0.15)
+    | fbm(scale: 5.0, octaves: 5) | palette(gold)
+  }
+
+  // Central jewel — boolean-sculpted gem
+  layer jewel memory: 0.93 {
+    distort(scale: 1.5, speed: 0.3, strength: 0.01)
+    | smooth_subtract(circle(0.1 + breath * 0.03), star(6, 0.08, 0.04), 0.02)
+    | glow(4.0 + bloom_power * 1.5) | tint(1.0, 0.85, 0.4)
+  }
+
+  // First ring — hexagonal symmetry
+  layer hex_ring memory: 0.88 blend: add {
+    radial(6)
+    | distort(scale: 2.0, speed: 0.4, strength: 0.02)
+    | ring(0.18 + breath * 0.02, 0.012)
+    | glow(2.5) | tint(0.9, 0.7, 0.3)
+  }
+
+  // Second ring — twelve-fold with stars
+  layer star_ring memory: 0.86 {
+    radial(12)
+    | smooth_union(ring(0.28, 0.008), star(12, 0.30, 0.26), 0.03)
+    | glow(2.0 + bloom_power * 0.8) | tint(0.7, 0.5, 0.2)
+  }
+
+  // Outer petals — rotating organic forms
+  layer petals memory: 0.84 blend: add {
+    rotate(rotation * 0.5)
+    | radial(8)
+    | distort(scale: 2.5, speed: 0.5, strength: 0.03)
+    | capsule(0.15, 0.01)
+    | glow(1.8) | tint(0.8, 0.6, 0.25)
+  }
+
+  // Fine detail ring
+  layer detail {
+    circle(0.38) | onion(2, 0.003) | glow(0.8) | tint(0.5, 0.4, 0.25)
+  }
+
+  // Boundary
+  layer boundary {
+    ring(0.45, 0.002) | glow(0.6) | tint(0.4, 0.3, 0.2)
+  }
+
+  arc {
+    breath: 0.0 -> 1.0 over 6s ease-in-out
+    bloom_power: 0.5 -> 1.0 over 10s ease-in-out
+    rotation: 0.3 -> 0.8 over 15s ease-in-out
+  }
+
+  resonate {
+    breath -> jewel.scale * 0.15
+    breath -> hex_ring.brightness * 0.3
+    bloom_power -> star_ring.brightness * 0.4
+    rotation -> petals.intensity * 0.2
+  }
+
+  matrix color {
+    [
+      1.1, 0.02, -0.03,
+      0.03, 1.05, -0.02,
+      -0.02, 0.0, 0.9
+    ]
+  }
+
+  pass glow_pass { blur(2.0) }
+  pass frame { vignette(0.35) }
+}
