@@ -50,7 +50,7 @@ export class GalleryPanel {
     );
   }
 
-  private _handleMessage(msg: { type: string; file?: string; name?: string }): void {
+  private async _handleMessage(msg: { type: string; file?: string; name?: string }): Promise<void> {
     if (msg.type === 'open' && msg.file) {
       const galleryDir = path.join(this._extensionUri.fsPath, 'gallery', 'components');
       const filePath = path.join(galleryDir, msg.file);
@@ -64,11 +64,11 @@ export class GalleryPanel {
       }
     }
     if (msg.type === 'fork' && msg.file && msg.name) {
-      this._forkComponent(msg.file, msg.name);
+      await this._forkComponent(msg.file, msg.name);
     }
   }
 
-  private _forkComponent(file: string, name: string): void {
+  private async _forkComponent(file: string, name: string): Promise<void> {
     const galleryDir = path.join(this._extensionUri.fsPath, 'gallery', 'components');
     const srcPath = path.join(galleryDir, file);
     if (!fs.existsSync(srcPath)) {
@@ -84,6 +84,13 @@ export class GalleryPanel {
 
     const destDir = workspaceFolders[0].uri.fsPath;
     const destFile = path.join(destDir, `${name}.game`);
+
+    if (fs.existsSync(destFile)) {
+      const overwrite = await vscode.window.showWarningMessage(
+        `${name}.game already exists. Overwrite?`, 'Yes', 'No'
+      );
+      if (overwrite !== 'Yes') return;
+    }
 
     const content = fs.readFileSync(srcPath, 'utf-8');
     fs.writeFileSync(destFile, content);
@@ -104,6 +111,10 @@ export class GalleryPanel {
     } catch {
       return null;
     }
+  }
+
+  private _escapeHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   private _loadSourcePreview(file: string): string {
@@ -148,16 +159,21 @@ export class GalleryPanel {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
       const kebabName = c.name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-      return `<div class="card" data-category="${c.category}" data-name="${c.name.toLowerCase()}" data-tags="${c.tags.join(' ')}">
+      const escapedName = this._escapeHtml(c.name);
+      const escapedDesc = this._escapeHtml(c.description);
+      const escapedCategory = this._escapeHtml(c.category);
+      const escapedFile = this._escapeHtml(c.file);
+      const escapedTags = this._escapeHtml(c.tags.join(' '));
+      return `<div class="card" data-category="${escapedCategory}" data-name="${escapedName.toLowerCase()}" data-tags="${escapedTags}" data-desc="${escapedDesc.toLowerCase()}">
   <div class="card-header">
-    <span class="card-name">${c.name}</span>
-    <span class="card-tag">${c.category}</span>
+    <span class="card-name">${escapedName}</span>
+    <span class="card-tag">${escapedCategory}</span>
   </div>
-  <p class="card-desc">${c.description}</p>
+  <p class="card-desc">${escapedDesc}</p>
   <pre class="card-code"><code>${preview}</code></pre>
   <div class="card-actions">
-    <button class="btn-open" data-file="${c.file}" data-cname="${c.name}">Open</button>
-    <button class="btn-fork" data-file="${c.file}" data-cname="${kebabName}">Fork</button>
+    <button class="btn-open" data-file="${escapedFile}" data-cname="${escapedName}">Open</button>
+    <button class="btn-fork" data-file="${escapedFile}" data-cname="${this._escapeHtml(kebabName)}">Fork</button>
   </div>
 </div>`;
     }).join('\n');
@@ -374,8 +390,9 @@ export class GalleryPanel {
       const name = card.dataset.name || '';
       const tags = card.dataset.tags || '';
       const cat = card.dataset.category || '';
+      const desc = card.dataset.desc || '';
       const matchesCat = activeCategory === 'all' || cat === activeCategory;
-      const matchesSearch = !query || name.includes(query) || tags.includes(query) || cat.includes(query);
+      const matchesSearch = !query || name.includes(query) || tags.includes(query) || cat.includes(query) || desc.includes(query);
       const show = matchesCat && matchesSearch;
       card.classList.toggle('hidden', !show);
       if (show) visible++;

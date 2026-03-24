@@ -470,12 +470,14 @@ el.setAudioData({ bass: 0.5, mid: 0.3, treble: 0.1, energy: 0.3, beat: 0 });
 - Shaders use periodic time `fract(t/120)*120` to avoid float precision issues
 - Pipeline state machine: Position → Sdf → Color with typed transitions
 - "Did you mean?" error suggestions for typos and missing bridge stages
-- ~19,700 lines of Rust, 47 builtins, 400 tests
+- ~29,000 lines of Rust, 49 builtins, 567 tests
 
 ## Examples
 
-See the `examples/` directory for 43 reference `.game` files covering every feature.
+See the `examples/` directory for 78 reference `.game` files covering every feature.
 
 ## License
 
-MIT
+[FSL-1.1-Apache-2.0](LICENSE) — Functional Source License, converting to Apache 2.0 after 2 years.
+
+Copyright (c) 2026 4DA Systems Pty Ltd.

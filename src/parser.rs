@@ -70,6 +70,52 @@ impl Parser {
         }
     }
 
+    /// Returns `true` if the next token is an identifier that looks like an easing
+    /// function name, NOT the start of the next arc entry.
+    ///
+    /// An identifier followed by `:` is the next arc entry's target (e.g. `bb: 0.0 -> ...`),
+    /// not an easing. Known easing names: `ease_out`, `ease_in`, `ease_in_out`, `linear`,
+    /// and hyphenated forms (`ease-out`, `ease-in`, `ease-in-out`).
+    fn peek_is_easing_not_next_entry(&self) -> bool {
+        match self.peek() {
+            Some(Token::Ident(_)) => {
+                // If the identifier is followed by `:`, it's the next arc entry target
+                let next_pos = self.pos + 1;
+                // Account for possible hyphenated easing (e.g. ease-out is Ident Minus Ident)
+                // so scan forward past ident(-ident)* and check if we hit a colon
+                let mut look = self.pos + 1;
+                while look < self.tokens.len() {
+                    if matches!(self.tokens[look].0, Token::Minus) {
+                        // Could be hyphenated easing — check next is ident
+                        if look + 1 < self.tokens.len()
+                            && matches!(self.tokens[look + 1].0, Token::Ident(_))
+                        {
+                            look += 2; // skip minus + ident
+                            continue;
+                        }
+                    }
+                    break;
+                }
+                // After consuming the potential easing identifier (with hyphens),
+                // if we see a colon at `next_pos`, this ident starts the next entry
+                if next_pos < self.tokens.len()
+                    && matches!(self.tokens[next_pos].0, Token::Colon)
+                {
+                    return false;
+                }
+                // Also check: if the ident (with hyphens consumed) is followed by a dot
+                // then colon, it's a dotted target like `layer.prop:`
+                if next_pos < self.tokens.len()
+                    && matches!(self.tokens[next_pos].0, Token::Dot)
+                {
+                    return false;
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// Convert a keyword token to its string name. Returns None for non-keyword tokens.
     /// Used to allow keywords as identifiers in contexts like layer names, param names, etc.
     fn token_to_name(tok: &Token) -> Option<String> {
@@ -237,6 +283,48 @@ impl Parser {
         }
     }
 
+    // -- "did you mean?" helper --------------------------------------------
+
+    /// Compute Levenshtein edit distance between two strings.
+    fn edit_distance(a: &str, b: &str) -> usize {
+        let a_len = a.len();
+        let b_len = b.len();
+        let mut matrix = vec![vec![0usize; b_len + 1]; a_len + 1];
+        for i in 0..=a_len {
+            matrix[i][0] = i;
+        }
+        for j in 0..=b_len {
+            matrix[0][j] = j;
+        }
+        for (i, ca) in a.chars().enumerate() {
+            for (j, cb) in b.chars().enumerate() {
+                let cost = if ca == cb { 0 } else { 1 };
+                matrix[i + 1][j + 1] = (matrix[i][j + 1] + 1)
+                    .min(matrix[i + 1][j] + 1)
+                    .min(matrix[i][j] + cost);
+            }
+        }
+        matrix[a_len][b_len]
+    }
+
+    /// If `input` is within edit distance 2 of a known top-level keyword, return the suggestion.
+    fn suggest_top_level_keyword(input: &str) -> Option<&'static str> {
+        const TOP_LEVEL_KEYWORDS: &[&str] = &[
+            "import", "use", "fn", "cinematic", "breed", "project",
+            "scene", "matrix", "ifs", "lsystem", "automaton",
+        ];
+        let mut best: Option<(&str, usize)> = None;
+        for &kw in TOP_LEVEL_KEYWORDS {
+            let dist = Self::edit_distance(input, kw);
+            if dist <= 2 && dist > 0 {
+                if best.map_or(true, |(_, d)| dist < d) {
+                    best = Some((kw, dist));
+                }
+            }
+        }
+        best.map(|(kw, _)| kw)
+    }
+
     // -- error recovery ----------------------------------------------------
 
     fn skip_to_recovery(&mut self) {
@@ -361,11 +449,21 @@ impl Parser {
                 Some(_) => {
                     let (line, col) = self.current_pos();
                     let tok = self.advance();
-                    return Err(CompileError::ParseError {
-                        message: format!(
+                    let tok_str = tok.map_or("EOF".into(), |t| t.to_string());
+                    let suggestion = Self::suggest_top_level_keyword(&tok_str);
+                    let msg = if let Some(suggested) = suggestion {
+                        format!(
+                            "expected `import`, `use`, `fn`, `cinematic`, `breed`, `project`, `scene`, `matrix`, `ifs`, `lsystem`, or `automaton` at top level, found `{}`. Did you mean `{}`?",
+                            tok_str, suggested
+                        )
+                    } else {
+                        format!(
                             "expected `import`, `use`, `fn`, `cinematic`, `breed`, `project`, `scene`, `matrix`, `ifs`, `lsystem`, or `automaton` at top level, found `{}`",
-                            tok.map_or("EOF".into(), |t| t.to_string())
-                        ),
+                            tok_str
+                        )
+                    };
+                    return Err(CompileError::ParseError {
+                        message: msg,
                         line,
                         col,
                     });
@@ -1000,7 +1098,7 @@ impl Parser {
             // Legacy mode: from -> to over duration [easing]
             self.expect(&Token::Over)?;
             let duration = self.parse_duration()?;
-            let easing = if matches!(self.peek(), Some(Token::Ident(_))) {
+            let easing = if self.peek_is_easing_not_next_entry() {
                 Some(self.expect_easing()?)
             } else {
                 None
@@ -1016,7 +1114,7 @@ impl Parser {
         } else if self.peek_is_duration() {
             // Keyframe mode: second_value is followed by a duration timestamp
             let second_time = self.parse_duration()?;
-            let second_easing = if matches!(self.peek(), Some(Token::Ident(_))) {
+            let second_easing = if self.peek_is_easing_not_next_entry() {
                 Some(self.expect_easing()?)
             } else {
                 None
@@ -1041,7 +1139,7 @@ impl Parser {
                 self.advance(); // consume ->
                 let value = self.parse_expr()?;
                 let time = self.parse_duration()?;
-                let easing = if matches!(self.peek(), Some(Token::Ident(_))) {
+                let easing = if self.peek_is_easing_not_next_entry() {
                     Some(self.expect_easing()?)
                 } else {
                     None

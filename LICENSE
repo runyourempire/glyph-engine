@@ -1,0 +1,70 @@
+Functional Source License, Version 1.1, Apache 2.0 Future License
+
+Licensor:  4DA Systems Pty Ltd
+
+Licensed Work:  GAME Compiler v1.0.0
+                The Licensed Work is (c) 2026 4DA Systems Pty Ltd.
+
+Additional Use Grant: None
+
+Change Date:  2028-03-25
+
+Change License:  Apache License, Version 2.0
+
+For information about alternative licensing arrangements for the Licensed
+Work, please contact: legal@4da.ai
+
+Notice
+
+Functional Source License, Version 1.1, Apache 2.0 Future License
+
+Terms and Conditions
+
+1. Grant of Rights
+
+   (a) Subject to the terms and conditions of this License, the Licensor
+   hereby grants you a non-exclusive, worldwide, non-sublicensable,
+   non-transferable license to use, copy, modify, create derivative works
+   of, and redistribute the Licensed Work, subject to the limitations in
+   Section 2.
+
+   (b) Any use of the Licensed Work in violation of this License will
+   automatically terminate your rights under this License for the
+   current and all future versions of the Licensed Work.
+
+2. Limitations
+
+   You may not make the functionality of the Licensed Work or a modified
+   version available to third parties as a service or distribute the
+   Licensed Work or a modified version in a manner that makes the
+   functionality of the Licensed Work available to third parties as a
+   service, including as a "shader compiler as a service", a hosted
+   compilation API, or any form of service that competes with or
+   substitutes for the Licensed Work.
+
+3. Patents
+
+   The Licensor grants you a license, under any patent claims the Licensor
+   can license or becomes able to license, to make, have made, use, sell,
+   offer for sale, import and have imported the Licensed Work, in each
+   case subject to the limitations and conditions in this License.
+
+4. Change Date and Change License
+
+   On the Change Date, or the fourth anniversary of the first publicly
+   available distribution of a specific version of the Licensed Work under
+   this License, whichever comes first, the Licensor hereby grants you
+   rights under the terms of the Change License, and the rights granted
+   under this License will terminate.
+
+5. Disclaimer of Warranty and Limitation of Liability
+
+   THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY
+   CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE LICENSED WORK.
+
+6. General
+
+   This License does not grant you any right in any trademark or logo of
+   the Licensor or its affiliates. This License is not an offer or
+   agreement to provide support, warranty, indemnity, or other services.

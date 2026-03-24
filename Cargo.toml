@@ -2,14 +2,34 @@
 name = "game-compiler"
 version = "1.0.0"
 edition = "2021"
+rust-version = "1.75"
 description = "GAME (Generative Animation Matrix Engine) — compiles .game DSL to WebGPU shaders + Web Components"
+license = "FSL-1.1-Apache-2.0"
+authors = ["4DA Systems Pty Ltd <dev@4da.ai>"]
+repository = "https://github.com/runyourempire/game-engine"
+homepage = "https://4da.ai"
+keywords = ["shader", "webgpu", "wgsl", "glsl", "web-components"]
+categories = ["compilers", "graphics", "wasm", "web-programming"]
+exclude = [
+    "target/",
+    "tmp-edge-tests/",
+    "dist/",
+    "dist-banner/",
+    "playground/",
+    "visual-test/",
+    "editors/",
+    "wrappers/",
+    "AUDIT-REPORT.md",
+    "EDGE-TEST-REPORT.md",
+    "RELEASE-CHECKLIST.md",
+]
 
 [[bin]]
 name = "game"
 path = "src/main.rs"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 name = "game_compiler"
 path = "src/lib.rs"
 

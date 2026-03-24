@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as https from "https";
+import * as http from "http";
 
 const SYSTEM_PROMPT = `You are a GAME DSL expert. GAME is a shader language that compiles to Web Components.
 
@@ -55,11 +56,22 @@ interface ClaudeMessage {
 
 export class AiProvider {
   private _apiKey: string | undefined;
+  private _secrets: vscode.SecretStorage;
+  private _currentRequest: http.ClientRequest | undefined;
 
-  constructor() {
+  constructor(secrets: vscode.SecretStorage) {
+    this._secrets = secrets;
+    // Check legacy config as initial value; will be migrated on first use
     this._apiKey = vscode.workspace
       .getConfiguration("game")
       .get<string>("ai.apiKey");
+  }
+
+  abort(): void {
+    if (this._currentRequest) {
+      this._currentRequest.destroy();
+      this._currentRequest = undefined;
+    }
   }
 
   async generate(
@@ -118,6 +130,23 @@ export class AiProvider {
   private async _ensureApiKey(): Promise<string> {
     if (this._apiKey) return this._apiKey;
 
+    // Try SecretStorage first
+    const stored = await this._secrets.get('game.ai.apiKey');
+    if (stored) {
+      this._apiKey = stored;
+      return stored;
+    }
+
+    // Fallback: migrate from plaintext config if present
+    const legacyKey = vscode.workspace
+      .getConfiguration("game")
+      .get<string>("ai.apiKey");
+    if (legacyKey) {
+      await this._secrets.store('game.ai.apiKey', legacyKey);
+      this._apiKey = legacyKey;
+      return legacyKey;
+    }
+
     const key = await vscode.window.showInputBox({
       prompt: "Enter your Anthropic API key for GAME AI generation",
       placeHolder: "sk-ant-...",
@@ -132,9 +161,7 @@ export class AiProvider {
     }
 
     this._apiKey = key;
-    await vscode.workspace
-      .getConfiguration("game")
-      .update("ai.apiKey", key, vscode.ConfigurationTarget.Global);
+    await this._secrets.store('game.ai.apiKey', key);
     return key;
   }
 
@@ -156,7 +183,7 @@ export class AiProvider {
     });
 
     return new Promise<string>((resolve, reject) => {
-      const req = https.request(
+      this._currentRequest = https.request(
         {
           hostname: "api.anthropic.com",
           path: "/v1/messages",
@@ -219,6 +246,7 @@ export class AiProvider {
           });
 
           res.on("end", () => {
+            this._currentRequest = undefined;
             if (buffer.startsWith("data: ")) {
               const data = buffer.slice(6).trim();
               if (data && data !== "[DONE]") {
@@ -242,7 +270,8 @@ export class AiProvider {
         }
       );
 
-      req.on("error", (err) => {
+      this._currentRequest.on("error", (err) => {
+        this._currentRequest = undefined;
         if (err.message.includes("ENOTFOUND") || err.message.includes("EAI_AGAIN")) {
           reject(new Error("Cannot reach api.anthropic.com. Check internet."));
         } else {
@@ -250,8 +279,8 @@ export class AiProvider {
         }
       });
 
-      req.write(body);
-      req.end();
+      this._currentRequest.write(body);
+      this._currentRequest.end();
     });
   }
 }

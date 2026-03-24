@@ -2,9 +2,9 @@
 
 **Goal:** Every 4DA use case works flawlessly. GAME is publishable, documented, and the world's first AI-native visual experience language.
 
-**Current state:** v0.8.0 — 25.3K LOC, 484 tests, 92 examples, dual WebGPU/WebGL2, props/dom/events/accessibility just landed. Framework wrappers (React/Vue/Svelte), VS Code extension (grammar+snippets+LSP binary), WASM browser API, npm package structure — all built but unpublished.
+**Current state:** v1.0.0 — ~29K LOC, 567 tests, 78 examples, dual WebGPU/WebGL2, props/dom/events/accessibility. VS Code extension v0.5.0 (preview, tuner, gallery, AI, export). Framework wrappers (React/Vue/Svelte). WASM API (needs real build). 8 templates, 30 palettes, 49 builtins.
 
-**Honest assessment:** GAME is 85% ready. The compiler is production-grade. The gaps are specific and bounded.
+**Honest assessment:** Compiler is production-grade. VS Code extension is feature-complete but needs real-world testing. Distribution packaging (crates.io, npm, marketplace) not yet done.
 
 ---
 

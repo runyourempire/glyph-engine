@@ -13,6 +13,7 @@ export class PreviewPanel {
   private readonly _extensionUri: vscode.Uri;
   private _disposables: vscode.Disposable[] = [];
   private _compileTimeout: NodeJS.Timeout | undefined;
+  private _compileProcess: cp.ChildProcess | undefined;
 
   public static isTunerActive(): boolean {
     return PreviewPanel._tunerDragging || PreviewPanel._editInFlight;
@@ -90,16 +91,24 @@ export class PreviewPanel {
     const serverPath = config.get<string>("serverPath", "game");
 
     const tmp = os.tmpdir();
-    const inputPath = path.join(tmp, "game-preview.game");
-    const outputDir = path.join(tmp, "game-preview-out");
+    const inputPath = path.join(tmp, `game-preview-${process.pid}.game`);
+    const outputDir = path.join(tmp, `game-preview-out-${process.pid}`);
 
     fs.writeFileSync(inputPath, code);
     fs.mkdirSync(outputDir, { recursive: true });
 
-    cp.exec(
+    // Clean stale output before compile
+    const oldFiles = fs.readdirSync(outputDir).filter((f: string) => f.endsWith('.js') || f.endsWith('.d.ts'));
+    oldFiles.forEach((f: string) => fs.unlinkSync(path.join(outputDir, f)));
+
+    this._compileProcess = cp.exec(
       `"${serverPath}" build "${inputPath}" -o "${outputDir}"`,
       { timeout: 10000 },
       (err, _stdout, stderr) => {
+        this._compileProcess = undefined;
+        // Check for disposal before posting messages
+        if (!PreviewPanel.currentPanel) return;
+
         if (err) {
           let msg = stderr || err.message;
           if (msg.includes("ENOENT") || msg.includes("not found") || msg.includes("not recognized")) {
@@ -108,6 +117,15 @@ export class PreviewPanel {
           this._panel.webview.postMessage({ type: "error", message: msg });
           return;
         }
+
+        // Show stderr warnings on successful compile
+        if (stderr.trim()) {
+          this._panel.webview.postMessage({
+            type: "warning",
+            message: stderr.trim(),
+          });
+        }
+
         const files = fs
           .readdirSync(outputDir)
           .filter((f: string) => f.endsWith(".js"));
@@ -158,6 +176,7 @@ export class PreviewPanel {
     z-index: 10;
   }
   #status.error { color: #ef4444; }
+  #status.warning { color: #d4af37; }
   #status.ok { color: #22c55e; }
   #error-overlay {
     position: absolute;
@@ -505,6 +524,11 @@ export class PreviewPanel {
       }
     }
 
+    if (msg.type === 'warning') {
+      status.textContent = msg.message.split('\\n')[0].substring(0, 80);
+      status.className = 'warning';
+    }
+
     if (msg.type === 'error') {
       status.textContent = 'compile error';
       status.className = 'error';
@@ -549,6 +573,10 @@ export class PreviewPanel {
 
   public dispose(): void {
     PreviewPanel.currentPanel = undefined;
+    if (this._compileProcess) {
+      this._compileProcess.kill();
+      this._compileProcess = undefined;
+    }
     this._panel.dispose();
     if (this._compileTimeout) clearTimeout(this._compileTimeout);
     while (this._disposables.length) {

@@ -259,6 +259,16 @@ fn extract_uniforms(cinematic: &Cinematic) -> Vec<UniformInfo> {
 
 /// Validate all pipeline layers in a cinematic.
 pub fn validate(cinematic: &Cinematic, fns: &[FnDef]) -> Result<(), CompileError> {
+    // Check for duplicate layer names
+    let mut seen_names = std::collections::HashSet::new();
+    for layer in &cinematic.layers {
+        if !seen_names.insert(&layer.name) {
+            return Err(CompileError::validation(format!(
+                "duplicate layer name '{}'", layer.name
+            )));
+        }
+    }
+
     for layer in &cinematic.layers {
         match &layer.body {
             LayerBody::Pipeline(pipeline) => {

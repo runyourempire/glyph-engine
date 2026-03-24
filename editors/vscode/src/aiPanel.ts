@@ -11,8 +11,9 @@ export class AiPanel {
   private readonly _extensionUri: vscode.Uri;
   private readonly _aiProvider: AiProvider;
   private _disposables: vscode.Disposable[] = [];
+  private _generating = false;
 
-  public static createOrShow(extensionUri: vscode.Uri): void {
+  public static createOrShow(extensionUri: vscode.Uri, secrets: vscode.SecretStorage): void {
     const column = vscode.ViewColumn.Beside;
     if (AiPanel.currentPanel) {
       AiPanel.currentPanel._panel.reveal(column);
@@ -24,16 +25,17 @@ export class AiPanel {
       column,
       { enableScripts: true, retainContextWhenHidden: true }
     );
-    AiPanel.currentPanel = new AiPanel(panel, extensionUri);
+    AiPanel.currentPanel = new AiPanel(panel, extensionUri, secrets);
   }
 
   private constructor(
     panel: vscode.WebviewPanel,
-    extensionUri: vscode.Uri
+    extensionUri: vscode.Uri,
+    secrets: vscode.SecretStorage
   ) {
     this._panel = panel;
     this._extensionUri = extensionUri;
-    this._aiProvider = new AiProvider();
+    this._aiProvider = new AiProvider(secrets);
     this._panel.webview.html = this._getHtml();
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     this._panel.webview.onDidReceiveMessage(
@@ -48,6 +50,9 @@ export class AiPanel {
   }
 
   private async _handleGenerate(prompt: string): Promise<void> {
+    if (this._generating) return;
+    this._generating = true;
+
     this._post({ type: "generating" });
 
     let retries = 0;
@@ -113,18 +118,26 @@ export class AiPanel {
       }
     };
 
-    await attempt(prompt, false);
+    try {
+      await attempt(prompt, false);
+    } finally {
+      this._generating = false;
+    }
   }
 
   private _tryCompile(code: string): Promise<string | null> {
     const config = vscode.workspace.getConfiguration("game");
     const serverPath = config.get<string>("serverPath", "game");
     const tmp = os.tmpdir();
-    const inputPath = path.join(tmp, "game-ai-gen.game");
-    const outputDir = path.join(tmp, "game-ai-gen-out");
+    const inputPath = path.join(tmp, `game-ai-gen-${process.pid}.game`);
+    const outputDir = path.join(tmp, `game-ai-gen-out-${process.pid}`);
 
     fs.writeFileSync(inputPath, code);
     fs.mkdirSync(outputDir, { recursive: true });
+
+    // Clean stale output before compile
+    const oldFiles = fs.readdirSync(outputDir).filter((f: string) => f.endsWith('.js') || f.endsWith('.d.ts'));
+    oldFiles.forEach((f: string) => fs.unlinkSync(path.join(outputDir, f)));
 
     return new Promise((resolve) => {
       cp.exec(
@@ -346,6 +359,7 @@ export class AiPanel {
 
   public dispose(): void {
     AiPanel.currentPanel = undefined;
+    this._aiProvider.abort();
     this._panel.dispose();
     while (this._disposables.length) {
       const d = this._disposables.pop();

@@ -672,9 +672,48 @@ fn main() -> Result<()> {
                 .with_context(|| format!("create output dir: {}", output_dir.display()))?;
 
             for path in &input {
+                // Directory check
+                if path.is_dir() {
+                    anyhow::bail!(
+                        "{} is a directory, not a file. Pass individual .game files.",
+                        path.display()
+                    );
+                }
+
+                // File extension warning
+                if path.extension().map_or(true, |ext| ext != "game") {
+                    eprintln!("warning: {} does not have a .game extension", path.display());
+                }
+
                 eprintln!("[game] compiling {}", path.display());
                 let source = std::fs::read_to_string(path)
                     .with_context(|| format!("read: {}", path.display()))?;
+
+                // Strip UTF-8 BOM if present
+                let source = if source.starts_with('\u{feff}') {
+                    source[3..].to_string()
+                } else {
+                    source
+                };
+
+                // Parse AST first for warnings
+                let program = game_compiler::compile_to_ast(&source)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+                // Warn on cinematics with no visual layers
+                for cin in &program.cinematics {
+                    let visual_layers = cin.layers.iter().filter(|l| {
+                        !matches!(l.body, game_compiler::ast::LayerBody::Params(_))
+                    }).count();
+                    if visual_layers == 0 {
+                        eprintln!("warning: cinematic \"{}\" has no visual layers", cin.name);
+                    }
+                }
+
+                // Warn on project blocks (not yet implemented)
+                for _proj in &program.projects {
+                    eprintln!("warning: project blocks are not yet implemented — no output generated");
+                }
 
                 let results =
                     game_compiler::compile(&source, &config).map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -771,8 +810,29 @@ fn main() -> Result<()> {
         }
 
         Command::Validate { input } => {
+            // Directory check
+            if input.is_dir() {
+                anyhow::bail!(
+                    "{} is a directory, not a file. Pass individual .game files.",
+                    input.display()
+                );
+            }
+
+            // File extension warning
+            if input.extension().map_or(true, |ext| ext != "game") {
+                eprintln!("warning: {} does not have a .game extension", input.display());
+            }
+
             let source = std::fs::read_to_string(&input)
                 .map_err(|e| anyhow::anyhow!("read: {}: {}", input.display(), e))?;
+
+            // Strip UTF-8 BOM if present
+            let source = if source.starts_with('\u{feff}') {
+                source[3..].to_string()
+            } else {
+                source
+            };
+
             match game_compiler::compile_to_ast(&source) {
                 Ok(program) => {
                     if program.cinematics.is_empty()

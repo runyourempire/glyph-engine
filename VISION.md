@@ -10,7 +10,7 @@ GAME eliminates this tradeoff. A declarative DSL that reads like describing a pa
 
 ---
 
-## Current State: v0.6.0
+## Current State: v1.0.0
 
 - 17,683 lines of Rust (logos lexer, hand-written recursive descent parser)
 - Full pipeline: `.game` source → Lex → Parse → Validate → Codegen → Runtime

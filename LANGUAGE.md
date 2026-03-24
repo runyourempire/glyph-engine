@@ -1,6 +1,6 @@
 # GAME Language Reference
 
-**Version 0.7.0** | Generative Animation Matrix Engine
+**Version 1.0.0** | Generative Animation Matrix Engine
 
 GAME compiles .game files to WebGPU/WebGL2 shaders packaged as zero-dependency Web Components. Every compiled component renders at 60fps on the GPU with automatic ACES tonemapping and dithering.
 
@@ -23,7 +23,7 @@ cinematic "name" {
 
 Stages chain with `|`. Three states: **Position -> Sdf -> Color**. Every layer MUST end in Color.
 
-## Builtins (45)
+## Builtins (49)
 
 ### Position -> Position (transforms)
 translate(x,y), rotate(speed), scale(s), warp(scale,oct,pers,lac,strength), distort(scale,speed,strength), polar, repeat(sx,sy), mirror, radial(count)

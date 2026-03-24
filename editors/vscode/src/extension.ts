@@ -1,4 +1,3 @@
-import * as path from "path";
 import * as vscode from "vscode";
 import { workspace, ExtensionContext, window } from "vscode";
 import {
@@ -37,7 +36,7 @@ export function activate(context: ExtensionContext): void {
 
   // AI Generation command
   const aiCommand = vscode.commands.registerCommand("game.openAi", () => {
-    AiPanel.createOrShow(context.extensionUri);
+    AiPanel.createOrShow(context.extensionUri, context.secrets);
   });
   context.subscriptions.push(aiCommand);
 
@@ -58,9 +57,10 @@ export function activate(context: ExtensionContext): void {
   });
   context.subscriptions.push(cursorListener);
 
-  // Watch for editor text changes
+  // Watch for editor text changes — only compile the active document
   const changeListener = vscode.workspace.onDidChangeTextDocument((e) => {
-    if (e.document.languageId === "game") {
+    if (e.document.languageId === "game" &&
+        e.document === vscode.window.activeTextEditor?.document) {
       PreviewPanel.updateCode(e.document.getText());
     }
   });
@@ -80,17 +80,14 @@ export function activate(context: ExtensionContext): void {
   const config = workspace.getConfiguration("game");
   const serverPath = config.get<string>("serverPath", "game");
 
-  // Resolve the server binary path
-  const command = resolveServerPath(serverPath);
-
   const serverOptions: ServerOptions = {
     run: {
-      command,
+      command: serverPath,
       args: ["lsp"],
       transport: TransportKind.stdio,
     },
     debug: {
-      command,
+      command: serverPath,
       args: ["lsp"],
       transport: TransportKind.stdio,
     },
@@ -140,14 +137,3 @@ export function deactivate(): Thenable<void> | undefined {
   return client.stop();
 }
 
-/**
- * Resolve the server binary path.
- * If the path is absolute, use it directly.
- * Otherwise, assume it's on PATH and let the OS resolve it.
- */
-function resolveServerPath(configPath: string): string {
-  if (path.isAbsolute(configPath)) {
-    return configPath;
-  }
-  return configPath;
-}

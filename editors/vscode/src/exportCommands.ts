@@ -22,11 +22,15 @@ async function compileCurrentFile(): Promise<CompileResult | null> {
   const code = editor.document.getText();
 
   const tmp = os.tmpdir();
-  const inputPath = path.join(tmp, 'game-export.game');
-  const outputDir = path.join(tmp, 'game-export-out');
+  const inputPath = path.join(tmp, `game-export-${process.pid}.game`);
+  const outputDir = path.join(tmp, `game-export-out-${process.pid}`);
 
   fs.writeFileSync(inputPath, code);
   fs.mkdirSync(outputDir, { recursive: true });
+
+  // Clean stale output before compile
+  const oldFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('.js') || f.endsWith('.d.ts'));
+  oldFiles.forEach(f => fs.unlinkSync(path.join(outputDir, f)));
 
   return new Promise((resolve) => {
     cp.exec(`"${serverPath}" build "${inputPath}" -o "${outputDir}"`, { timeout: 10000 }, (err, _stdout, stderr) => {
