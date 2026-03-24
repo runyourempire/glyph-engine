@@ -196,7 +196,17 @@ pub struct ArcBlock {
     pub entries: Vec<ArcEntry>,
 }
 
+/// A keyframe in a multi-step animation sequence.
+#[derive(Debug, Clone)]
+pub struct Keyframe {
+    pub value: Expr,
+    pub time: Duration,
+    /// Easing TO the next keyframe (None = linear).
+    pub easing: Option<String>,
+}
+
 /// `target: from -> to over duration [easing]`
+/// or multi-keyframe: `target: val 0ms -> val 200ms ease-out -> val 3s ease-in`
 #[derive(Debug, Clone)]
 pub struct ArcEntry {
     pub target: String,
@@ -204,6 +214,9 @@ pub struct ArcEntry {
     pub to: Expr,
     pub duration: Duration,
     pub easing: Option<String>,
+    /// When `Some`, the entry uses multi-segment keyframe evaluation
+    /// instead of the simple from/to/duration/easing fields.
+    pub keyframes: Option<Vec<Keyframe>>,
 }
 
 /// `resonate { entries }`

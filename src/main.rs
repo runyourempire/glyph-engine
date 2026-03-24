@@ -58,6 +58,13 @@ enum Command {
         output: Option<PathBuf>,
     },
 
+    /// Validate a .game file without generating output.
+    Validate {
+        /// Input .game file.
+        #[arg(required = true)]
+        input: PathBuf,
+    },
+
     /// List all available builtins, palettes, and templates.
     Info {
         /// Category: builtins, palettes, templates, or all.
@@ -73,6 +80,7 @@ enum Command {
 #[derive(Debug, Clone, ValueEnum)]
 enum FormatArg {
     Component,
+    Split,
     Html,
     Standalone,
     Artblocks,
@@ -652,6 +660,7 @@ fn main() -> Result<()> {
             let config = CompileConfig {
                 output_format: match format {
                     FormatArg::Component => OutputFormat::Component,
+                    FormatArg::Split => OutputFormat::Split,
                     FormatArg::Html => OutputFormat::Html,
                     FormatArg::Standalone => OutputFormat::Standalone,
                     FormatArg::Artblocks => OutputFormat::ArtBlocks,
@@ -756,6 +765,24 @@ fn main() -> Result<()> {
                 out_path.display(),
                 template_name
             );
+        }
+
+        Command::Validate { input } => {
+            let source = std::fs::read_to_string(&input)
+                .map_err(|e| anyhow::anyhow!("read: {}: {}", input.display(), e))?;
+            match game_compiler::compile_to_ast(&source) {
+                Ok(program) => {
+                    // Also validate each cinematic's pipeline
+                    for cinematic in &program.cinematics {
+                        game_compiler::codegen::validate(cinematic, &program.fns)?;
+                    }
+                    println!("ok");
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    std::process::exit(1);
+                }
+            }
         }
 
         #[cfg(feature = "lsp")]

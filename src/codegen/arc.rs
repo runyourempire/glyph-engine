@@ -28,7 +28,7 @@
 //! - **exit**: `GameArcExit` -- plays once on programmatic trigger, holds final value
 //! - **hover**: `GameArcHover` -- plays on mouseenter, reverses on mouseleave
 
-use crate::ast::{ArcBlock, ArcEntry, ArcState, Duration, Expr};
+use crate::ast::{ArcBlock, ArcEntry, ArcState, Duration, Expr, Keyframe};
 
 /// Convert a Duration to seconds.
 fn duration_to_seconds(d: &Duration) -> f64 {
@@ -94,6 +94,14 @@ fn collect_easings(entries: &[&ArcEntry]) -> std::collections::HashSet<String> {
         if let Some(ref e) = entry.easing {
             easings.insert(e.clone());
         }
+        // Also collect easings from keyframes
+        if let Some(ref kfs) = entry.keyframes {
+            for kf in kfs {
+                if let Some(ref e) = kf.easing {
+                    easings.insert(e.clone());
+                }
+            }
+        }
     }
     easings
 }
@@ -110,70 +118,158 @@ fn emit_easings(s: &mut String, easings: &std::collections::HashSet<String>) {
     s.push_str("};\n\n");
 }
 
+/// Emit a single keyframe object literal.
+fn emit_keyframe_js(kf: &Keyframe) -> String {
+    let val = expr_to_js(&kf.value);
+    let time = duration_to_seconds(&kf.time);
+    let easing = kf
+        .easing
+        .as_deref()
+        .unwrap_or("linear")
+        .replace('-', "_");
+    format!("{{ value: {val}, time: {time}, easing: '{easing}' }}")
+}
+
 /// Emit the entries array for a timeline constructor.
 fn emit_entries_array(s: &mut String, entries: &[&ArcEntry]) {
     s.push_str("    this._entries = [\n");
     for entry in entries {
-        let from_js = expr_to_js(&entry.from);
-        let to_js = expr_to_js(&entry.to);
-        let dur_secs = duration_to_seconds(&entry.duration);
-        let easing_name = entry
-            .easing
-            .as_deref()
-            .unwrap_or("linear")
-            .replace('-', "_");
-        s.push_str(&format!(
-            "      {{ target: '{}', from: {}, to: {}, duration: {}, easing: '{}' }},\n",
-            entry.target, from_js, to_js, dur_secs, easing_name
-        ));
+        if let Some(ref keyframes) = entry.keyframes {
+            // Multi-keyframe entry
+            let kf_strs: Vec<String> = keyframes.iter().map(|kf| emit_keyframe_js(kf)).collect();
+            s.push_str(&format!(
+                "      {{ target: '{}', keyframes: [{}] }},\n",
+                entry.target,
+                kf_strs.join(", ")
+            ));
+        } else {
+            // Legacy two-value entry
+            let from_js = expr_to_js(&entry.from);
+            let to_js = expr_to_js(&entry.to);
+            let dur_secs = duration_to_seconds(&entry.duration);
+            let easing_name = entry
+                .easing
+                .as_deref()
+                .unwrap_or("linear")
+                .replace('-', "_");
+            s.push_str(&format!(
+                "      {{ target: '{}', from: {}, to: {}, duration: {}, easing: '{}' }},\n",
+                entry.target, from_js, to_js, dur_secs, easing_name
+            ));
+        }
     }
     s.push_str("    ];\n");
 }
 
+/// Emit a helper function for multi-keyframe segment evaluation.
+fn emit_keyframe_evaluate_helper(s: &mut String) {
+    s.push_str("function _gameEvalKeyframes(kfs, t) {\n");
+    s.push_str("  const last = kfs[kfs.length - 1];\n");
+    s.push_str("  if (t >= last.time) return last.value;\n");
+    s.push_str("  for (let i = 1; i < kfs.length; i++) {\n");
+    s.push_str("    if (t < kfs[i].time) {\n");
+    s.push_str("      const prev = kfs[i - 1];\n");
+    s.push_str("      const next = kfs[i];\n");
+    s.push_str("      const seg = (t - prev.time) / (next.time - prev.time);\n");
+    s.push_str("      const easeFn = _gameEasings[next.easing] || _gameEasings.linear;\n");
+    s.push_str("      const eased = easeFn(Math.max(0, Math.min(seg, 1)));\n");
+    s.push_str("      return prev.value + (next.value - prev.value) * eased;\n");
+    s.push_str("    }\n");
+    s.push_str("  }\n");
+    s.push_str("  return last.value;\n");
+    s.push_str("}\n\n");
+}
+
+/// Get the total duration of an entry (accounting for keyframes).
+fn emit_entry_duration_js() -> &'static str {
+    "(e.keyframes ? e.keyframes[e.keyframes.length - 1].time : e.duration)"
+}
+
 /// Emit the standard evaluate/isComplete/reset/progress methods.
-fn emit_timeline_methods(s: &mut String) {
+/// When `has_keyframes` is true, includes branching logic for multi-keyframe entries.
+fn emit_timeline_methods(s: &mut String, has_keyframes: bool) {
     s.push_str("  evaluate(elapsedSec) {\n");
     s.push_str("    if (this._startTime === null) this._startTime = elapsedSec;\n");
     s.push_str("    const t = elapsedSec - this._startTime;\n");
     s.push_str("    const values = {};\n\n");
     s.push_str("    for (const e of this._entries) {\n");
-    s.push_str("      const progress = Math.min(t / e.duration, 1.0);\n");
-    s.push_str("      const easeFn = _gameEasings[e.easing] || _gameEasings.linear;\n");
-    s.push_str("      const eased = easeFn(progress);\n");
-    s.push_str("      values[e.target] = e.from + (e.to - e.from) * eased;\n");
+    if has_keyframes {
+        s.push_str("      if (e.keyframes) {\n");
+        s.push_str("        values[e.target] = _gameEvalKeyframes(e.keyframes, t);\n");
+        s.push_str("      } else {\n");
+        s.push_str("        const progress = Math.min(t / e.duration, 1.0);\n");
+        s.push_str("        const easeFn = _gameEasings[e.easing] || _gameEasings.linear;\n");
+        s.push_str("        const eased = easeFn(progress);\n");
+        s.push_str("        values[e.target] = e.from + (e.to - e.from) * eased;\n");
+        s.push_str("      }\n");
+    } else {
+        s.push_str("      const progress = Math.min(t / e.duration, 1.0);\n");
+        s.push_str("      const easeFn = _gameEasings[e.easing] || _gameEasings.linear;\n");
+        s.push_str("      const eased = easeFn(progress);\n");
+        s.push_str("      values[e.target] = e.from + (e.to - e.from) * eased;\n");
+    }
     s.push_str("    }\n\n");
     s.push_str("    return values;\n");
     s.push_str("  }\n\n");
 
-    s.push_str("  isComplete(elapsedSec) {\n");
-    s.push_str("    if (this._startTime === null) return false;\n");
-    s.push_str("    const t = elapsedSec - this._startTime;\n");
-    s.push_str("    return this._entries.every(e => t >= e.duration);\n");
-    s.push_str("  }\n\n");
+    if has_keyframes {
+        let dur_expr = emit_entry_duration_js();
+        s.push_str("  isComplete(elapsedSec) {\n");
+        s.push_str("    if (this._startTime === null) return false;\n");
+        s.push_str("    const t = elapsedSec - this._startTime;\n");
+        s.push_str(&format!(
+            "    return this._entries.every(e => t >= {dur_expr});\n"
+        ));
+        s.push_str("  }\n\n");
 
-    s.push_str("  reset() { this._startTime = null; }\n\n");
+        s.push_str("  reset() { this._startTime = null; }\n\n");
 
-    s.push_str("  progress(elapsedSec) {\n");
-    s.push_str("    if (this._startTime === null) return 0;\n");
-    s.push_str("    const t = elapsedSec - this._startTime;\n");
-    s.push_str("    const maxDur = Math.max(...this._entries.map(e => e.duration));\n");
-    s.push_str("    return Math.min(t / maxDur, 1.0);\n");
-    s.push_str("  }\n");
+        s.push_str("  progress(elapsedSec) {\n");
+        s.push_str("    if (this._startTime === null) return 0;\n");
+        s.push_str("    const t = elapsedSec - this._startTime;\n");
+        s.push_str(&format!(
+            "    const maxDur = Math.max(...this._entries.map(e => {dur_expr}));\n"
+        ));
+        s.push_str("    return Math.min(t / maxDur, 1.0);\n");
+        s.push_str("  }\n");
+    } else {
+        s.push_str("  isComplete(elapsedSec) {\n");
+        s.push_str("    if (this._startTime === null) return false;\n");
+        s.push_str("    const t = elapsedSec - this._startTime;\n");
+        s.push_str("    return this._entries.every(e => t >= e.duration);\n");
+        s.push_str("  }\n\n");
+
+        s.push_str("  reset() { this._startTime = null; }\n\n");
+
+        s.push_str("  progress(elapsedSec) {\n");
+        s.push_str("    if (this._startTime === null) return 0;\n");
+        s.push_str("    const t = elapsedSec - this._startTime;\n");
+        s.push_str("    const maxDur = Math.max(...this._entries.map(e => e.duration));\n");
+        s.push_str("    return Math.min(t / maxDur, 1.0);\n");
+        s.push_str("  }\n");
+    }
+}
+
+/// Check if any entries in the slice use multi-keyframe sequences.
+fn entries_have_keyframes(entries: &[&ArcEntry]) -> bool {
+    entries.iter().any(|e| e.keyframes.is_some())
 }
 
 /// Generate the backward-compatible `GameArcTimeline` class (looping idle).
 fn generate_idle_timeline(s: &mut String, entries: &[&ArcEntry]) {
+    let kf = entries_have_keyframes(entries);
     s.push_str("class GameArcTimeline {\n");
     s.push_str("  constructor() {\n");
     s.push_str("    this._startTime = null;\n");
     emit_entries_array(s, entries);
     s.push_str("  }\n\n");
-    emit_timeline_methods(s);
+    emit_timeline_methods(s, kf);
     s.push_str("}\n\n");
 }
 
 /// Generate a one-shot arc class (enter or exit) that plays once and holds.
 fn generate_oneshot_timeline(s: &mut String, class_name: &str, entries: &[&ArcEntry]) {
+    let kf = entries_have_keyframes(entries);
     s.push_str(&format!("class {class_name} {{\n"));
     s.push_str("  constructor() {\n");
     s.push_str("    this._startTime = null;\n");
@@ -186,7 +282,7 @@ fn generate_oneshot_timeline(s: &mut String, class_name: &str, entries: &[&ArcEn
     s.push_str("    this._active = true;\n");
     s.push_str("  }\n\n");
 
-    emit_timeline_methods(s);
+    emit_timeline_methods(s, kf);
 
     s.push_str("  evaluateIfActive(elapsedSec) {\n");
     s.push_str("    if (!this._active) return null;\n");
@@ -198,6 +294,7 @@ fn generate_oneshot_timeline(s: &mut String, class_name: &str, entries: &[&ArcEn
 
 /// Generate a hover arc class that plays forward on enter, reverse on leave.
 fn generate_hover_timeline(s: &mut String, entries: &[&ArcEntry]) {
+    let kf = entries_have_keyframes(entries);
     s.push_str("class GameArcHover {\n");
     s.push_str("  constructor() {\n");
     s.push_str("    this._startTime = null;\n");
@@ -224,11 +321,29 @@ fn generate_hover_timeline(s: &mut String, entries: &[&ArcEntry]) {
     s.push_str("    const t = elapsedSec - this._startTime;\n");
     s.push_str("    const values = {};\n\n");
     s.push_str("    for (const e of this._entries) {\n");
-    s.push_str("      let progress = Math.min(t / e.duration, 1.0);\n");
-    s.push_str("      if (this._reverse) progress = Math.max(1.0 - progress, 0.0);\n");
-    s.push_str("      const easeFn = _gameEasings[e.easing] || _gameEasings.linear;\n");
-    s.push_str("      const eased = easeFn(progress);\n");
-    s.push_str("      values[e.target] = e.from + (e.to - e.from) * eased;\n");
+    if kf {
+        let dur_expr = emit_entry_duration_js();
+        s.push_str("      if (e.keyframes) {\n");
+        s.push_str(&format!(
+            "        const dur = {};\n",
+            dur_expr
+        ));
+        s.push_str("        const effT = this._reverse ? Math.max(dur - t, 0) : t;\n");
+        s.push_str("        values[e.target] = _gameEvalKeyframes(e.keyframes, effT);\n");
+        s.push_str("      } else {\n");
+        s.push_str("        let progress = Math.min(t / e.duration, 1.0);\n");
+        s.push_str("        if (this._reverse) progress = Math.max(1.0 - progress, 0.0);\n");
+        s.push_str("        const easeFn = _gameEasings[e.easing] || _gameEasings.linear;\n");
+        s.push_str("        const eased = easeFn(progress);\n");
+        s.push_str("        values[e.target] = e.from + (e.to - e.from) * eased;\n");
+        s.push_str("      }\n");
+    } else {
+        s.push_str("      let progress = Math.min(t / e.duration, 1.0);\n");
+        s.push_str("      if (this._reverse) progress = Math.max(1.0 - progress, 0.0);\n");
+        s.push_str("      const easeFn = _gameEasings[e.easing] || _gameEasings.linear;\n");
+        s.push_str("      const eased = easeFn(progress);\n");
+        s.push_str("      values[e.target] = e.from + (e.to - e.from) * eased;\n");
+    }
     s.push_str("    }\n\n");
     s.push_str("    return values;\n");
     s.push_str("  }\n\n");
@@ -238,24 +353,50 @@ fn generate_hover_timeline(s: &mut String, entries: &[&ArcEntry]) {
     s.push_str("    return this.evaluate(elapsedSec);\n");
     s.push_str("  }\n\n");
 
-    s.push_str("  isComplete(elapsedSec) {\n");
-    s.push_str("    if (this._startTime === null) return false;\n");
-    s.push_str("    const t = elapsedSec - this._startTime;\n");
-    s.push_str("    return this._entries.every(e => t >= e.duration);\n");
-    s.push_str("  }\n\n");
+    if kf {
+        let dur_expr = emit_entry_duration_js();
+        s.push_str("  isComplete(elapsedSec) {\n");
+        s.push_str("    if (this._startTime === null) return false;\n");
+        s.push_str("    const t = elapsedSec - this._startTime;\n");
+        s.push_str(&format!(
+            "    return this._entries.every(e => t >= {dur_expr});\n"
+        ));
+        s.push_str("  }\n\n");
 
-    s.push_str(
-        "  reset() { this._startTime = null; this._active = false; this._reverse = false; }\n\n",
-    );
+        s.push_str(
+            "  reset() { this._startTime = null; this._active = false; this._reverse = false; }\n\n",
+        );
 
-    s.push_str("  progress(elapsedSec) {\n");
-    s.push_str("    if (this._startTime === null) return 0;\n");
-    s.push_str("    const t = elapsedSec - this._startTime;\n");
-    s.push_str("    const maxDur = Math.max(...this._entries.map(e => e.duration));\n");
-    s.push_str("    let p = Math.min(t / maxDur, 1.0);\n");
-    s.push_str("    if (this._reverse) p = 1.0 - p;\n");
-    s.push_str("    return p;\n");
-    s.push_str("  }\n");
+        s.push_str("  progress(elapsedSec) {\n");
+        s.push_str("    if (this._startTime === null) return 0;\n");
+        s.push_str("    const t = elapsedSec - this._startTime;\n");
+        s.push_str(&format!(
+            "    const maxDur = Math.max(...this._entries.map(e => {dur_expr}));\n"
+        ));
+        s.push_str("    let p = Math.min(t / maxDur, 1.0);\n");
+        s.push_str("    if (this._reverse) p = 1.0 - p;\n");
+        s.push_str("    return p;\n");
+        s.push_str("  }\n");
+    } else {
+        s.push_str("  isComplete(elapsedSec) {\n");
+        s.push_str("    if (this._startTime === null) return false;\n");
+        s.push_str("    const t = elapsedSec - this._startTime;\n");
+        s.push_str("    return this._entries.every(e => t >= e.duration);\n");
+        s.push_str("  }\n\n");
+
+        s.push_str(
+            "  reset() { this._startTime = null; this._active = false; this._reverse = false; }\n\n",
+        );
+
+        s.push_str("  progress(elapsedSec) {\n");
+        s.push_str("    if (this._startTime === null) return 0;\n");
+        s.push_str("    const t = elapsedSec - this._startTime;\n");
+        s.push_str("    const maxDur = Math.max(...this._entries.map(e => e.duration));\n");
+        s.push_str("    let p = Math.min(t / maxDur, 1.0);\n");
+        s.push_str("    if (this._reverse) p = 1.0 - p;\n");
+        s.push_str("    return p;\n");
+        s.push_str("  }\n");
+    }
 
     s.push_str("}\n\n");
 }
@@ -316,6 +457,12 @@ pub fn generate_arc_js(blocks: &[ArcBlock]) -> String {
     let easings = collect_easings(&all_entries);
     emit_easings(&mut s, &easings);
 
+    // Emit keyframe evaluation helper if any entry uses multi-keyframe sequences
+    let has_keyframes = all_entries.iter().any(|e| e.keyframes.is_some());
+    if has_keyframes {
+        emit_keyframe_evaluate_helper(&mut s);
+    }
+
     // Generate per-state timeline classes
     if has_idle {
         generate_idle_timeline(&mut s, &idle_entries);
@@ -356,6 +503,7 @@ mod tests {
             to: Expr::Number(to),
             duration: Duration::Seconds(secs),
             easing: easing.map(|s| s.into()),
+            keyframes: None,
         }
     }
 
@@ -448,6 +596,7 @@ mod tests {
                 to: Expr::Number(1.0),
                 duration: Duration::Millis(500.0),
                 easing: None,
+                keyframes: None,
             }],
         }];
         let js = generate_arc_js(&blocks);
@@ -464,6 +613,7 @@ mod tests {
                 to: Expr::Number(1.0),
                 duration: Duration::Bars(4),
                 easing: None,
+                keyframes: None,
             }],
         }];
         let js = generate_arc_js(&blocks);
@@ -595,5 +745,98 @@ mod tests {
         assert!(has_arc_state(&blocks, "enter"));
         assert!(!has_arc_state(&blocks, "exit"));
         assert!(!has_arc_state(&blocks, "hover"));
+    }
+
+    // -- Multi-keyframe tests --
+
+    fn make_keyframe_entry(target: &str) -> ArcEntry {
+        ArcEntry {
+            target: target.into(),
+            from: Expr::Number(0.0),
+            to: Expr::Number(0.8),
+            duration: Duration::Seconds(3.0),
+            easing: Some("ease-in".into()),
+            keyframes: Some(vec![
+                Keyframe {
+                    value: Expr::Number(0.0),
+                    time: Duration::Millis(0.0),
+                    easing: None,
+                },
+                Keyframe {
+                    value: Expr::Number(1.0),
+                    time: Duration::Millis(200.0),
+                    easing: Some("ease-out".into()),
+                },
+                Keyframe {
+                    value: Expr::Number(0.8),
+                    time: Duration::Seconds(3.0),
+                    easing: Some("ease-in".into()),
+                },
+            ]),
+        }
+    }
+
+    #[test]
+    fn keyframe_entry_generates_keyframes_array() {
+        let blocks = vec![ArcBlock {
+            state: None,
+            entries: vec![make_keyframe_entry("opacity")],
+        }];
+        let js = generate_arc_js(&blocks);
+        assert!(js.contains("keyframes:"));
+        assert!(js.contains("value: 0"));
+        assert!(js.contains("time: 0"));
+        assert!(js.contains("value: 1"));
+        assert!(js.contains("time: 0.2"));
+        assert!(js.contains("value: 0.8"));
+        assert!(js.contains("time: 3"));
+    }
+
+    #[test]
+    fn keyframe_entry_generates_eval_helper() {
+        let blocks = vec![ArcBlock {
+            state: None,
+            entries: vec![make_keyframe_entry("opacity")],
+        }];
+        let js = generate_arc_js(&blocks);
+        assert!(js.contains("function _gameEvalKeyframes"));
+        assert!(js.contains("_gameEvalKeyframes(e.keyframes, t)"));
+    }
+
+    #[test]
+    fn keyframe_easings_collected() {
+        let blocks = vec![ArcBlock {
+            state: None,
+            entries: vec![make_keyframe_entry("opacity")],
+        }];
+        let js = generate_arc_js(&blocks);
+        assert!(js.contains("ease_out: t =>"));
+        assert!(js.contains("ease_in: t =>"));
+    }
+
+    #[test]
+    fn mixed_legacy_and_keyframe_entries() {
+        let blocks = vec![ArcBlock {
+            state: None,
+            entries: vec![
+                make_entry("scale", 0.0, 1.0, 2.0, None),
+                make_keyframe_entry("opacity"),
+            ],
+        }];
+        let js = generate_arc_js(&blocks);
+        // Legacy entry uses from/to/duration
+        assert!(js.contains("target: 'scale', from: 0"));
+        // Keyframe entry uses keyframes array
+        assert!(js.contains("target: 'opacity', keyframes:"));
+    }
+
+    #[test]
+    fn no_keyframe_helper_when_all_legacy() {
+        let blocks = vec![ArcBlock {
+            state: None,
+            entries: vec![make_entry("x", 0.0, 1.0, 1.0, None)],
+        }];
+        let js = generate_arc_js(&blocks);
+        assert!(!js.contains("_gameEvalKeyframes"));
     }
 }

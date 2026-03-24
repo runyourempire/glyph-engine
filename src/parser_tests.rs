@@ -317,6 +317,163 @@ fn parse_multiple_arc_states() {
 }
 
 // ===================================================================
+// Arc keyframe sequences
+// ===================================================================
+
+#[test]
+fn parse_arc_keyframe_two_segments() {
+    // opacity: 0.0 -> 1.0 200ms ease-out -> 0.8 3s ease-in
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("kf".into())),
+        s(Token::LBrace),
+        s(Token::Arc),
+        s(Token::LBrace),
+        s(Token::Ident("opacity".into())),
+        s(Token::Colon),
+        s(Token::Float(0.0)),
+        s(Token::Arrow),
+        s(Token::Float(1.0)),
+        s(Token::Millis(200.0)),
+        s(Token::Ident("ease".into())),
+        s(Token::Minus),
+        s(Token::Ident("out".into())),
+        s(Token::Arrow),
+        s(Token::Float(0.8)),
+        s(Token::Seconds(3.0)),
+        s(Token::Ident("ease".into())),
+        s(Token::Minus),
+        s(Token::Ident("in".into())),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse keyframe arc");
+    let entry = &prog.cinematics[0].arcs[0].entries[0];
+    assert_eq!(entry.target, "opacity");
+
+    let keyframes = entry.keyframes.as_ref().expect("should have keyframes");
+    assert_eq!(keyframes.len(), 3);
+
+    // First keyframe: value 0.0, time 0ms (implicit), no easing
+    assert!(matches!(&keyframes[0].value, crate::ast::Expr::Number(v) if (*v - 0.0).abs() < 1e-9));
+    assert_eq!(keyframes[0].time, crate::ast::Duration::Millis(0.0));
+    assert_eq!(keyframes[0].easing, None);
+
+    // Second keyframe: value 1.0, time 200ms, ease-out
+    assert!(matches!(&keyframes[1].value, crate::ast::Expr::Number(v) if (*v - 1.0).abs() < 1e-9));
+    assert_eq!(keyframes[1].time, crate::ast::Duration::Millis(200.0));
+    assert_eq!(keyframes[1].easing, Some("ease-out".into()));
+
+    // Third keyframe: value 0.8, time 3s, ease-in
+    assert!(matches!(&keyframes[2].value, crate::ast::Expr::Number(v) if (*v - 0.8).abs() < 1e-9));
+    assert_eq!(keyframes[2].time, crate::ast::Duration::Seconds(3.0));
+    assert_eq!(keyframes[2].easing, Some("ease-in".into()));
+
+    // Backward-compat fields: from = first value, to = last value, duration = last time
+    assert!(matches!(&entry.from, crate::ast::Expr::Number(v) if (*v - 0.0).abs() < 1e-9));
+    assert!(matches!(&entry.to, crate::ast::Expr::Number(v) if (*v - 0.8).abs() < 1e-9));
+    assert_eq!(entry.duration, crate::ast::Duration::Seconds(3.0));
+    assert_eq!(entry.easing, Some("ease-in".into()));
+}
+
+#[test]
+fn parse_arc_keyframe_no_easing() {
+    // scale: 0.0 -> 0.5 500ms -> 1.0 2s
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("kf2".into())),
+        s(Token::LBrace),
+        s(Token::Arc),
+        s(Token::LBrace),
+        s(Token::Ident("scale".into())),
+        s(Token::Colon),
+        s(Token::Float(0.0)),
+        s(Token::Arrow),
+        s(Token::Float(0.5)),
+        s(Token::Millis(500.0)),
+        s(Token::Arrow),
+        s(Token::Float(1.0)),
+        s(Token::Seconds(2.0)),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse keyframe arc without easing");
+    let entry = &prog.cinematics[0].arcs[0].entries[0];
+    let keyframes = entry.keyframes.as_ref().expect("should have keyframes");
+    assert_eq!(keyframes.len(), 3);
+    assert_eq!(keyframes[0].easing, None);
+    assert_eq!(keyframes[1].easing, None);
+    assert_eq!(keyframes[2].easing, None);
+}
+
+#[test]
+fn parse_arc_legacy_still_works() {
+    // Legacy: opacity: 0.0 -> 1.0 over 2s ease-out — should NOT produce keyframes
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("legacy".into())),
+        s(Token::LBrace),
+        s(Token::Arc),
+        s(Token::LBrace),
+        s(Token::Ident("opacity".into())),
+        s(Token::Colon),
+        s(Token::Float(0.0)),
+        s(Token::Arrow),
+        s(Token::Float(1.0)),
+        s(Token::Over),
+        s(Token::Seconds(2.0)),
+        s(Token::Ident("ease".into())),
+        s(Token::Minus),
+        s(Token::Ident("out".into())),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse legacy arc");
+    let entry = &prog.cinematics[0].arcs[0].entries[0];
+    assert!(entry.keyframes.is_none());
+    assert_eq!(entry.easing, Some("ease-out".into()));
+    assert_eq!(entry.duration, crate::ast::Duration::Seconds(2.0));
+}
+
+#[test]
+fn parse_arc_keyframe_with_enter_state() {
+    // arc enter { opacity: 0.0 -> 0.5 100ms -> 1.0 300ms ease-out }
+    let tokens = vec![
+        s(Token::Cinematic),
+        s(Token::StringLit("kf_enter".into())),
+        s(Token::LBrace),
+        s(Token::Arc),
+        s(Token::Ident("enter".into())),
+        s(Token::LBrace),
+        s(Token::Ident("opacity".into())),
+        s(Token::Colon),
+        s(Token::Float(0.0)),
+        s(Token::Arrow),
+        s(Token::Float(0.5)),
+        s(Token::Millis(100.0)),
+        s(Token::Arrow),
+        s(Token::Float(1.0)),
+        s(Token::Millis(300.0)),
+        s(Token::Ident("ease".into())),
+        s(Token::Minus),
+        s(Token::Ident("out".into())),
+        s(Token::RBrace),
+        s(Token::RBrace),
+    ];
+    let mut p = Parser::new(tokens);
+    let prog = p.parse().expect("should parse keyframe arc with enter state");
+    let arc = &prog.cinematics[0].arcs[0];
+    assert_eq!(arc.state, Some(crate::ast::ArcState::Enter));
+    let entry = &arc.entries[0];
+    let keyframes = entry.keyframes.as_ref().expect("should have keyframes");
+    assert_eq!(keyframes.len(), 3);
+    assert_eq!(keyframes[2].easing, Some("ease-out".into()));
+}
+
+// ===================================================================
 // Resonate block
 // ===================================================================
 

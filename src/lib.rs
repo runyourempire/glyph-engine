@@ -35,6 +35,8 @@ fn resolve_stdlib(path: &str) -> Option<String> {
 #[derive(Debug, Clone)]
 pub enum OutputFormat {
     Component,
+    /// Split output: separate `game-runtime.js` + lightweight component `.js` files.
+    Split,
     Html,
     Standalone,
     /// Art Blocks / fxhash compatible: deterministic, self-contained HTML.
@@ -142,6 +144,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
         shader.js_modules = all_js;
 
         let js = match config.output_format {
+            OutputFormat::Split => runtime::component::generate_component_split(&shader),
             OutputFormat::Component | OutputFormat::Standalone => {
                 runtime::component::generate_component(&shader)
             }
@@ -157,7 +160,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             OutputFormat::ArtBlocks => {
                 Some(runtime::html::generate_artblocks_html(&shader, config.seed))
             }
-            OutputFormat::Component => None,
+            OutputFormat::Component | OutputFormat::Split => None,
         };
 
         let dts = Some(runtime::typescript::generate_typescript_defs(&shader));
@@ -267,6 +270,21 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
                 });
             }
         }
+    }
+
+    // In Split mode, prepend the standalone runtime as the first output
+    if matches!(config.output_format, OutputFormat::Split) {
+        outputs.insert(
+            0,
+            CompileOutput {
+                name: "game-runtime".into(),
+                wgsl: None,
+                glsl: None,
+                js: runtime::helpers::generate_standalone_runtime(),
+                html: None,
+                dts: None,
+            },
+        );
     }
 
     Ok(outputs)
@@ -1879,5 +1897,92 @@ mod tests {
         assert!(js.contains("_pendingParams"), "should have pending params buffer");
         assert!(js.contains("this._pendingParams[name] = value"), "setParam should buffer");
         assert!(js.contains("Object.entries(this._pendingParams)"), "should replay pending params");
+    }
+
+    #[test]
+    fn e2e_split_format_emits_runtime_and_component() {
+        let source = r#"
+            cinematic "test" {
+                layer bg {
+                    circle(0.3) | glow(1.5) | tint(1.0, 0.5, 0.2)
+                }
+            }
+        "#;
+        let config = CompileConfig {
+            output_format: OutputFormat::Split,
+            target: ShaderTarget::Both,
+            seed: None,
+        };
+        let outputs = compile(source, &config).unwrap();
+        // First output is the shared runtime
+        assert_eq!(outputs[0].name, "game-runtime");
+        assert!(outputs[0].js.contains("class GameRenderer"));
+        assert!(outputs[0].js.contains("class GameRendererGL"));
+        assert!(outputs[0].js.contains("window.GameRenderer"));
+        assert!(outputs[0].js.contains("window.GameRendererGL"));
+        // Second output is the component
+        assert_eq!(outputs[1].name, "test");
+        assert!(!outputs[1].js.contains("class GameRenderer"));
+        assert!(!outputs[1].js.contains("class GameRendererGL"));
+        // Component should still have shaders, custom element, etc.
+        assert!(outputs[1].js.contains("customElements.define('game-test'"));
+        assert!(outputs[1].js.contains("WGSL_V"));
+        assert!(outputs[1].js.contains("GLSL_F"));
+    }
+
+    #[test]
+    fn e2e_split_component_much_smaller_than_normal() {
+        let source = r#"
+            cinematic "compact" {
+                layer bg {
+                    circle(0.3) | glow(1.5)
+                }
+            }
+        "#;
+        let normal_config = CompileConfig {
+            output_format: OutputFormat::Component,
+            target: ShaderTarget::Both,
+            seed: None,
+        };
+        let split_config = CompileConfig {
+            output_format: OutputFormat::Split,
+            target: ShaderTarget::Both,
+            seed: None,
+        };
+        let normal_outputs = compile(source, &normal_config).unwrap();
+        let split_outputs = compile(source, &split_config).unwrap();
+        let normal_size = normal_outputs[0].js.len();
+        let split_component_size = split_outputs[1].js.len(); // index 1 = component
+        // Split component should be significantly smaller (less than half)
+        assert!(
+            split_component_size < normal_size / 2,
+            "split component ({split_component_size} bytes) should be less than half of normal ({normal_size} bytes)"
+        );
+    }
+
+    #[test]
+    fn e2e_split_multiple_cinematics() {
+        let source = r#"
+            cinematic "a" {
+                layer bg { circle(0.1) | glow(1.0) }
+            }
+            cinematic "b" {
+                layer bg { circle(0.2) | glow(2.0) }
+            }
+        "#;
+        let config = CompileConfig {
+            output_format: OutputFormat::Split,
+            target: ShaderTarget::Both,
+            seed: None,
+        };
+        let outputs = compile(source, &config).unwrap();
+        // runtime + 2 components
+        assert_eq!(outputs.len(), 3);
+        assert_eq!(outputs[0].name, "game-runtime");
+        assert_eq!(outputs[1].name, "a");
+        assert_eq!(outputs[2].name, "b");
+        // Neither component should contain renderer classes
+        assert!(!outputs[1].js.contains("class GameRenderer"));
+        assert!(!outputs[2].js.contains("class GameRenderer"));
     }
 }

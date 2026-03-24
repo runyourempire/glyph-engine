@@ -46,6 +46,8 @@ pub struct UniformInfo {
 pub struct TextureInfo {
     pub name: String,
     pub binding: u32,
+    /// Optional source URL (from `texture "name" from "url"`).
+    pub source: Option<String>,
 }
 
 /// Collected shader output for a single cinematic.
@@ -472,6 +474,7 @@ pub fn generate_with_fns(
         .map(|(i, td)| TextureInfo {
             name: td.name.clone(),
             binding: (i as u32) * 2 + 5, // bindings 5,6 / 7,8 / 9,10 / 11,12
+            source: td.source.clone(),
         })
         .collect();
 
@@ -964,6 +967,7 @@ mod tests {
                     to: Expr::Number(1.0),
                     duration: crate::ast::Duration::Seconds(3.0),
                     easing: Some("ease-out".into()),
+                    keyframes: None,
                 }],
             }],
             resonates: vec![],
@@ -1026,6 +1030,7 @@ mod tests {
                     to: Expr::Number(1.0),
                     duration: crate::ast::Duration::Seconds(5.0),
                     easing: None,
+                    keyframes: None,
                 }],
             }],
             resonates: vec![crate::ast::ResonateBlock {

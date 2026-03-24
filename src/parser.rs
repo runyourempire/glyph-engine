@@ -987,26 +987,101 @@ impl Parser {
     }
 
     fn parse_arc_entry(&mut self) -> Result<ArcEntry, CompileError> {
-        // dotted_ident : from_expr -> to_expr over duration [easing]
+        // Legacy: target: from -> to over duration [easing]
+        // Keyframe: target: val 0ms -> val 200ms [easing] -> val 3s [easing]
         let target = self.parse_dotted_ident()?;
         self.expect(&Token::Colon)?;
-        let from = self.parse_expr()?;
+        let first_value = self.parse_expr()?;
         self.expect(&Token::Arrow)?;
-        let to = self.parse_expr()?;
-        self.expect(&Token::Over)?;
-        let duration = self.parse_duration()?;
-        let easing = if matches!(self.peek(), Some(Token::Ident(_))) {
-            Some(self.expect_easing()?)
+        let second_value = self.parse_expr()?;
+
+        // Detect mode: if next token is `over` → legacy; if duration token → keyframe
+        if self.check(&Token::Over) {
+            // Legacy mode: from -> to over duration [easing]
+            self.expect(&Token::Over)?;
+            let duration = self.parse_duration()?;
+            let easing = if matches!(self.peek(), Some(Token::Ident(_))) {
+                Some(self.expect_easing()?)
+            } else {
+                None
+            };
+            Ok(ArcEntry {
+                target,
+                from: first_value,
+                to: second_value,
+                duration,
+                easing,
+                keyframes: None,
+            })
+        } else if self.peek_is_duration() {
+            // Keyframe mode: second_value is followed by a duration timestamp
+            let second_time = self.parse_duration()?;
+            let second_easing = if matches!(self.peek(), Some(Token::Ident(_))) {
+                Some(self.expect_easing()?)
+            } else {
+                None
+            };
+
+            // Build keyframes: first value gets time 0ms implicitly
+            let mut keyframes = vec![
+                crate::ast::Keyframe {
+                    value: first_value,
+                    time: crate::ast::Duration::Millis(0.0),
+                    easing: None, // easing on first keyframe is unused (no preceding segment)
+                },
+                crate::ast::Keyframe {
+                    value: second_value,
+                    time: second_time,
+                    easing: second_easing,
+                },
+            ];
+
+            // Parse additional keyframes: -> value duration [easing]
+            while matches!(self.peek(), Some(Token::Arrow)) {
+                self.advance(); // consume ->
+                let value = self.parse_expr()?;
+                let time = self.parse_duration()?;
+                let easing = if matches!(self.peek(), Some(Token::Ident(_))) {
+                    Some(self.expect_easing()?)
+                } else {
+                    None
+                };
+                keyframes.push(crate::ast::Keyframe { value, time, easing });
+            }
+
+            // For backward compatibility, populate from/to/duration/easing from
+            // the first and last keyframes
+            let last = keyframes.last().unwrap();
+            let from = keyframes[0].value.clone();
+            let to = last.value.clone();
+            let duration = last.time.clone();
+            let easing = last.easing.clone();
+
+            Ok(ArcEntry {
+                target,
+                from,
+                to,
+                duration,
+                easing,
+                keyframes: Some(keyframes),
+            })
         } else {
-            None
-        };
-        Ok(ArcEntry {
-            target,
-            from,
-            to,
-            duration,
-            easing,
-        })
+            let (line, col) = self.current_pos();
+            Err(CompileError::ParseError {
+                message: "expected `over` or duration timestamp after arc value".into(),
+                line,
+                col,
+            })
+        }
+    }
+
+    /// Returns true if the next token is a duration (Seconds, Millis, or Bars)
+    /// without consuming it.
+    fn peek_is_duration(&self) -> bool {
+        matches!(
+            self.peek(),
+            Some(Token::Seconds(_)) | Some(Token::Millis(_)) | Some(Token::Bars(_))
+        )
     }
 
     fn parse_dotted_ident(&mut self) -> Result<String, CompileError> {

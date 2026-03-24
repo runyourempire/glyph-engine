@@ -5,8 +5,20 @@
 
 use crate::codegen::ShaderOutput;
 
-/// Generate a zero-dependency Web Component JS file.
+/// Generate a zero-dependency Web Component JS file (self-contained with renderers).
 pub fn generate_component(shader: &ShaderOutput) -> String {
+    generate_component_impl(shader, false)
+}
+
+/// Generate a lightweight Web Component JS file for `--split` mode.
+///
+/// Assumes `GameRenderer` and `GameRendererGL` are available as globals
+/// (loaded from `game-runtime.js`).
+pub fn generate_component_split(shader: &ShaderOutput) -> String {
+    generate_component_impl(shader, true)
+}
+
+fn generate_component_impl(shader: &ShaderOutput, split: bool) -> String {
     let tag = to_kebab(&shader.name);
     let class = to_pascal(&shader.name);
 
@@ -99,17 +111,21 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
         None
     };
 
-    // WebGPU renderer (with features)
-    s.push_str(&super::helpers::webgpu_renderer(
-        needs_prev_frame,
-        pass_count,
-        compute_type,
-    ));
-    s.push_str("\n\n");
+    // In split mode, renderer classes come from game-runtime.js (globals).
+    // In normal mode, embed them inline.
+    if !split {
+        // WebGPU renderer (with features)
+        s.push_str(&super::helpers::webgpu_renderer(
+            needs_prev_frame,
+            pass_count,
+            compute_type,
+        ));
+        s.push_str("\n\n");
 
-    // WebGL2 fallback renderer (with memory, no passes)
-    s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame));
-    s.push_str("\n\n");
+        // WebGL2 fallback renderer (with memory, no passes)
+        s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame));
+        s.push_str("\n\n");
+    }
 
     // Inject feature JS modules (listen, voice, score, temporal, gravity, breed)
     for module_js in &shader.js_modules {
@@ -422,6 +438,18 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     s.push_str("    for (const [k, v] of Object.entries(this._pendingParams)) {\n");
     s.push_str("      this._renderer.setParam(k, v);\n");
     s.push_str("    }\n");
+
+    // Auto-load textures that have a source URL
+    for tex in &shader.textures {
+        if let Some(ref url) = tex.source {
+            s.push_str(&format!(
+                "    this.loadTexture('{}', '{}').catch(e => console.warn('texture load failed:', e));\n",
+                escape_js(&tex.name),
+                escape_js(url)
+            ));
+        }
+    }
+
     s.push_str("    this._renderer.start();\n");
     s.push_str("  }\n\n");
 
@@ -444,6 +472,49 @@ pub fn generate_component(shader: &ShaderOutput) -> String {
     s.push_str(
         "  setAudioSource(bridge) { bridge?.subscribe(d => this._renderer?.setAudioData(d)); }\n\n",
     );
+
+    // Texture loading methods (only when textures are declared)
+    if !shader.textures.is_empty() {
+        s.push_str("  async loadTexture(name, url) {\n");
+        s.push_str("    if (!this._renderer?.device) return;\n");
+        s.push_str("    const img = new Image();\n");
+        s.push_str("    img.crossOrigin = 'anonymous';\n");
+        s.push_str("    img.src = url;\n");
+        s.push_str("    await img.decode();\n");
+        s.push_str("    const bitmap = await createImageBitmap(img);\n");
+        s.push_str("    const tex = this._renderer.device.createTexture({\n");
+        s.push_str("      size: [bitmap.width, bitmap.height],\n");
+        s.push_str("      format: 'rgba8unorm',\n");
+        s.push_str("      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,\n");
+        s.push_str("    });\n");
+        s.push_str("    this._renderer.device.queue.copyExternalImageToTexture(\n");
+        s.push_str("      { source: bitmap },\n");
+        s.push_str("      { texture: tex },\n");
+        s.push_str("      [bitmap.width, bitmap.height]\n");
+        s.push_str("    );\n");
+        s.push_str("    this._textures = this._textures || {};\n");
+        s.push_str("    this._textures[name] = tex;\n");
+        s.push_str("    // TODO: rebind group with new texture\n");
+        s.push_str("  }\n\n");
+
+        s.push_str("  async loadTextureFromData(name, imageData) {\n");
+        s.push_str("    if (!this._renderer?.device) return;\n");
+        s.push_str("    const bitmap = await createImageBitmap(imageData);\n");
+        s.push_str("    const tex = this._renderer.device.createTexture({\n");
+        s.push_str("      size: [bitmap.width, bitmap.height],\n");
+        s.push_str("      format: 'rgba8unorm',\n");
+        s.push_str("      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,\n");
+        s.push_str("    });\n");
+        s.push_str("    this._renderer.device.queue.copyExternalImageToTexture(\n");
+        s.push_str("      { source: bitmap },\n");
+        s.push_str("      { texture: tex },\n");
+        s.push_str("      [bitmap.width, bitmap.height]\n");
+        s.push_str("    );\n");
+        s.push_str("    this._textures = this._textures || {};\n");
+        s.push_str("    this._textures[name] = tex;\n");
+        s.push_str("    // TODO: rebind group with new texture\n");
+        s.push_str("  }\n\n");
+    }
 
     // playArc(name) — programmatic arc lifecycle trigger
     if shader.has_arc_enter || shader.has_arc_exit || shader.has_arc_hover {
@@ -908,5 +979,101 @@ mod tests {
         assert!(js.contains("_stateMachine.evaluate("));
         // Programmatic transition method
         assert!(js.contains("transitionState(name)"));
+    }
+
+    #[test]
+    fn split_component_omits_renderer_classes() {
+        let shader = make_shader("split-demo");
+        let js = generate_component_split(&shader);
+        // Should NOT contain renderer class definitions
+        assert!(
+            !js.contains("class GameRenderer"),
+            "split component should not embed GameRenderer"
+        );
+        assert!(
+            !js.contains("class GameRendererGL"),
+            "split component should not embed GameRendererGL"
+        );
+        // Should still reference them (instantiation)
+        assert!(js.contains("new GameRenderer("));
+        assert!(js.contains("new GameRendererGL("));
+        // Should still define the custom element
+        assert!(js.contains("customElements.define('game-split-demo'"));
+    }
+
+    #[test]
+    fn split_component_smaller_than_normal() {
+        let shader = make_shader("size-test");
+        let normal = generate_component(&shader);
+        let split = generate_component_split(&shader);
+        assert!(
+            split.len() < normal.len() / 2,
+            "split ({}) should be less than half of normal ({})",
+            split.len(),
+            normal.len()
+        );
+    }
+
+    #[test]
+    fn normal_component_still_embeds_renderers() {
+        // Ensure refactoring didn't break the default path
+        let shader = make_shader("normal-check");
+        let js = generate_component(&shader);
+        assert!(js.contains("class GameRenderer"));
+        assert!(js.contains("class GameRendererGL"));
+    }
+
+    #[test]
+    fn component_with_textures_has_load_methods() {
+        use crate::codegen::TextureInfo;
+        let mut shader = make_shader("textured");
+        shader.textures = vec![TextureInfo {
+            name: "diffuse".into(),
+            binding: 5,
+            source: None,
+        }];
+        let js = generate_component(&shader);
+        assert!(
+            js.contains("async loadTexture(name, url)"),
+            "should have loadTexture method"
+        );
+        assert!(
+            js.contains("async loadTextureFromData(name, imageData)"),
+            "should have loadTextureFromData method"
+        );
+        assert!(
+            js.contains("createImageBitmap"),
+            "should use createImageBitmap"
+        );
+        assert!(
+            js.contains("this._textures[name] = tex"),
+            "should store texture by name"
+        );
+    }
+
+    #[test]
+    fn component_without_textures_has_no_load_methods() {
+        let shader = make_shader("no-tex");
+        let js = generate_component(&shader);
+        assert!(
+            !js.contains("loadTexture"),
+            "should NOT have loadTexture method when no textures"
+        );
+    }
+
+    #[test]
+    fn component_with_texture_source_auto_loads() {
+        use crate::codegen::TextureInfo;
+        let mut shader = make_shader("auto-tex");
+        shader.textures = vec![TextureInfo {
+            name: "bg".into(),
+            binding: 5,
+            source: Some("https://example.com/bg.png".into()),
+        }];
+        let js = generate_component(&shader);
+        assert!(
+            js.contains("this.loadTexture('bg', 'https://example.com/bg.png')"),
+            "should auto-load texture with source URL"
+        );
     }
 }

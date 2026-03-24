@@ -8,6 +8,37 @@ pub enum ComputeType {
     Flow,
 }
 
+/// Generate a standalone runtime JS file containing both renderer classes.
+///
+/// This is used in `--split` mode: emitted once as `game-runtime.js`, while
+/// each component gets a lightweight JS file that references `GameRenderer`
+/// and `GameRendererGL` as globals.
+///
+/// The runtime is a superset — all features enabled (memory, 8 passes, compute).
+/// Components simply don't use the features they don't need.
+pub fn generate_standalone_runtime() -> String {
+    let mut s = String::with_capacity(16384);
+
+    s.push_str("// GAME Runtime — shared renderer classes. Include once per page.\n");
+    s.push_str("// Auto-generated, do not edit.\n");
+    s.push_str("(function(){\n");
+
+    // Emit WebGPU renderer with ALL features enabled
+    s.push_str(&webgpu_renderer(true, 8, Some(ComputeType::React)));
+    s.push_str("\n\n");
+
+    // Emit WebGL2 renderer with memory support
+    s.push_str(&webgl2_renderer(true));
+    s.push_str("\n\n");
+
+    // Expose as globals
+    s.push_str("window.GameRenderer = GameRenderer;\n");
+    s.push_str("window.GameRendererGL = GameRendererGL;\n");
+    s.push_str("})();\n");
+
+    s
+}
+
 /// WebGPU renderer class with optional feature support.
 ///
 /// `needs_prev_frame` — enables ping-pong memory textures for `memory:` and `feedback:`

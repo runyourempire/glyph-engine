@@ -247,6 +247,7 @@ mod tests {
                         to: Expr::Number(2.0),
                         duration: Duration::Bars(4),
                         easing: Some("ease_in".into()),
+                        keyframes: None,
                     }],
                 },
                 Motif {
@@ -257,6 +258,7 @@ mod tests {
                         to: Expr::Number(0.5),
                         duration: Duration::Bars(2),
                         easing: None,
+                        keyframes: None,
                     }],
                 },
             ],
