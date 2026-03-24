@@ -36,13 +36,20 @@ export const GameComponent = forwardRef<GameComponentRef, GameComponentProps>(
     useEffect(() => {
       if (scriptLoadedRef.current) return;
       const existing = document.querySelector(`script[data-game-src="${src}"]`);
-      if (!existing) {
-        const script = document.createElement('script');
-        script.src = src;
-        script.dataset.gameSrc = src;
-        document.head.appendChild(script);
+      if (existing) {
+        scriptLoadedRef.current = true;
+        return;
       }
-      scriptLoadedRef.current = true;
+      const script = document.createElement('script');
+      script.src = src;
+      script.dataset.gameSrc = src;
+      script.onload = () => {
+        scriptLoadedRef.current = true;
+      };
+      script.onerror = () => {
+        console.error(`[GAME] Failed to load component script: ${src}`);
+      };
+      document.head.appendChild(script);
     }, [src]);
 
     // Create element
