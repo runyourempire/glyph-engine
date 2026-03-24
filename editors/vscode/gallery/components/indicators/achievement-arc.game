@@ -1,0 +1,9 @@
+component AchievementArc {
+  canvas(200, 200)
+  tint(0.83, 0.69, 0.22)
+  polar()
+  arc(0.0, 0.85)
+  glow(6.0)
+  speed(0.3)
+  radius(0.38)
+}

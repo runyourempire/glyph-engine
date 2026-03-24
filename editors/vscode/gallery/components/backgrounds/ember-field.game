@@ -1,0 +1,10 @@
+component EmberField {
+  canvas(800, 600)
+  tint(1.0, 0.3, 0.05)
+  fbm(5)
+  warp(1.8)
+  glow(6.0)
+  speed(0.8)
+  memory(0.92)
+  vignette(0.7)
+}

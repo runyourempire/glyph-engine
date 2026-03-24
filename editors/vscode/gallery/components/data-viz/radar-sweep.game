@@ -1,0 +1,10 @@
+component RadarSweep {
+  canvas(400, 400)
+  tint(0.1, 0.8, 0.3)
+  polar()
+  glow(3.0)
+  speed(0.5)
+  radius(0.45)
+  memory(0.95)
+  vignette(0.6)
+}

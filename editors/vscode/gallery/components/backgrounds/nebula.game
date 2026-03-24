@@ -1,0 +1,9 @@
+component Nebula {
+  canvas(800, 600)
+  palette(cosmic)
+  fbm(6)
+  warp(2.5)
+  glow(3.0)
+  speed(0.3)
+  vignette(0.6)
+}

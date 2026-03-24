@@ -1,0 +1,10 @@
+component SignalWaveform {
+  canvas(400, 200)
+  tint(0.83, 0.69, 0.22)
+  simplex()
+  resonate(1.0, 0.6)
+  glow(4.0)
+  speed(0.8)
+  warp(0.8)
+  memory(0.9)
+}

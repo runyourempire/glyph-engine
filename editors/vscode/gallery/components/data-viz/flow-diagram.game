@@ -1,0 +1,9 @@
+component FlowDiagram {
+  canvas(600, 400)
+  tint(0.2, 0.6, 0.9)
+  simplex()
+  warp(1.5)
+  glow(2.0)
+  speed(0.8)
+  distort(0.2)
+}

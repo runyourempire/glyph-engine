@@ -1,0 +1,9 @@
+component BootSequence {
+  canvas(400, 200)
+  tint(0.2, 0.8, 0.4)
+  simplex()
+  glow(2.5)
+  speed(2.0)
+  warp(0.5)
+  memory(0.85)
+}

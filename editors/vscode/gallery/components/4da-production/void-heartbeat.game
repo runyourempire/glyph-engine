@@ -1,0 +1,10 @@
+component VoidHeartbeat {
+  canvas(48, 48)
+  tint(1.0, 1.0, 1.0)
+  resonate(0.8, 0.5)
+  glow(2.0)
+  speed(0.5)
+  radius(0.15)
+  memory(0.92)
+  opacity(0.6)
+}

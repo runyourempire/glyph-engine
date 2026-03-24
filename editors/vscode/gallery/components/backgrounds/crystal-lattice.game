@@ -1,0 +1,10 @@
+component CrystalLattice {
+  canvas(800, 600)
+  tint(0.7, 0.85, 1.0)
+  simplex()
+  fbm(2)
+  warp(0.8)
+  glow(3.5)
+  speed(0.6)
+  polar()
+}

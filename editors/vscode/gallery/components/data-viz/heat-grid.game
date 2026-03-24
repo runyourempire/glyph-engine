@@ -1,0 +1,9 @@
+component HeatGrid {
+  canvas(400, 400)
+  palette(thermal)
+  simplex()
+  fbm(2)
+  glow(1.5)
+  speed(0.3)
+  scale(3.0)
+}

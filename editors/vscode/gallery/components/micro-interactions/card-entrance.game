@@ -1,0 +1,9 @@
+component CardEntrance {
+  canvas(300, 200)
+  tint(1.0, 1.0, 1.0)
+  glow(2.0)
+  speed(2.0)
+  opacity(0.7)
+  scale(1.5)
+  vignette(0.3)
+}

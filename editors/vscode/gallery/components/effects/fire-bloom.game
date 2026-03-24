@@ -1,0 +1,10 @@
+component FireBloom {
+  canvas(800, 600)
+  tint(1.0, 0.4, 0.1)
+  fbm(5)
+  warp(2.5)
+  glow(7.0)
+  speed(1.5)
+  memory(0.88)
+  vignette(0.5)
+}

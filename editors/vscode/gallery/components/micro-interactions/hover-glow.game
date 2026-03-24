@@ -1,0 +1,9 @@
+component HoverGlow {
+  canvas(200, 200)
+  tint(1.0, 1.0, 1.0)
+  glow(4.0)
+  speed(0.3)
+  radius(0.3)
+  opacity(0.5)
+  memory(0.9)
+}

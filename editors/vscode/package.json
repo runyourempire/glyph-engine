@@ -2,7 +2,7 @@
   "name": "game-language",
   "displayName": "GAME Language",
   "description": "Syntax highlighting and language server for GAME DSL (.game files) — Generative Animation Matrix Engine",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "publisher": "4da-systems",
   "license": "FSL-1.1-Apache-2.0",
   "repository": {
@@ -87,6 +87,16 @@
       {
         "command": "game.exportSaveHtml",
         "title": "GAME: Save Standalone HTML"
+      },
+      {
+        "command": "game.openGallery",
+        "title": "GAME: Open Component Gallery",
+        "icon": "$(library)"
+      },
+      {
+        "command": "game.openAi",
+        "title": "GAME: Generate with AI",
+        "icon": "$(sparkle)"
       }
     ],
     "keybindings": [
@@ -94,6 +104,18 @@
         "command": "game.openPreview",
         "key": "ctrl+shift+g",
         "mac": "cmd+shift+g",
+        "when": "editorLangId == game"
+      },
+      {
+        "command": "game.openGallery",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b",
+        "when": "editorLangId == game"
+      },
+      {
+        "command": "game.openAi",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a",
         "when": "editorLangId == game"
       }
     ],
@@ -106,6 +128,11 @@
         },
         {
           "command": "game.export",
+          "when": "editorLangId == game",
+          "group": "navigation"
+        },
+        {
+          "command": "game.openAi",
           "when": "editorLangId == game",
           "group": "navigation"
         }
@@ -128,6 +155,16 @@
             "verbose"
           ],
           "description": "Traces the communication between VS Code and the GAME language server."
+        },
+        "game.ai.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API key for AI component generation."
+        },
+        "game.ai.model": {
+          "type": "string",
+          "default": "claude-sonnet-4-20250514",
+          "description": "Claude model to use for AI generation."
         }
       }
     }

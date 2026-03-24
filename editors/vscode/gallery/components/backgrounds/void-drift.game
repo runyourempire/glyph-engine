@@ -1,0 +1,10 @@
+component VoidDrift {
+  canvas(800, 600)
+  tint(0.05, 0.02, 0.1)
+  fbm(4)
+  warp(1.5)
+  glow(1.0)
+  speed(0.15)
+  memory(0.97)
+  vignette(0.9)
+}

@@ -1,0 +1,9 @@
+component ProgressRing {
+  canvas(200, 200)
+  tint(0.3, 0.6, 1.0)
+  polar()
+  arc(0.0, 0.75)
+  glow(3.0)
+  speed(0.5)
+  radius(0.35)
+}

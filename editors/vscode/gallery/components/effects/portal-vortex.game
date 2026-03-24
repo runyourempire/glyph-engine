@@ -1,0 +1,11 @@
+component PortalVortex {
+  canvas(600, 600)
+  palette(cosmic)
+  polar()
+  fbm(4)
+  warp(3.0)
+  glow(5.0)
+  speed(1.0)
+  distort(0.5)
+  vignette(0.7)
+}

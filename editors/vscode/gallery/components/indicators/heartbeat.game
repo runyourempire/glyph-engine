@@ -1,0 +1,9 @@
+component Heartbeat {
+  canvas(200, 200)
+  tint(0.13, 0.77, 0.37)
+  polar()
+  resonate(1.2, 0.8)
+  glow(5.0)
+  speed(1.0)
+  radius(0.4)
+}

@@ -9,7 +9,10 @@ import {
 } from "vscode-languageclient/node";
 
 import { PreviewPanel } from "./previewPanel";
+import { GalleryPanel } from "./galleryPanel";
+import { AiPanel } from "./aiPanel";
 import { registerExportCommands } from "./exportCommands";
+import { detectTunableToken } from "./parameterProvider";
 
 let client: LanguageClient | undefined;
 
@@ -22,6 +25,35 @@ export function activate(context: ExtensionContext): void {
     }
   );
   context.subscriptions.push(previewCommand);
+
+  // Component Gallery command
+  const galleryCommand = vscode.commands.registerCommand(
+    "game.openGallery",
+    () => {
+      GalleryPanel.createOrShow(context.extensionUri);
+    }
+  );
+  context.subscriptions.push(galleryCommand);
+
+  // AI Generation command
+  const aiCommand = vscode.commands.registerCommand("game.openAi", () => {
+    AiPanel.createOrShow(context.extensionUri);
+  });
+  context.subscriptions.push(aiCommand);
+
+  // Parameter Tuner — track cursor position
+  const cursorListener = vscode.window.onDidChangeTextEditorSelection((e) => {
+    if (e.textEditor.document.languageId !== "game") return;
+    const pos = e.selections[0]?.active;
+    if (!pos) return;
+    const token = detectTunableToken(e.textEditor.document, pos);
+    if (token) {
+      PreviewPanel.showTuner(token);
+    } else {
+      PreviewPanel.hideTuner();
+    }
+  });
+  context.subscriptions.push(cursorListener);
 
   // Watch for editor text changes
   const changeListener = vscode.workspace.onDidChangeTextDocument((e) => {
