@@ -1,0 +1,27 @@
+// Notification Atmosphere — Digest / Low Priority
+// Minimal breathing dot. Almost invisible. "Whenever you're ready."
+// Uniforms: intensity (0-1), hover (0-1)
+
+cinematic "notif-digest" {
+  layer config {
+    intensity: 0.0
+    hover: 0.0
+  }
+
+  layer breath {
+    circle(0.08) | glow(1.0) | tint(0.4, 0.6, 0.8)
+  }
+
+  layer halo memory: 0.96 {
+    ring(0.15, 0.003) | glow(0.25) | tint(0.3, 0.4, 0.55)
+  }
+
+  resonate {
+    intensity -> breath.brightness * 0.5
+    hover -> breath.brightness * 0.08
+  }
+
+  pass edge {
+    vignette(0.2)
+  }
+}

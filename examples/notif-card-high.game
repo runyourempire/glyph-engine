@@ -1,0 +1,48 @@
+// Notification Card — HIGH priority
+// Orange sweep on dark card. 440x160 canvas (2.75:1 aspect).
+
+cinematic "notif-card-high" {
+  layer config {
+    intensity: 1.0
+    hover: 0.0
+  }
+
+  layer halo opacity: 0.03 {
+    box(2.62, 0.88) | round(0.08) | shell(0.05)
+    | glow(0.3)
+    | tint(0.2, 0.08, 0.02)
+  }
+
+  layer sweep memory: 0.50 {
+    rotate(0.5)
+    | box(2.55, 0.83) | round(0.07) | shell(0.012)
+    | mask_arc(0.35)
+    | glow(0.2)
+    | tint(0.4, 0.15, 0.03)
+  }
+
+  layer track {
+    box(2.55, 0.83) | round(0.07) | shell(0.003)
+    | glow(0.08)
+    | tint(0.1, 0.04, 0.02)
+  }
+
+  layer card blend: occlude {
+    box(2.56, 0.84) | round(0.065)
+    | shade(0.055, 0.055, 0.055)
+  }
+
+  layer noise memory: 0.94 opacity: 0.01 {
+    warp(scale: 2.0, octaves: 2, strength: 0.02)
+    | fbm(scale: 3.0, octaves: 3)
+    | glow(0.3)
+    | tint(0.08, 0.03, 0.01)
+  }
+
+  resonate {
+    intensity -> sweep.brightness * 0.25
+    hover -> sweep.brightness * 0.08
+  }
+
+  pass edge { vignette(0.04) }
+}

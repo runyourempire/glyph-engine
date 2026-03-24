@@ -1,0 +1,33 @@
+// Notification Card — LOW / DIGEST priority
+// Very subtle white sweep. 440x160 canvas (2.75:1 aspect).
+
+cinematic "notif-card-low" {
+  layer config {
+    intensity: 1.0
+    hover: 0.0
+  }
+
+  layer sweep memory: 0.40 {
+    rotate(0.25)
+    | box(2.55, 0.83) | round(0.07) | shell(0.008)
+    | mask_arc(0.25)
+    | glow(0.1)
+    | tint(0.1, 0.1, 0.11)
+  }
+
+  layer track {
+    box(2.55, 0.83) | round(0.07) | shell(0.002)
+    | glow(0.04)
+    | tint(0.06, 0.06, 0.065)
+  }
+
+  layer card blend: occlude {
+    box(2.56, 0.84) | round(0.065)
+    | shade(0.055, 0.055, 0.055)
+  }
+
+  resonate {
+    intensity -> sweep.brightness * 0.15
+    hover -> sweep.brightness * 0.04
+  }
+}

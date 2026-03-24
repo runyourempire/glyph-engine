@@ -1,0 +1,30 @@
+// Notification Atmosphere — Medium Priority
+// Slow flowing silver noise. Subtle, informational.
+// Uniforms: intensity (0-1), hover (0-1)
+
+cinematic "notif-medium" {
+  layer config {
+    intensity: 0.0
+    hover: 0.0
+  }
+
+  layer flow memory: 0.94 {
+    warp(scale: 2.5, octaves: 2, strength: 0.05)
+    | fbm(scale: 2.0, octaves: 3, persistence: 0.5)
+    | glow(1.2)
+    | tint(0.5, 0.5, 0.55)
+  }
+
+  layer frame {
+    ring(0.46, 0.003) | glow(0.3) | tint(0.35, 0.35, 0.4)
+  }
+
+  resonate {
+    intensity -> flow.brightness * 0.6
+    hover -> flow.brightness * 0.1
+  }
+
+  pass edge {
+    vignette(0.25)
+  }
+}

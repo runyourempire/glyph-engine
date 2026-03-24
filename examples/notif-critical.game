@@ -1,0 +1,30 @@
+// Notification Atmosphere — Critical Priority
+// Subtle warped noise field behind the card. Red-amber organic texture.
+// Uniforms: intensity (0-1), hover (0-1)
+
+cinematic "notif-critical" {
+  layer config {
+    intensity: 0.0
+    hover: 0.0
+  }
+
+  layer field memory: 0.88 {
+    warp(scale: 1.8, octaves: 2, strength: 0.1)
+    | fbm(scale: 3.0, octaves: 3, persistence: 0.5)
+    | glow(2.5)
+    | tint(0.8, 0.15, 0.08)
+  }
+
+  layer pulse memory: 0.85 {
+    ring(0.38, 0.025) | glow(1.8) | tint(0.7, 0.25, 0.08)
+  }
+
+  resonate {
+    intensity -> field.brightness * 0.7
+    hover -> field.brightness * 0.12
+  }
+
+  pass frame {
+    vignette(0.35)
+  }
+}
