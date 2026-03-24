@@ -1,9 +1,19 @@
-component HoverGlow {
-  canvas(200, 200)
-  tint(1.0, 1.0, 1.0)
-  glow(4.0)
-  speed(0.3)
-  radius(0.3)
-  opacity(0.5)
-  memory(0.9)
+// Hover Glow — soft glow response on interaction
+cinematic "hover-glow" {
+  layer config {
+    intensity: 0.5
+  }
+
+  layer glow_core memory: 0.90 {
+    warp(scale: 2.0, octaves: 2, strength: 0.05)
+    | circle(0.25) | glow(4.0) | tint(1.0, 1.0, 1.0)
+  }
+
+  layer halo {
+    radial_fade(inner: 0.0, outer: 0.6) | glow(0.8) | tint(0.8, 0.85, 1.0)
+  }
+
+  resonate {
+    intensity -> glow_core.brightness * 0.6
+  }
 }

@@ -1,9 +1,13 @@
-component FlowDiagram {
-  canvas(600, 400)
-  tint(0.2, 0.6, 0.9)
-  simplex()
-  warp(1.5)
-  glow(2.0)
-  speed(0.8)
-  distort(0.2)
+// Flow Diagram — flowing data stream visualization
+cinematic "flow-diagram" {
+  layer stream memory: 0.92 {
+    warp(scale: 2.0, octaves: 4, strength: 0.2)
+    | distort(scale: 1.5, speed: 0.4, strength: 0.12)
+    | fbm(scale: 4.0, octaves: 3, persistence: 0.5)
+    | palette(cyber)
+  }
+
+  layer nodes {
+    voronoi(scale: 5.0) | shell(width: 0.008) | glow(1.5) | tint(0.2, 0.8, 0.6)
+  }
 }

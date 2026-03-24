@@ -1,10 +1,29 @@
-component StormFront {
-  canvas(800, 600)
-  tint(0.15, 0.15, 0.2)
-  fbm(7)
-  warp(3.5)
-  glow(2.5)
-  speed(1.2)
-  distort(0.6)
-  vignette(0.5)
+// Storm Front — turbulent electrical storm clouds
+cinematic "storm-front" {
+  layer clouds memory: 0.95 {
+    warp(scale: 1.5, octaves: 4, persistence: 0.5, strength: 0.15)
+    | fbm(scale: 2.0, octaves: 5, persistence: 0.6)
+    | glow(0.12)
+    | tint(0.04, 0.03, 0.08)
+  }
+
+  layer lightning memory: 0.7 {
+    warp(scale: 3.0, octaves: 3, strength: 0.3)
+    | distort(scale: 3.0, speed: 0.8, strength: 0.25)
+    | voronoi(scale: 4.0)
+    | shell(width: 0.005)
+    | glow(4.0)
+    | tint(0.7, 0.8, 1.0)
+  }
+
+  layer discharge memory: 0.65 {
+    warp(scale: 4.0, octaves: 2, strength: 0.35)
+    | distort(scale: 4.0, speed: 1.2, strength: 0.3)
+    | voronoi(scale: 6.0)
+    | shell(width: 0.003)
+    | glow(3.5)
+    | tint(0.5, 0.2, 0.9)
+  }
+
+  pass frame { vignette(0.5) }
 }

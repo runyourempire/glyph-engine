@@ -1,9 +1,20 @@
-component DismissFade {
-  canvas(300, 200)
-  tint(0.5, 0.5, 0.5)
-  glow(1.0)
-  speed(1.5)
-  opacity(0.4)
-  memory(0.8)
-  vignette(0.5)
+// Dismiss Fade — smooth fade-out dismiss effect
+cinematic "dismiss-fade" {
+  layer config {
+    fade: 1.0
+  }
+
+  layer content memory: 0.80 {
+    circle(0.2) | glow(1.5) | tint(0.5, 0.5, 0.5)
+  }
+
+  layer mist {
+    fbm(scale: 3.0, octaves: 3, persistence: 0.4) | glow(0.4) | tint(0.3, 0.3, 0.35)
+  }
+
+  resonate {
+    fade -> content.brightness * 0.8
+  }
+
+  pass frame { vignette(0.5) }
 }

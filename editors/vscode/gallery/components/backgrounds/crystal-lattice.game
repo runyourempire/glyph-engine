@@ -1,10 +1,19 @@
-component CrystalLattice {
-  canvas(800, 600)
-  tint(0.7, 0.85, 1.0)
-  simplex()
-  fbm(2)
-  warp(0.8)
-  glow(3.5)
-  speed(0.6)
-  polar()
+// Crystal Lattice — geometric crystal structure in polar space
+cinematic "crystal-lattice" {
+  layer lattice {
+    polar
+    | warp(scale: 3.0, octaves: 3, strength: 0.12)
+    | voronoi(scale: 12.0)
+    | palette(ice)
+  }
+
+  layer facets memory: 0.92 {
+    distort(scale: 2.0, speed: 0.2, strength: 0.08)
+    | polar
+    | simplex(scale: 8.0)
+    | glow(1.0)
+    | tint(0.7, 0.85, 1.0)
+  }
+
+  pass frame { vignette(0.5) }
 }

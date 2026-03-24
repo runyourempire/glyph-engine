@@ -1,10 +1,18 @@
-component Aurora {
-  canvas(800, 600)
-  tint(0.1, 0.9, 0.5)
-  fbm(4)
-  warp(3.0)
-  glow(4.0)
-  speed(0.5)
-  simplex()
-  vignette(0.4)
+// Aurora — northern lights with polar distortion
+cinematic "aurora" {
+  layer curtain memory: 0.94 {
+    warp(scale: 2.0, octaves: 4, persistence: 0.5, strength: 0.25)
+    | distort(scale: 1.5, speed: 0.3, strength: 0.15)
+    | fbm(scale: 3.0, octaves: 5, persistence: 0.6)
+    | palette(aurora)
+  }
+
+  layer violet memory: 0.92 {
+    translate(0.25, 0.0)
+    | warp(scale: 1.8, octaves: 3, strength: 0.2)
+    | fbm(scale: 2.5, octaves: 4, persistence: 0.5)
+    | palette(vapor)
+  }
+
+  pass edge { vignette(0.5) }
 }

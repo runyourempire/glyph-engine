@@ -1,9 +1,18 @@
-component LoadingOrbit {
-  canvas(100, 100)
-  tint(1.0, 1.0, 1.0)
-  polar()
-  resonate(1.5, 0.4)
-  glow(3.0)
-  speed(2.0)
-  radius(0.25)
+// Loading Orbit — orbital loading spinner
+cinematic "loading-orbit" {
+  layer orbit memory: 0.88 {
+    rotate(speed: 2.0)
+    | translate(0.22, 0.0)
+    | circle(0.04)
+    | glow(3.0)
+    | tint(1.0, 1.0, 1.0)
+  }
+
+  layer track {
+    ring(0.22, 0.005) | glow(0.6) | tint(0.3, 0.3, 0.35)
+  }
+
+  layer center {
+    circle(0.03) | glow(1.5) | tint(0.6, 0.6, 0.65)
+  }
 }

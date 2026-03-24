@@ -1,10 +1,17 @@
-component ParticleSwarm {
-  canvas(800, 600)
-  tint(0.9, 0.9, 1.0)
-  simplex()
-  fbm(2)
-  warp(2.0)
-  glow(3.0)
-  speed(1.5)
-  memory(0.9)
+// Particle Swarm — swarming particles with organic movement
+cinematic "particle-swarm" {
+  layer swarm memory: 0.90 {
+    warp(scale: 3.0, octaves: 4, persistence: 0.5, strength: 0.25)
+    | distort(scale: 2.0, speed: 0.5, strength: 0.15)
+    | voronoi(scale: 10.0)
+    | glow(1.5)
+    | tint(0.9, 0.9, 1.0)
+  }
+
+  layer trails memory: 0.95 {
+    warp(scale: 2.0, octaves: 3, strength: 0.12)
+    | simplex(scale: 5.0)
+    | glow(0.6)
+    | tint(0.5, 0.6, 0.9)
+  }
 }

@@ -1,9 +1,13 @@
-component Sparkline {
-  canvas(300, 80)
-  tint(0.3, 0.6, 1.0)
-  simplex()
-  glow(2.0)
-  speed(1.0)
-  scale(0.5)
-  opacity(0.8)
+// Sparkline — compact inline data sparkline
+cinematic "sparkline" {
+  layer line {
+    distort(scale: 6.0, speed: 0.8, strength: 0.12)
+    | line(-0.4, 0.0, 0.4, 0.0, 0.008)
+    | glow(2.0)
+    | tint(0.3, 0.6, 1.0)
+  }
+
+  layer noise {
+    simplex(scale: 8.0) | glow(0.4) | tint(0.2, 0.4, 0.8)
+  }
 }

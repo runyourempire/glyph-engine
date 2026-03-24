@@ -1,9 +1,14 @@
-component WaveSpectrum {
-  canvas(400, 200)
-  tint(0.5, 0.3, 1.0)
-  simplex()
-  resonate(2.0, 0.6)
-  glow(3.0)
-  speed(1.2)
-  scale(2.0)
+// Wave Spectrum — audio frequency spectrum analyzer
+cinematic "wave-spectrum" {
+  layer spectrum {
+    distort(scale: 4.0, speed: 1.0, strength: 0.15)
+    | warp(scale: 2.0, octaves: 3, strength: 0.1)
+    | simplex(scale: 6.0)
+    | glow(2.0)
+    | tint(0.5, 0.3, 1.0)
+  }
+
+  layer base {
+    fbm(scale: 3.0, octaves: 2, persistence: 0.4) | glow(0.5) | tint(0.3, 0.15, 0.6)
+  }
 }

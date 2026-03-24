@@ -1,10 +1,19 @@
-component RainCurtain {
-  canvas(800, 600)
-  tint(0.4, 0.5, 0.7)
-  simplex()
-  fbm(3)
-  warp(0.5)
-  glow(1.5)
-  speed(3.0)
-  opacity(0.6)
+// Rain Curtain — vertical rain streaks with memory trails
+cinematic "rain-curtain" {
+  layer rain memory: 0.80 {
+    warp(scale: 1.0, octaves: 3, strength: 0.15)
+    | distort(scale: 4.0, speed: 3.0, strength: 0.3)
+    | simplex(scale: 8.0)
+    | glow(1.5)
+    | tint(0.4, 0.5, 0.7)
+  }
+
+  layer mist memory: 0.94 {
+    warp(scale: 2.0, octaves: 4, persistence: 0.5, strength: 0.1)
+    | fbm(scale: 3.0, octaves: 3, persistence: 0.4)
+    | glow(0.4)
+    | tint(0.3, 0.35, 0.5)
+  }
+
+  pass frame { vignette(0.6) }
 }

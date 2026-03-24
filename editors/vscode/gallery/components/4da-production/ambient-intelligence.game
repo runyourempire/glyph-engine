@@ -1,11 +1,20 @@
-component AmbientIntelligence {
-  canvas(800, 600)
-  tint(0.05, 0.08, 0.15)
-  fbm(5)
-  warp(1.0)
-  glow(1.5)
-  speed(0.2)
-  simplex()
-  memory(0.95)
-  vignette(0.8)
+// Ambient Intelligence — 4DA ambient intelligence state indicator
+cinematic "ambient-intelligence" {
+  layer field memory: 0.95 {
+    warp(scale: 1.5, octaves: 4, persistence: 0.5, strength: 0.1)
+    | distort(scale: 1.0, speed: 0.15, strength: 0.06)
+    | fbm(scale: 2.0, octaves: 5, persistence: 0.5)
+    | palette(
+        a_r: 0.05, a_g: 0.06, a_b: 0.1,
+        b_r: 0.1, b_g: 0.12, b_b: 0.2,
+        c_r: 1.0, c_g: 1.0, c_b: 1.0,
+        d_r: 0.25, d_g: 0.0, d_b: 0.1
+      )
+  }
+
+  layer pulse memory: 0.92 {
+    simplex(scale: 3.0) | glow(0.3) | tint(0.08, 0.12, 0.2)
+  }
+
+  pass frame { vignette(0.8) }
 }

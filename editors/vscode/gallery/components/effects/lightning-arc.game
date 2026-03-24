@@ -1,9 +1,15 @@
-component LightningArc {
-  canvas(800, 600)
-  tint(0.6, 0.7, 1.0)
-  fbm(5)
-  warp(4.0)
-  glow(8.0)
-  speed(5.0)
-  distort(0.8)
+// Lightning Arc — branching electrical discharge
+cinematic "lightning-arc" {
+  layer bolt memory: 0.6 {
+    warp(scale: 4.0, octaves: 3, strength: 0.4)
+    | distort(scale: 5.0, speed: 2.0, strength: 0.3)
+    | voronoi(scale: 5.0)
+    | shell(width: 0.004)
+    | glow(5.0)
+    | tint(0.6, 0.7, 1.0)
+  }
+
+  layer ambient {
+    fbm(scale: 6.0, octaves: 3) | glow(0.15) | tint(0.15, 0.1, 0.3)
+  }
 }

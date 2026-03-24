@@ -1,8 +1,21 @@
-component SignalMeter {
-  canvas(200, 100)
-  tint(0.3, 0.8, 0.5)
-  glow(2.0)
-  speed(1.0)
-  resonate(0.5, 0.3)
-  distort(0.1)
+// Signal Meter — signal strength visualization
+cinematic "signal-meter" {
+  layer config {
+    strength: 0.7
+  }
+
+  layer bars {
+    distort(scale: 2.0, speed: 0.5, strength: 0.08)
+    | grid(spacing: 0.15, width: 0.02)
+    | glow(2.0)
+    | tint(0.3, 0.8, 0.5)
+  }
+
+  layer glow_field memory: 0.88 {
+    simplex(scale: 3.0) | glow(0.8) | tint(0.2, 0.6, 0.4)
+  }
+
+  resonate {
+    strength -> bars.brightness * 0.6
+  }
 }

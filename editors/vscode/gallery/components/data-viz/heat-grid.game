@@ -1,9 +1,12 @@
-component HeatGrid {
-  canvas(400, 400)
-  palette(thermal)
-  simplex()
-  fbm(2)
-  glow(1.5)
-  speed(0.3)
-  scale(3.0)
+// Heat Grid — color-mapped heat grid visualization
+cinematic "heat-grid" {
+  layer grid_cells {
+    warp(scale: 1.5, octaves: 3, strength: 0.08)
+    | voronoi(scale: 6.0)
+    | palette(inferno)
+  }
+
+  layer overlay {
+    grid(spacing: 0.12, width: 0.003) | glow(0.6) | tint(0.3, 0.3, 0.3)
+  }
 }

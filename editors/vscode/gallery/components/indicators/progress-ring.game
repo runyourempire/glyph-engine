@@ -1,9 +1,17 @@
-component ProgressRing {
-  canvas(200, 200)
-  tint(0.3, 0.6, 1.0)
-  polar()
-  arc(0.0, 0.75)
-  glow(3.0)
-  speed(0.5)
-  radius(0.35)
+// Progress Ring — circular progress arc with glow
+cinematic "progress-ring" {
+  layer config {
+    fill_angle: 4.0
+  }
+
+  layer track {
+    ring(0.34, 0.008) | glow(0.5) | tint(0.2, 0.2, 0.2)
+  }
+
+  layer fill memory: 0.88 {
+    warp(scale: 4.0, octaves: 2, strength: 0.06)
+    | ring(0.34, 0.03) | mask_arc(fill_angle) | glow(3.0) | tint(0.3, 0.6, 1.0)
+  }
+
+  pass bloom { blur(1.2) }
 }

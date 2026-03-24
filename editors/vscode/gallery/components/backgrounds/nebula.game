@@ -1,9 +1,14 @@
-component Nebula {
-  canvas(800, 600)
-  palette(cosmic)
-  fbm(6)
-  warp(2.5)
-  glow(3.0)
-  speed(0.3)
-  vignette(0.6)
+// Nebula — deep space gas clouds with swirling color
+cinematic "nebula" {
+  layer clouds memory: 0.95 {
+    warp(scale: 2.5, octaves: 5, persistence: 0.6, strength: 0.3)
+    | fbm(scale: 3.0, octaves: 4, persistence: 0.5)
+    | palette(twilight)
+  }
+
+  layer stars {
+    voronoi(scale: 30.0) | glow(0.6) | tint(0.9, 0.9, 1.0)
+  }
+
+  pass frame { vignette(0.6) }
 }

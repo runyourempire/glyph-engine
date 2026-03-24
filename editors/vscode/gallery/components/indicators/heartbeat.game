@@ -1,9 +1,13 @@
-component Heartbeat {
-  canvas(200, 200)
-  tint(0.13, 0.77, 0.37)
-  polar()
-  resonate(1.2, 0.8)
-  glow(5.0)
-  speed(1.0)
-  radius(0.4)
+// Heartbeat — pulsing life sign indicator
+cinematic "heartbeat" {
+  layer pulse memory: 0.85 {
+    warp(scale: 3.0, octaves: 2, strength: 0.08)
+    | circle(0.22) | glow(5.0) | tint(0.13, 0.77, 0.37)
+  }
+
+  layer halo {
+    ring(0.35, 0.01) | glow(1.5) | tint(0.1, 0.5, 0.25)
+  }
+
+  pass edge { vignette(0.3) }
 }

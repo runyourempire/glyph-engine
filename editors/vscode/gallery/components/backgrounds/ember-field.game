@@ -1,10 +1,19 @@
-component EmberField {
-  canvas(800, 600)
-  tint(1.0, 0.3, 0.05)
-  fbm(5)
-  warp(1.8)
-  glow(6.0)
-  speed(0.8)
-  memory(0.92)
-  vignette(0.7)
+// Ember Field — floating embers with warm memory trails
+cinematic "ember-field" {
+  layer current memory: 0.90 {
+    polar()
+    | warp(scale: 3.0, octaves: 4, persistence: 0.5, strength: 0.3)
+    | distort(scale: 2.0, speed: 0.35, strength: 0.2)
+    | fbm(scale: 5.0, octaves: 4, persistence: 0.4)
+    | palette(ember)
+  }
+
+  layer sparks memory: 0.75 {
+    warp(scale: 5.0, octaves: 3, strength: 0.2)
+    | voronoi(scale: 12.0)
+    | glow(1.2)
+    | tint(1.0, 0.5, 0.1)
+  }
+
+  pass frame { vignette(0.7) }
 }
