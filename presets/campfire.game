@@ -1,0 +1,32 @@
+# Campfire — flickering flame effect with warm glow
+# Usage: <game-campfire></game-campfire>
+# Pure time-driven, no data input needed
+# FBM noise shaped as fire, ember/gold tones, bloom
+
+cinematic "Campfire" {
+  # Flame body — noise-driven fire shape
+  layer flame {
+    fn: fbm(p * 4.0 + sin(time * 3.0) * 0.3, octaves: 4, persistence: 0.6) | threshold(0.35) | glow(2.5) | tint(ember) | bloom(0.3, 1.5)
+  }
+
+  # Flame core — brighter inner fire
+  layer core {
+    fn: fbm(p * 5.0 + sin(time * 4.0) * 0.4, octaves: 3, persistence: 0.5) | threshold(0.5) | glow(3.0) | tint(gold)
+    blend_mode: additive
+    opacity: 0.6
+  }
+
+  # Hot center — white-hot base
+  layer hotspot {
+    fn: circle(0.06) | glow(2.0 + sin(time * 5.0) * 0.5) | tint(ivory)
+    blend_mode: additive
+    opacity: 0.4
+  }
+
+  # Ember glow — warm ambient light
+  layer ambient {
+    fn: circle(0.25) | glow(1.0 + sin(time * 1.5) * 0.3) | tint(ember)
+    blend_mode: additive
+    opacity: 0.2
+  }
+}

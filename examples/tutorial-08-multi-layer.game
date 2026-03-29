@@ -1,0 +1,25 @@
+# Tutorial 08: Multi-Layer Compositing
+# ======================================
+# New concept: layering multiple visuals together
+#
+# Layers composite additively — their light adds up.
+# Order matters for readability but all layers blend.
+# Think: background (subtle) + midground + foreground (bright).
+# Name your layers for clarity.
+
+cinematic "Layers" {
+  # Background — subtle noise texture
+  layer bg {
+    fn: fbm(2.0, 3, 0.5, 2.0) | glow(0.6) | tint(midnight)
+  }
+
+  # Midground — a slow-spinning ring
+  layer mid {
+    fn: rotate(time * 0.3) | ring(0.3, 0.02) | glow(2.0) | tint(cyan)
+  }
+
+  # Foreground — a bright pulsing star
+  layer fg {
+    fn: rotate(time * -0.5) | star(5, 0.12, 0.05) | glow(3.5) | tint(gold)
+  }
+}

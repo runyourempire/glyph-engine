@@ -1,0 +1,28 @@
+# Rating Display — star rating visualization driven by data.rating
+# Usage: <game-rating-display rating="0.8"></game-rating-display>
+# API:   el.rating = 0.0..1.0 (maps from 0-5 stars: divide by 5)
+# Glow intensifies with higher rating, gold star with bloom
+
+cinematic "Rating Display" {
+  # Star shape — glow scales with rating
+  layer star_shape {
+    fn: star(5, 0.25, 0.12) | glow(g) | tint(gold)
+    g: 0.5 ~ data.rating * 4.0
+  }
+
+  # Inner glow — warm bloom for high ratings
+  layer inner_bloom {
+    fn: star(5, 0.18, 0.09) | glow(bg) | bloom(0.3, 2.0) | tint(gold)
+    bg: 0.0 ~ data.rating * 3.0
+    blend_mode: additive
+    opacity: 0.6
+  }
+
+  # Sparkle halo — subtle outer ring for perfect ratings
+  layer halo {
+    fn: ring(0.32, 0.008) | glow(hg) | tint(ivory)
+    hg: 0.0 ~ data.rating * 1.5
+    blend_mode: additive
+    opacity: 0.3
+  }
+}

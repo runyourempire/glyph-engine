@@ -1,0 +1,30 @@
+# Ocean Waves — deep ocean surface with layered wave motion
+# Usage: <game-ocean-waves></game-ocean-waves>
+# Pure time-driven, no data input needed
+# Multi-scale fbm with domain warp, deep blue tones
+
+cinematic "Ocean Waves" {
+  # Deep water — slow-moving large-scale waves
+  layer deep {
+    fn: domain_warp(0.2, 0.8) | fbm(p * 2.0 + time * 0.04, octaves: 4, persistence: 0.55) | glow(1.5) | tint(deep_blue)
+  }
+
+  # Surface waves — faster, smaller detail
+  layer surface {
+    fn: fbm(p * 5.0 + time * 0.1, octaves: 3, persistence: 0.5) | glow(1.2) | tint(cyan)
+    blend_mode: additive
+    opacity: 0.3
+  }
+
+  # Foam highlights — bright crests on wave peaks
+  layer foam {
+    fn: fbm(p * 8.0 + time * 0.08, octaves: 2, persistence: 0.4) | threshold(0.6) | glow(2.0) | tint(frost)
+    blend_mode: additive
+    opacity: 0.2
+  }
+
+  # Atmospheric vignette
+  layer frame {
+    fn: circle(0.5) | glow(1.0) | vignette(0.4, 0.8)
+  }
+}

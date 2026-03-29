@@ -1,0 +1,37 @@
+# Energy Sphere — pulsing energy orb with plasma surface
+# Usage: <game-energy-sphere></game-energy-sphere>
+# Pure time-driven, no data input needed
+# Circle + fbm surface noise + intense glow, cyan, bloom, chromatic
+
+cinematic "Energy Sphere" {
+  # Core sphere — pulsing circle with intense glow
+  layer core {
+    fn: circle(0.2 + sin(time * 2.0) * 0.03) | glow(3.0) | tint(cyan) | bloom(0.3, 2.5) | chromatic(0.003)
+  }
+
+  # Plasma surface — fbm noise creating energy texture
+  layer plasma {
+    fn: fbm(p * 5.0 + time * 0.15, octaves: 3, persistence: 0.6) | glow(2.0) | tint(cyan)
+    blend_mode: additive
+    opacity: 0.5
+  }
+
+  # Energy arcs — bright streaks across surface
+  layer arcs {
+    fn: fbm(p * 8.0 + time * 0.2, octaves: 2, persistence: 0.4) | threshold(0.65) | glow(3.5) | tint(white)
+    blend_mode: additive
+    opacity: 0.3
+  }
+
+  # Outer aura — diffuse glow halo
+  layer aura {
+    fn: circle(0.35 + sin(time * 1.5) * 0.02) | glow(1.5) | tint(cyan)
+    blend_mode: additive
+    opacity: 0.2
+  }
+
+  # Vignette
+  layer frame {
+    fn: circle(0.5) | glow(1.0) | vignette(0.4, 0.8)
+  }
+}

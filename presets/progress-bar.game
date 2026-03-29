@@ -1,0 +1,25 @@
+# Progress Bar — horizontal fill indicator driven by data.progress
+# Usage: <game-progress-bar progress="0.65"></game-progress-bar>
+# API:   el.progress = 0.0..1.0
+
+cinematic "Progress Bar" {
+  # Background track — dark charcoal bar
+  layer track {
+    fn: box(0.7, 0.08) | glow(0.6) | tint(charcoal)
+  }
+
+  # Fill bar — gold, width driven by progress via mask_arc
+  layer fill {
+    fn: box(0.7, 0.06) | mask_arc(fill_angle) | glow(g) | tint(gold)
+    fill_angle: 0.0 ~ data.progress * 6.283
+    g: 1.5 ~ data.progress * 2.5
+  }
+
+  # Leading edge glow — bright tip at the fill boundary
+  layer edge_glow {
+    fn: circle(0.03) | glow(eg) | tint(ivory)
+    eg: 0.0 ~ data.progress * 3.0
+    blend_mode: additive
+    opacity: 0.5
+  }
+}

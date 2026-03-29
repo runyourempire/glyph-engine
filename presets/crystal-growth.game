@@ -1,0 +1,30 @@
+# Crystal Growth — growing crystalline structure with icy shimmer
+# Usage: <game-crystal-growth></game-crystal-growth>
+# Pure time-driven, no data input needed
+# Voronoi cells with onion layering, frost tint, chromatic aberration
+
+cinematic "Crystal Growth" {
+  # Crystal lattice — voronoi creating faceted structure
+  layer lattice {
+    fn: voronoi(6.0 + sin(time * 0.5) * 1.0) | onion(0.02) | glow(2.0) | tint(frost) | chromatic(0.004)
+  }
+
+  # Inner glow — warm core beneath crystal surface
+  layer core_glow {
+    fn: voronoi(4.0 + sin(time * 0.3) * 0.5) | glow(1.5) | tint(cyan)
+    blend_mode: additive
+    opacity: 0.3
+  }
+
+  # Sparkle points — bright flashes on crystal faces
+  layer sparkle {
+    fn: voronoi(10.0) | threshold(0.8) | glow(3.0) | bloom(0.3, 1.5) | tint(white)
+    blend_mode: additive
+    opacity: 0.25
+  }
+
+  # Vignette — depth framing
+  layer frame {
+    fn: circle(0.5) | glow(1.0) | vignette(0.4, 0.8)
+  }
+}

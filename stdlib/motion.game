@@ -1,0 +1,46 @@
+# GAME Standard Library — Motion Primitives
+#
+# Usage: import "motion" expose orbit_motion, pendulum, pulse, spin
+
+cinematic "stdlib/motion" {
+
+  # Circular orbit around center
+  define orbit_motion(radius, speed) {
+    translate(sin(time * speed) * radius, cos(time * speed) * radius) | circle(0.05) | glow(3.0)
+  }
+
+  # Swinging pendulum motion
+  define pendulum(length, speed) {
+    rotate(sin(time * speed) * length) | translate(0.0, -0.3) | circle(0.06) | glow(2.0)
+  }
+
+  # Bouncing vertical motion
+  define bounce_motion(height, speed) {
+    translate(0.0, abs(sin(time * speed)) * height) | circle(0.05) | glow(3.0)
+  }
+
+  # Pulsing circle that grows and shrinks
+  define pulse(min_size, max_size, speed) {
+    circle(min_size + sin(time * speed) * (max_size - min_size)) | glow(2.0)
+  }
+
+  # Slow continuous drift across the canvas
+  define drift(dx, dy) {
+    translate(fract(time * dx) - 0.5, fract(time * dy) - 0.5) | circle(0.08) | glow(2.0)
+  }
+
+  # Continuous rotation of a star shape
+  define spin(speed) {
+    rotate(time * speed) | star(5, 0.2, 0.08) | glow(3.0)
+  }
+
+  # Breathing glow that swells and fades
+  define breathe(base, amount, speed) {
+    circle(0.15) | glow(base + sin(time * speed) * amount)
+  }
+
+  # Flickering light with irregular rhythm
+  define flicker(intensity, speed) {
+    circle(0.1) | glow(intensity * abs(sin(time * speed * 7.0) + sin(time * speed * 13.0)))
+  }
+}

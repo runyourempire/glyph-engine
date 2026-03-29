@@ -1,0 +1,38 @@
+# Connection Strength — signal strength indicator with tiered bars
+# Usage: <game-connection-strength strength="0.8"></game-connection-strength>
+# API:   el.strength = 0.0..1.0 (0 = no signal, 1 = full)
+# Bars illuminate progressively: cyan when strong, charcoal when inactive
+
+cinematic "Connection Strength" {
+  # Bar 1 — activates at any signal > 0
+  layer bar1 {
+    fn: box(0.06, 0.1) | glow(g1) | tint(cyan)
+    g1: 0.4 ~ data.strength * 2.0
+  }
+
+  # Bar 2 — activates above 0.25
+  layer bar2 {
+    fn: box(0.06, 0.16) | glow(g2) | tint(cyan)
+    g2: 0.2 ~ data.strength * 1.8
+  }
+
+  # Bar 3 — activates above 0.5
+  layer bar3 {
+    fn: box(0.06, 0.22) | glow(g3) | tint(cyan)
+    g3: 0.1 ~ data.strength * 1.5
+  }
+
+  # Bar 4 — activates at full strength
+  layer bar4 {
+    fn: box(0.06, 0.28) | glow(g4) | tint(cyan)
+    g4: 0.0 ~ data.strength * 1.2
+  }
+
+  # Ambient signal pulse
+  layer pulse {
+    fn: circle(0.05) | glow(pg) | tint(white)
+    pg: 0.0 ~ data.strength * 2.5
+    blend_mode: additive
+    opacity: 0.3
+  }
+}

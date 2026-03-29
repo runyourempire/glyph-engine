@@ -1,0 +1,29 @@
+# Tutorial 11: Data Binding (Web Component API)
+# ================================================
+# New concept: data.* signals for external control
+#
+# data.* binds a parameter to a Web Component attribute.
+# This turns your visual into a reusable UI component.
+#
+# Usage in HTML:
+#   <game-progress-ring progress="0.75"></game-progress-ring>
+#
+# Usage in JS:
+#   document.querySelector('game-progress-ring').progress = 0.75;
+#
+# mask_arc(angle) clips a ring to an angular sector.
+# tau = 2*pi = full circle in radians.
+
+cinematic "Progress Ring" {
+  # Background track — dim ring showing full circumference
+  layer track {
+    fn: ring(0.3, 0.015) | glow(0.8) | tint(charcoal)
+  }
+
+  # Fill arc — lights up based on data.progress (0.0 to 1.0)
+  layer fill {
+    fn: ring(0.3, 0.025) | mask_arc(angle) | glow(brightness) | tint(gold)
+    angle: 0.0 ~ data.progress * tau
+    brightness: 1.5 ~ data.progress * 2.5
+  }
+}

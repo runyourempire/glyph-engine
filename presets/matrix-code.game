@@ -1,0 +1,30 @@
+# Matrix Code — digital rain effect with green glowing characters
+# Usage: <game-matrix-code></game-matrix-code>
+# Pure time-driven, no data input needed
+# Repeated small shapes falling via time animation, green on black, grain
+
+cinematic "Matrix Code" {
+  # Falling code columns — high-frequency noise creating character illusion
+  layer code {
+    fn: fbm(p * 15.0 + time * 0.5, octaves: 2, persistence: 0.4) | threshold(0.6) | glow(2.0) | tint(green) | grain(0.08)
+  }
+
+  # Bright lead characters — brighter heads of falling streams
+  layer leads {
+    fn: fbm(p * 12.0 + time * 0.6, octaves: 1, persistence: 0.3) | threshold(0.75) | glow(3.5) | tint(white)
+    blend_mode: additive
+    opacity: 0.4
+  }
+
+  # Background haze — subtle green ambient
+  layer haze {
+    fn: fbm(p * 3.0 + time * 0.02, octaves: 2, persistence: 0.5) | glow(0.5) | tint(green)
+    blend_mode: additive
+    opacity: 0.1
+  }
+
+  # Scanline overlay for CRT feel
+  layer crt {
+    fn: circle(0.5) | glow(1.0) | scanlines(120.0, 0.1) | vignette(0.4, 0.8)
+  }
+}

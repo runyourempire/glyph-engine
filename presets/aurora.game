@@ -1,0 +1,30 @@
+# Aurora — northern lights with flowing color bands
+# Usage: <game-aurora></game-aurora>
+# Pure time-driven, no data input needed
+# Domain-warped fbm with cyan/green glow, bloom, and vignette
+
+cinematic "Aurora" {
+  # Primary aurora band — domain-warped noise, slow drift
+  layer band {
+    fn: domain_warp(0.3, 1.5) | fbm(p * 3.0 + time * 0.08, octaves: 4, persistence: 0.6) | glow(2.0) | tint(cyan) | bloom(0.2, 2.0)
+  }
+
+  # Secondary band — offset color for depth
+  layer band2 {
+    fn: domain_warp(0.2, 1.0) | fbm(p * 2.5 + time * 0.05, octaves: 3, persistence: 0.5) | glow(1.5) | tint(green)
+    blend_mode: additive
+    opacity: 0.4
+  }
+
+  # Shimmer layer — fast-moving highlights
+  layer shimmer {
+    fn: fbm(p * 6.0 + time * 0.15, octaves: 2, persistence: 0.3) | threshold(0.65) | glow(2.5) | tint(ivory)
+    blend_mode: additive
+    opacity: 0.2
+  }
+
+  # Vignette for atmospheric framing
+  layer frame {
+    fn: circle(0.5) | glow(1.0) | vignette(0.5, 0.7)
+  }
+}

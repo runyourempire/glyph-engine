@@ -1,0 +1,21 @@
+# Tutorial 02: Adding Color
+# ==========================
+# New concept: tint() and shade()
+#
+# glow() produces white light from an SDF edge.
+# tint(r, g, b) multiplies that color — like a color filter.
+# shade(r, g, b) is an alternative bridge — solid color, sharp edges.
+#
+# Two layers show both approaches side by side.
+
+cinematic "Color" {
+  # Layer 1: glow + tint = soft colored light
+  layer soft {
+    fn: translate(-0.25, 0.0) | circle(0.2) | glow(2.5) | tint(cyan)
+  }
+
+  # Layer 2: shade = crisp solid fill, no glow falloff
+  layer crisp {
+    fn: translate(0.25, 0.0) | circle(0.2) | shade(0.831, 0.686, 0.216)
+  }
+}

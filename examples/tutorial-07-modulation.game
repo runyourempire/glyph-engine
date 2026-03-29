@@ -1,0 +1,27 @@
+# Tutorial 07: Modulation with ~
+# ================================
+# New concept: the ~ operator and named parameters
+#
+# Instead of hardcoding values, name them as parameters.
+# Reference parameters by name in fn: pipeline.
+# Then modulate them with ~ to make them dynamic.
+#
+# Syntax: param_name: base_value ~ signal_expression
+# The signal expression updates the param every frame.
+#
+# Common signals: time, sin(time), audio.bass, mouse.x, data.*
+
+cinematic "Modulation" {
+  # A circle that breathes — radius modulated by sin(time)
+  layer breathe {
+    fn: circle(radius) | glow(intensity) | tint(cyan)
+    radius: 0.2 ~ sin(time * 2.0) * 0.08
+    intensity: 2.0 ~ sin(time * 3.0) * 0.8
+  }
+
+  # A ring that reacts to audio bass (static without audio)
+  layer pulse {
+    fn: ring(0.35, 0.02) | glow(glow_str) | tint(gold)
+    glow_str: 1.5 ~ audio.bass * 3.0
+  }
+}

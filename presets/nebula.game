@@ -1,0 +1,30 @@
+# Nebula — deep space nebula with swirling gas clouds
+# Usage: <game-nebula></game-nebula>
+# Pure time-driven, no data input needed
+# FBM + voronoi + domain warp, plasma tones, bloom, chromatic aberration
+
+cinematic "Nebula" {
+  # Gas cloud base — domain-warped noise in plasma tones
+  layer gas {
+    fn: domain_warp(0.25, 1.2) | fbm(p * 2.5 + time * 0.03, octaves: 5, persistence: 0.55) | glow(2.0) | tint(plasma) | bloom(0.2, 2.0)
+  }
+
+  # Star clusters — voronoi cell edges as bright points
+  layer stars {
+    fn: voronoi(8.0) | threshold(0.7) | glow(3.0) | tint(ivory)
+    blend_mode: additive
+    opacity: 0.3
+  }
+
+  # Violet nebula arm — secondary color band
+  layer arm {
+    fn: domain_warp(0.15, 0.8) | fbm(p * 3.0 + time * 0.04, octaves: 3, persistence: 0.5) | glow(1.5) | tint(violet) | chromatic(0.003)
+    blend_mode: additive
+    opacity: 0.35
+  }
+
+  # Vignette — deep space framing
+  layer frame {
+    fn: circle(0.5) | glow(1.0) | vignette(0.5, 0.7)
+  }
+}

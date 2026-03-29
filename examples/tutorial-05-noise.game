@@ -1,0 +1,28 @@
+# Tutorial 05: Noise & Organic Textures
+# =======================================
+# New concept: fbm(), simplex(), voronoi()
+#
+# These are SDF generators that create organic patterns
+# instead of geometric shapes. They fill the entire canvas
+# with procedural texture, driven by GPU math.
+#
+# fbm = Fractal Brownian Motion (layered noise, like clouds)
+# simplex = smooth gradient noise (like flowing water)
+# voronoi = cell-based pattern (like cracked earth)
+
+cinematic "Noise" {
+  # FBM — rich, cloudy texture
+  layer clouds {
+    fn: fbm(3.0, 4, 0.5, 2.0) | glow(1.5) | tint(frost)
+  }
+
+  # Simplex — smooth, flowing noise
+  layer flow {
+    fn: simplex(4.0) | glow(1.2) | tint(ember)
+  }
+
+  # Voronoi — cracked, cellular pattern
+  layer cells {
+    fn: voronoi(6.0) | glow(1.0) | tint(violet)
+  }
+}

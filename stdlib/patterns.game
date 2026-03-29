@@ -1,0 +1,46 @@
+# GAME Standard Library — Procedural Patterns
+#
+# Usage: import "patterns" expose checkerboard, stripes, dots, hexgrid
+
+cinematic "stdlib/patterns" {
+
+  # Alternating squares in a checker pattern
+  define checkerboard(size) {
+    repeat(size) | box(0.4, 0.4) | glow(2.0)
+  }
+
+  # Rotated parallel stripes
+  define stripes(width, angle) {
+    rotate(angle) | repeat(width) | box(0.3, 1.0) | glow(2.0)
+  }
+
+  # Evenly spaced dot grid
+  define dots(spacing, size) {
+    repeat(spacing) | circle(size) | glow(2.0)
+  }
+
+  # Hexagonal tiling pattern
+  define hexgrid(size) {
+    repeat(size) | polygon(6, 0.4) | glow(2.0)
+  }
+
+  # Nested concentric rings radiating from center
+  define concentric_rings(count, width) {
+    repeat(count) | ring(0.3, width) | glow(2.0)
+  }
+
+  # Spiral arms twisting outward from center
+  define spiral(arms, tightness) {
+    domain_warp(tightness, 2.0) | rotate(0.5) | repeat(arms) | circle(0.1) | glow(3.0)
+  }
+
+  # Sine-wave distorted pattern
+  define wave_pattern(freq, amp) {
+    domain_warp(amp, freq) | circle(0.15) | glow(2.0)
+  }
+
+  # Grid overlay of thin crossing lines
+  define grid_lines(spacing, thickness) {
+    repeat(spacing) | mirror(0) | box(thickness, 1.0) | glow(1.5)
+  }
+}

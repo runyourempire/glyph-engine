@@ -1,0 +1,34 @@
+# Countdown Clock — circular countdown with intensifying bloom near completion
+# Usage: <game-countdown-clock elapsed="0.3"></game-countdown-clock>
+# API:   el.elapsed = 0.0..1.0 (0 = just started, 1 = completed)
+# Bloom intensifies as elapsed approaches 1.0
+
+cinematic "Countdown Clock" {
+  # Outer track
+  layer track {
+    fn: ring(0.35, 0.012) | glow(0.5) | tint(charcoal)
+  }
+
+  # Elapsed arc — sweeps clockwise as time passes
+  layer elapsed_arc {
+    fn: ring(0.35, 0.03) | mask_arc(arc_angle) | glow(g) | bloom(bt, bs) | tint(cyan)
+    arc_angle: 0.0 ~ data.elapsed * 6.283
+    g: 1.5 ~ data.elapsed * 3.0
+    bt: 0.3 ~ data.elapsed * 0.3
+    bs: 1.0 ~ data.elapsed * 3.0
+  }
+
+  # Completion pulse — bright burst as countdown nears end
+  layer completion {
+    fn: circle(cr) | glow(cg) | bloom(0.4, 2.5) | tint(white)
+    cr: 0.0 ~ data.elapsed * 0.1
+    cg: 0.0 ~ data.elapsed * 4.0
+    blend_mode: additive
+    opacity: 0.5
+  }
+
+  # Center reference dot
+  layer center {
+    fn: circle(0.025) | glow(1.2) | tint(frost)
+  }
+}

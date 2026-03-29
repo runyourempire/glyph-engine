@@ -1,0 +1,19 @@
+# Tutorial 01: Your First Circle
+# ================================
+# The simplest possible .game file.
+# ONE cinematic, ONE layer, ONE pipeline.
+#
+# Concepts introduced:
+#   - cinematic block (the root container)
+#   - layer block (a visual element)
+#   - fn: pipeline (chain of stages with |)
+#   - circle() — SDF generator (creates a shape)
+#   - glow() — SDF-to-Color bridge (makes it visible)
+#
+# Compiles to: <game-hello> Web Component
+
+cinematic "Hello" {
+  layer {
+    fn: circle(0.3) | glow(2.0)
+  }
+}

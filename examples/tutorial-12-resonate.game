@@ -1,0 +1,29 @@
+# Tutorial 12: Resonate (Cross-Layer Feedback)
+# ==============================================
+# New concept: resonate blocks for layer interaction
+#
+# resonate creates feedback loops between layers.
+# One layer's parameter drives another's behavior.
+# Format: source -> target.field * weight
+#
+# Here, the fire layer's brightness affects ice's density,
+# and ice's density feeds back into fire's brightness.
+# The result: emergent push-pull dynamics.
+
+cinematic "Resonate" {
+  layer fire {
+    fn: fbm(3.0, 4, 0.5, 2.0) | glow(brightness) | tint(ember)
+    brightness: 1.5
+  }
+
+  layer ice {
+    fn: voronoi(density) | glow(1.5) | tint(frost)
+    density: 4.0
+  }
+
+  # Cross-layer feedback: fire and ice modulate each other
+  resonate {
+    brightness -> ice.density * 0.5
+    density -> fire.brightness * -0.2
+  }
+}

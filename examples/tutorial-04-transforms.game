@@ -1,0 +1,25 @@
+# Tutorial 04: Transforms & Animation
+# =====================================
+# New concept: translate(), rotate(), scale(), and `time`
+#
+# Transforms go BEFORE the SDF generator in the pipeline.
+# They warp the coordinate space: Position -> Position.
+# `time` is a built-in — elapsed seconds since start.
+# Use sin(time) for smooth oscillation.
+
+cinematic "Transforms" {
+  # A circle sliding left and right with sin(time)
+  layer slide {
+    fn: translate(sin(time) * 0.3, 0.0) | circle(0.1) | glow(2.5) | tint(cyan)
+  }
+
+  # A star spinning continuously
+  layer spin {
+    fn: rotate(time * 1.5) | star(5, 0.15, 0.06) | glow(2.0) | tint(gold)
+  }
+
+  # A box pulsing in size
+  layer pulse {
+    fn: scale(1.0 + sin(time * 2.0) * 0.3) | box(0.1, 0.1) | glow(2.0) | tint(ember)
+  }
+}

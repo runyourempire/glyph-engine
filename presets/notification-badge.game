@@ -1,0 +1,30 @@
+# Notification Badge — pulsing red dot that activates when count > 0
+# Usage: <game-notification-badge count="3"></game-notification-badge>
+# API:   el.count = 0..N (any value > 0 activates the badge)
+# Red glow with bloom, pulses with time when active
+
+cinematic "Notification Badge" {
+  # Main badge dot — red, scales with activity
+  layer badge {
+    fn: circle(r) | glow(g) | bloom(0.3, 2.0) | tint(red)
+    r: 0.05 ~ data.count * 0.02
+    g: 0.0 ~ data.count * 1.5 + sin(time * 3.0) * data.count * 0.3
+  }
+
+  # Pulse ring — expanding ring for attention
+  layer pulse_ring {
+    fn: ring(pr, 0.008) | glow(pg) | tint(red)
+    pr: 0.1 ~ data.count * 0.03 + sin(time * 2.0) * 0.02
+    pg: 0.0 ~ data.count * 1.0
+    blend_mode: additive
+    opacity: 0.5
+  }
+
+  # Inner bright core
+  layer core {
+    fn: circle(0.04) | glow(cg) | tint(white)
+    cg: 0.0 ~ data.count * 2.0
+    blend_mode: additive
+    opacity: 0.4
+  }
+}

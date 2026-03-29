@@ -1,0 +1,31 @@
+# Timer Ring — countdown ring that shows remaining time as a depleting arc
+# Usage: <game-timer-ring remaining="0.8"></game-timer-ring>
+# API:   el.remaining = 0.0..1.0 (1.0 = full time, 0.0 = expired)
+# Color: gold when safe, ember when low (< 0.2)
+
+cinematic "Timer Ring" {
+  # Background track
+  layer track {
+    fn: ring(0.32, 0.015) | glow(0.6) | tint(charcoal)
+  }
+
+  # Remaining arc — gold fill, depletes as time runs out
+  layer remaining_arc {
+    fn: ring(0.32, 0.03) | mask_arc(arc_angle) | glow(g) | tint(gold)
+    arc_angle: 0.0 ~ data.remaining * 6.283
+    g: 2.0 ~ data.remaining * 2.0
+  }
+
+  # Urgency pulse — ember glow that appears when time is low
+  layer urgency {
+    fn: circle(0.15) | glow(ug) | tint(ember)
+    ug: 0.0 ~ (1.0 - data.remaining) * 2.5
+    blend_mode: additive
+    opacity: 0.4
+  }
+
+  # Center dot — steady reference point
+  layer center {
+    fn: circle(0.03) | glow(1.5) | tint(white)
+  }
+}

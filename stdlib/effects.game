@@ -1,0 +1,56 @@
+# GAME Standard Library — Visual Effects
+#
+# Usage: import "effects" expose electric, plasma_field, smoke, hologram, caustics
+
+cinematic "stdlib/effects" {
+
+  # Crackling electricity arcs
+  define electric(scale, intensity) {
+    voronoi(scale) | glow(intensity) | tint(cyan) | chromatic(0.01)
+  }
+
+  # Swirling plasma energy field
+  define plasma_field(scale) {
+    domain_warp(0.5, 3.0) | fbm(scale, octaves: 5, persistence: 0.55) | glow(2.5) | tint(plasma)
+  }
+
+  # Wispy smoke drifting upward
+  define smoke(scale) {
+    fbm(scale, octaves: 6, persistence: 0.45) | glow(0.5) | tint(ash) | vignette(0.4)
+  }
+
+  # Holographic display with scan lines
+  define hologram(scale) {
+    simplex(scale) | glow(2.0) | tint(cyan) | scanlines(80.0, 0.15) | chromatic(0.006)
+  }
+
+  # Overlapping wave interference pattern
+  define interference(scale) {
+    concentric_waves(1.0, 0.5, scale) | glow(2.0) | tint(frost) | bloom(0.4, 1.5)
+  }
+
+  # Underwater caustic light ripples
+  define caustics(scale) {
+    domain_warp(0.3, 2.0) | voronoi(scale) | glow(2.0) | tint(cyan)
+  }
+
+  # Television static noise
+  define static_noise(amount) {
+    fbm(50.0, octaves: 2, persistence: 0.5) | glow(1.5) | grain(amount)
+  }
+
+  # CRT retro screen overlay
+  define retro_screen() {
+    circle(0.01) | glow(1.0) | scanlines(100.0, 0.2) | grain(0.04) | chromatic(0.005) | vignette(0.5)
+  }
+
+  # Soft dreamy haze with bloom
+  define dream_haze(scale) {
+    fbm(scale, octaves: 3, persistence: 0.4) | glow(1.5) | tint(ivory) | bloom(0.2, 3.0) | vignette(0.3)
+  }
+
+  # Dark energy pulse from the void
+  define void_pulse(scale) {
+    fbm(scale, octaves: 4, persistence: 0.5) | glow(2.0) | tint(obsidian) | bloom(0.5, 2.0)
+  }
+}

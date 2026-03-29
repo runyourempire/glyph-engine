@@ -1,0 +1,46 @@
+# GAME Standard Library — Audio-Reactive Patterns
+#
+# Usage: import "audio" expose beat_ring, bass_pulse, energy_field
+
+cinematic "stdlib/audio" {
+
+  # Ring that expands with bass hits
+  define beat_ring(radius, width) {
+    ring(radius + audio.bass * 0.2, width) | glow(2.0 + audio.bass)
+  }
+
+  # Repeated bars responding to audio bands
+  define spectrum_bars(count) {
+    repeat(count) | box(0.08, 0.1 + audio.mid * 0.3) | glow(2.0 + audio.energy)
+  }
+
+  # Circle that throbs with bass energy
+  define bass_pulse(size) {
+    circle(size + audio.bass * 0.1) | glow(2.0 + audio.bass * 2.0)
+  }
+
+  # Stars scattered by treble frequencies
+  define treble_scatter(count) {
+    domain_warp(audio.treble * 0.3, 3.0) | repeat(count) | star(5, 0.05, 0.02) | glow(2.5)
+  }
+
+  # Noise field whose turbulence follows audio energy
+  define energy_field(scale) {
+    fbm(scale + audio.energy * 2.0, octaves: 4, persistence: 0.5) | glow(2.0 + audio.energy)
+  }
+
+  # Ring with arc mask driven by beat detection
+  define rhythm_ring(radius) {
+    ring(radius, 0.03) | mask_arc(audio.beat * 6.28) | glow(3.0)
+  }
+
+  # Soft glow driven by mid frequencies
+  define frequency_glow(base) {
+    circle(0.15) | glow(base + audio.mid * 3.0) | tint(cyan)
+  }
+
+  # Terrain-like noise colored by frequency bands
+  define audio_terrain(scale) {
+    fbm(scale, octaves: 5, persistence: 0.5) | shade(audio.bass * 0.5, audio.mid * 0.3, audio.treble * 0.8) | tint(violet)
+  }
+}

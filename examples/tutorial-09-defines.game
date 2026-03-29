@@ -1,0 +1,28 @@
+# Tutorial 09: Define Blocks (Macros)
+# =====================================
+# New concept: define — reusable pipeline fragments
+#
+# define creates a macro: a named pipeline you can reuse.
+# Parameters get substituted at compile time.
+# Call your define like any built-in stage in fn: pipelines.
+# This keeps code DRY when multiple layers share patterns.
+
+cinematic "Defines" {
+  # A reusable "glowing ring" macro
+  define glowing_ring(r, w, cr, cg, cb) {
+    ring(r, w) | glow(2.5) | tint(cr, cg, cb)
+  }
+
+  # Three rings with different sizes and colors, same pattern
+  layer inner {
+    fn: glowing_ring(0.15, 0.015, 0.831, 0.686, 0.216)
+  }
+
+  layer middle {
+    fn: glowing_ring(0.25, 0.02, 0.0, 1.0, 1.0)
+  }
+
+  layer outer {
+    fn: glowing_ring(0.35, 0.025, 0.541, 0.169, 0.886)
+  }
+}

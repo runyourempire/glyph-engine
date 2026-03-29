@@ -1,0 +1,56 @@
+# GAME Standard Library — Color Presets and Palettes
+#
+# Usage: import "color" expose warm_glow, cool_glow, fire, neon, sunset_gradient
+
+cinematic "stdlib/color" {
+
+  # Warm golden glow radiating from center
+  define warm_glow(intensity) {
+    circle(0.2) | glow(intensity) | tint(gold)
+  }
+
+  # Cool cyan glow with a frosty feel
+  define cool_glow(intensity) {
+    circle(0.2) | glow(intensity) | tint(frost)
+  }
+
+  # Flickering fire using layered noise
+  define fire(scale) {
+    fbm(scale, octaves: 5, persistence: 0.55) | glow(3.0) | tint(ember)
+  }
+
+  # Crystalline ice surface
+  define ice(scale) {
+    simplex(scale) | glow(2.0) | tint(frost)
+  }
+
+  # Deep ocean waves
+  define ocean(scale) {
+    fbm(scale, octaves: 4, persistence: 0.45) | glow(2.0) | tint(deep_blue)
+  }
+
+  # Bright neon sign with bloom
+  define neon(r, g, b) {
+    circle(0.15) | glow(3.0) | tint(r, g, b) | bloom(0.8, 2.0)
+  }
+
+  # Sunset gradient from deep blue to warm ember
+  define sunset_gradient() {
+    gradient(deep_blue, ember, "y")
+  }
+
+  # Aurora borealis — shimmering warped curtains
+  define northern_lights(scale) {
+    domain_warp(0.4, 2.0) | fbm(scale, octaves: 5, persistence: 0.5) | glow(2.5) | tint(cyan) | bloom(0.6, 1.5)
+  }
+
+  # Molten lava with bright fissures
+  define lava(scale) {
+    fbm(scale, octaves: 4, persistence: 0.6) | threshold(0.4) | glow(3.0) | tint(ember) | bloom(0.5, 1.5)
+  }
+
+  # Crystalline refracted surface
+  define crystal(scale) {
+    voronoi(scale) | glow(2.0) | tint(frost) | chromatic(0.008)
+  }
+}
