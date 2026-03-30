@@ -212,6 +212,10 @@ static SPECTRUM_PARAMS: &[BuiltinParam] = &[
     BuiltinParam { name: "treble", default: Some(0.0) },
 ];
 
+static PALETTE_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam { name: "name", default: None },
+];
+
 // ── Registry ─────────────────────────────────────────────
 
 pub static BUILTINS: &[BuiltinFn] = &[
@@ -283,6 +287,9 @@ pub static BUILTINS: &[BuiltinFn] = &[
 
     // Spectrum generator: Position -> Color
     BuiltinFn { name: "spectrum", params: SPECTRUM_PARAMS, input: ShaderState::Position, output: ShaderState::Color },
+
+    // Palette bridge: Sdf -> Color (IQ cosine palettes)
+    BuiltinFn { name: "palette", params: PALETTE_PARAMS, input: ShaderState::Sdf, output: ShaderState::Color },
 ];
 
 /// Look up a built-in function by name.
@@ -314,7 +321,7 @@ mod tests {
                       "vignette", "voronoi", "onion", "domain_warp",
                       "box", "round", "polygon", "curl_noise", "tonemap",
                       "scanlines", "chromatic", "saturate_color", "glitch",
-                      "concentric_waves", "displace", "spectrum"] {
+                      "concentric_waves", "displace", "spectrum", "palette"] {
             assert!(lookup(name).is_some(), "missing builtin: {name}");
         }
     }
@@ -330,6 +337,16 @@ mod tests {
         // Color processors stay in Color
         assert_eq!(lookup("tint").unwrap().input, ShaderState::Color);
         assert_eq!(lookup("tint").unwrap().output, ShaderState::Color);
+    }
+
+    #[test]
+    fn palette_is_sdf_to_color_bridge() {
+        let pal = lookup("palette").unwrap();
+        assert_eq!(pal.input, ShaderState::Sdf);
+        assert_eq!(pal.output, ShaderState::Color);
+        assert_eq!(pal.params.len(), 1);
+        assert_eq!(pal.params[0].name, "name");
+        assert!(pal.params[0].default.is_none());
     }
 
     #[test]

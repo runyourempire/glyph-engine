@@ -92,6 +92,10 @@ fn needs_simplex_helper(cinematic: &Cinematic) -> bool {
     cinematic.layers.iter().any(|l| has_stage(l, "simplex"))
 }
 
+fn needs_palette_helper(cinematic: &Cinematic) -> bool {
+    cinematic.layers.iter().any(|l| has_stage(l, "palette"))
+}
+
 // ── Built-in helper functions ───────────────────────────────────
 
 fn emit_wgsl_builtins(s: &mut String, cinematic: &Cinematic) {
@@ -133,6 +137,11 @@ fn emit_wgsl_builtins(s: &mut String, cinematic: &Cinematic) {
     // Simplex noise helpers
     if needs_simplex {
         emit_wgsl_simplex(s);
+    }
+
+    // IQ cosine palette helper
+    if needs_palette_helper(cinematic) {
+        emit_wgsl_palette_helper(s);
     }
 }
 
@@ -213,6 +222,12 @@ fn emit_wgsl_simplex(s: &mut String) {
     s.push_str("}\n\n");
 }
 
+fn emit_wgsl_palette_helper(s: &mut String) {
+    s.push_str("fn iq_palette(t: f32, a: vec3<f32>, b: vec3<f32>, c: vec3<f32>, d: vec3<f32>) -> vec3<f32> {\n");
+    s.push_str("    return a + b * cos(6.28318 * (c * t + d));\n");
+    s.push_str("}\n\n");
+}
+
 // ── Layer emission ──────────────────────────────────────────────
 
 fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
@@ -248,7 +263,7 @@ fn emit_wgsl_layer(s: &mut String, layer: &Layer, idx: usize, multi: bool) {
     }
 }
 
-// ── Stage emission: ALL 37 builtins ─────────────────────────────
+// ── Stage emission: ALL 38 builtins ─────────────────────────────
 
 fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
     let args = &stage.args;
@@ -337,6 +352,22 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let intensity = get_arg(args, "intensity", 0, "emissive");
             s.push_str(&format!("{indent}let glow_result = apply_glow(sdf_result, {intensity});\n"));
             s.push_str(&format!("{indent}var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);\n"));
+        }
+        "palette" => {
+            let name = get_arg(args, "name", 0, "palette");
+            let (a, b, c, d) = match name.as_str() {
+                "fire"    => ("vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(1.0,1.0,1.0)", "vec3<f32>(0.00,0.10,0.20)"),
+                "ice"     => ("vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(1.0,1.0,1.0)", "vec3<f32>(0.30,0.20,0.20)"),
+                "rainbow" => ("vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(1.0,1.0,1.0)", "vec3<f32>(0.00,0.33,0.67)"),
+                "ocean"   => ("vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(1.0,0.7,0.4)", "vec3<f32>(0.00,0.15,0.20)"),
+                "forest"  => ("vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(1.0,1.0,0.5)", "vec3<f32>(0.80,0.90,0.30)"),
+                "neon"    => ("vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(2.0,1.0,0.0)", "vec3<f32>(0.50,0.20,0.25)"),
+                "sunset"  => ("vec3<f32>(0.8,0.5,0.4)", "vec3<f32>(0.2,0.4,0.2)", "vec3<f32>(2.0,1.0,1.0)", "vec3<f32>(0.00,0.25,0.25)"),
+                "plasma"  => ("vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(1.0,1.0,1.0)", "vec3<f32>(0.00,0.10,0.20)"),
+                _         => ("vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(0.5,0.5,0.5)", "vec3<f32>(1.0,1.0,1.0)", "vec3<f32>(0.00,0.33,0.67)"), // default: rainbow
+            };
+            s.push_str(&format!("{indent}let pal_t = clamp(sdf_result * 0.5 + 0.5, 0.0, 1.0);\n"));
+            s.push_str(&format!("{indent}var color_result = vec4<f32>(iq_palette(pal_t, {a}, {b}, {c}, {d}), 1.0);\n"));
         }
 
         // ── Color processors: Color -> Color ────────────────
@@ -582,5 +613,31 @@ mod tests {
         let vs = vertex_shader();
         assert!(vs.contains("fn vs_main"));
         assert!(vs.contains("@vertex"));
+    }
+
+    #[test]
+    fn wgsl_palette_emits_iq_helper_and_lookup() {
+        let cin = make_cinematic(vec![
+            Stage { name: "fbm".into(), args: vec![Arg { name: None, value: Expr::Number(2.0) }] },
+            Stage { name: "palette".into(), args: vec![Arg { name: None, value: Expr::Ident("fire".into()) }] },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        // Helper function emitted
+        assert!(output.contains("fn iq_palette("), "should contain iq_palette helper");
+        // Palette lookup in fragment body
+        assert!(output.contains("pal_t"), "should contain pal_t normalization");
+        assert!(output.contains("iq_palette(pal_t"), "should call iq_palette with pal_t");
+        assert!(output.contains("color_result"), "should produce color_result");
+    }
+
+    #[test]
+    fn wgsl_palette_unknown_defaults_to_rainbow() {
+        let cin = make_cinematic(vec![
+            Stage { name: "simplex".into(), args: vec![Arg { name: None, value: Expr::Number(1.0) }] },
+            Stage { name: "palette".into(), args: vec![Arg { name: None, value: Expr::Ident("unknown_name".into()) }] },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        // Should use rainbow default coefficients (d = 0.00,0.33,0.67)
+        assert!(output.contains("0.00,0.33,0.67"), "unknown palette should default to rainbow");
     }
 }

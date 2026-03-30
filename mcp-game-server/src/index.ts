@@ -647,6 +647,132 @@ function getErrorSuggestions(errorOutput: string): LintSuggestion[] {
 }
 
 // =============================================================================
+// LLM-Friendly Error Translation
+// =============================================================================
+
+interface LLMErrorFeedback {
+  message: string;
+  fix: string;
+  hint: string;
+}
+
+/**
+ * Translate raw compiler errors into LLM-friendly feedback with actionable fixes.
+ * Returned alongside the raw error so the LLM can self-correct.
+ */
+function errorToLLMFeedback(error: string): LLMErrorFeedback {
+  const lower = error.toLowerCase();
+
+  // E001: Unknown stage function
+  if (lower.includes("unknown stage function") || lower.includes("unknown function") || lower.includes("unknown builtin")) {
+    const match = error.match(/unknown (?:stage function|function|builtin)[:\s]+['"`]?(\w+)/i);
+    const name = match?.[1] || "unknown";
+    const suggestion = BUILTIN_SUGGESTIONS[name];
+    return {
+      message: `Function '${name}' does not exist in GAME.`,
+      fix: suggestion
+        ? `Did you mean: ${suggestion}`
+        : `Check the builtin list. Available functions: circle, ring, star, box, polygon, fbm, simplex, voronoi, concentric_waves, glow, shade, emissive, tint, bloom, grain, blend, vignette, tonemap, scanlines, chromatic, saturate_color, glitch, translate, rotate, scale, twist, mirror, repeat, domain_warp, curl_noise, displace, mask_arc, threshold, onion, round, gradient, spectrum.`,
+      hint: `Use the list_primitives tool to see all 37 builtins with their exact parameter signatures.`,
+    };
+  }
+
+  // E002: Type mismatch in pipeline
+  if (lower.includes("type mismatch") || lower.includes("state mismatch") || lower.includes("expected position") || lower.includes("expected sdf") || lower.includes("expected color")) {
+    return {
+      message: `Pipeline type error: stages are in the wrong order.`,
+      fix: `Pipeline must flow left-to-right through types: Position transforms (translate, rotate, scale) -> SDF generators (circle, ring, star) -> SDF modifiers (onion, mask_arc) -> Bridges (glow, shade, emissive) -> Color processors (tint, bloom, vignette). You cannot put a position transform after an SDF generator, or a color processor before a bridge.`,
+      hint: `Common fix: move translate/rotate/scale BEFORE circle/ring/star. Move tint/bloom/vignette AFTER glow/shade. Every chain needs a bridge (glow, shade, or emissive) between SDF and Color stages.`,
+    };
+  }
+
+  // E003: Parse error — unexpected token
+  if (lower.includes("unexpected token") || lower.includes("parse error") || lower.includes("expected")) {
+    // Check for specific sub-patterns
+    if (lower.includes("expected `cinematic`") || lower.includes("expected cinematic")) {
+      return {
+        message: `Missing cinematic wrapper.`,
+        fix: `Every .game file must start with: cinematic "Title" { ... }`,
+        hint: `Wrap all layers, arcs, and resonate blocks inside a cinematic block.`,
+      };
+    }
+    if (lower.includes("expected `{`") || lower.includes("expected `}`")) {
+      return {
+        message: `Mismatched or missing braces.`,
+        fix: `Check that every opening { has a matching closing }. Common spots: cinematic block, layer blocks, arc blocks, resonate blocks.`,
+        hint: `Indent your code to visually verify brace matching.`,
+      };
+    }
+    if (lower.includes("expected `->`")) {
+      return {
+        message: `Missing arrow operator in resonate or arc block.`,
+        fix: `Resonate syntax: source -> target.field * weight. Arc transition syntax: param -> value ease(name) over Ns.`,
+        hint: `Example resonate: fire -> ice.brightness * 0.3. Example arc: radius -> 0.5 ease(expo_out) over 2s.`,
+      };
+    }
+    return {
+      message: `Syntax error: unexpected token.`,
+      fix: `Check for: missing commas between function parameters, unclosed braces, pipe chain syntax errors, or missing colons after parameter names.`,
+      hint: `Pipe chains use: fn: stage() | stage(). Modulation uses: param: base ~ signal * scale. The ~ expression must NOT contain | operators.`,
+    };
+  }
+
+  // E006: Unknown parameter name
+  if (lower.includes("unknown parameter") || lower.includes("no parameter named")) {
+    const paramMatch = error.match(/(?:unknown parameter|no parameter named)\s+['"`]?(\w+)/i);
+    const param = paramMatch?.[1] || "unknown";
+    return {
+      message: `Parameter '${param}' is not recognized by this function.`,
+      fix: `Use the list_primitives tool to check the exact parameter names for each builtin.`,
+      hint: `Parameters are positional by default. Named parameters use key: value syntax inside the function call, e.g., fbm(scale: 2.0, octaves: 5).`,
+    };
+  }
+
+  // E007: Too many arguments
+  if (lower.includes("too many arguments") || lower.includes("too many params")) {
+    return {
+      message: `Too many arguments passed to a function.`,
+      fix: `Check the function signature. Most builtins take 1-4 parameters. Use list_primitives to see exact counts.`,
+      hint: `Common overcounts: circle(radius) takes 1 param, ring(radius, width) takes 2, star(points, radius, inner) takes 3, fbm(scale, octaves, persistence, lacunarity) takes 4.`,
+    };
+  }
+
+  // E010: Duplicate layer name
+  if (lower.includes("duplicate layer") || lower.includes("layer name already")) {
+    return {
+      message: `Duplicate layer name in cinematic block.`,
+      fix: `Every layer must have a unique name within its cinematic block. Rename one of the duplicate layers.`,
+      hint: `Use descriptive names: layer bg, layer ring_inner, layer ring_outer, layer core.`,
+    };
+  }
+
+  // Pipe operator in modulation
+  if (error.includes("|") && (lower.includes("modulation") || lower.includes("~"))) {
+    return {
+      message: `Pipe operator found in modulation expression.`,
+      fix: `The | operator is ONLY for pipeline chains (fn: a() | b()). Inside ~ modulation expressions, use function call syntax: clamp(value, 0.0, 1.0) instead of value | clamp(0, 1).`,
+      hint: `Example: radius: 0.3 ~ clamp(audio.bass * 2.0, 0.0, 1.0)`,
+    };
+  }
+
+  // Circular import
+  if (lower.includes("circular import") || lower.includes("import cycle")) {
+    return {
+      message: `Circular import detected.`,
+      fix: `File A imports File B which imports File A. Break the cycle by extracting shared defines into a third file.`,
+      hint: `Use: import "stdlib/module" expose func1, func2 for standard library imports.`,
+    };
+  }
+
+  // Generic fallback
+  return {
+    message: error,
+    fix: `Check the GAME language reference for syntax rules. Use the list_primitives tool for available functions.`,
+    hint: `Pipeline order: Position->Position | Position->Sdf | Sdf->Sdf | Sdf->Color | Color->Color. Every layer needs a name. Every cinematic needs a name.`,
+  };
+}
+
+// =============================================================================
 // Server Setup
 // =============================================================================
 
@@ -1028,11 +1154,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
             // Try to extract structured error info
             const errorLineMatch = errorOutput.match(/(?:line\s+(\d+)|\[(\d+):(\d+)\]|:(\d+):(\d+))/);
+
+            // Translate raw error into LLM-friendly guidance
+            const llmFeedback = errorToLLMFeedback(errorOutput);
+
             const errorInfo: Record<string, unknown> = {
               valid: false,
               error: errorOutput,
               errorLine: errorLineMatch ? parseInt(errorLineMatch[1] || errorLineMatch[2] || errorLineMatch[4]) : null,
               errorColumn: errorLineMatch ? parseInt(errorLineMatch[3] || errorLineMatch[5]) || null : null,
+              llmFeedback,
               warnings,
               suggestions: [
                 ...suggestions,

@@ -122,6 +122,11 @@ fn emit_glsl_builtins(s: &mut String, cinematic: &Cinematic) {
     if needs_voronoi {
         emit_glsl_voronoi(s);
     }
+
+    // IQ cosine palette helper
+    if cinematic.layers.iter().any(|l| has_stage(l, "palette")) {
+        emit_glsl_palette_helper(s);
+    }
 }
 
 fn emit_glsl_noise_helpers(s: &mut String) {
@@ -211,6 +216,12 @@ fn emit_glsl_voronoi(s: &mut String) {
     s.push_str("        }\n");
     s.push_str("    }\n");
     s.push_str("    return sqrt(d);\n");
+    s.push_str("}\n\n");
+}
+
+fn emit_glsl_palette_helper(s: &mut String) {
+    s.push_str("vec3 iq_palette(float t, vec3 a, vec3 b, vec3 c, vec3 d){\n");
+    s.push_str("    return a + b * cos(6.28318 * (c * t + d));\n");
     s.push_str("}\n\n");
 }
 
@@ -407,6 +418,22 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let intensity = get_arg(args, "intensity", 0, "emissive");
             s.push_str(&format!("{indent}float glow_result = apply_glow(sdf_result, {intensity});\n"));
             s.push_str(&format!("{indent}vec4 color_result = vec4(vec3(glow_result), glow_result);\n"));
+        }
+        "palette" => {
+            let name = get_arg(args, "name", 0, "palette");
+            let (a, b, c, d) = match name.as_str() {
+                "fire"    => ("vec3(0.5,0.5,0.5)", "vec3(0.5,0.5,0.5)", "vec3(1.0,1.0,1.0)", "vec3(0.00,0.10,0.20)"),
+                "ice"     => ("vec3(0.5,0.5,0.5)", "vec3(0.5,0.5,0.5)", "vec3(1.0,1.0,1.0)", "vec3(0.30,0.20,0.20)"),
+                "rainbow" => ("vec3(0.5,0.5,0.5)", "vec3(0.5,0.5,0.5)", "vec3(1.0,1.0,1.0)", "vec3(0.00,0.33,0.67)"),
+                "ocean"   => ("vec3(0.5,0.5,0.5)", "vec3(0.5,0.5,0.5)", "vec3(1.0,0.7,0.4)", "vec3(0.00,0.15,0.20)"),
+                "forest"  => ("vec3(0.5,0.5,0.5)", "vec3(0.5,0.5,0.5)", "vec3(1.0,1.0,0.5)", "vec3(0.80,0.90,0.30)"),
+                "neon"    => ("vec3(0.5,0.5,0.5)", "vec3(0.5,0.5,0.5)", "vec3(2.0,1.0,0.0)", "vec3(0.50,0.20,0.25)"),
+                "sunset"  => ("vec3(0.8,0.5,0.4)", "vec3(0.2,0.4,0.2)", "vec3(2.0,1.0,1.0)", "vec3(0.00,0.25,0.25)"),
+                "plasma"  => ("vec3(0.5,0.5,0.5)", "vec3(0.5,0.5,0.5)", "vec3(1.0,1.0,1.0)", "vec3(0.00,0.10,0.20)"),
+                _         => ("vec3(0.5,0.5,0.5)", "vec3(0.5,0.5,0.5)", "vec3(1.0,1.0,1.0)", "vec3(0.00,0.33,0.67)"), // default: rainbow
+            };
+            s.push_str(&format!("{indent}float pal_t = clamp(sdf_result * 0.5 + 0.5, 0.0, 1.0);\n"));
+            s.push_str(&format!("{indent}vec4 color_result = vec4(iq_palette(pal_t, {a}, {b}, {c}, {d}), 1.0);\n"));
         }
 
         // ── Color Processors: Color -> Color ─────────────────
@@ -671,6 +698,21 @@ mod tests {
         assert!(output.contains("vec4 final_color"));
         assert!(output.contains("fragColor = final_color"));
         assert!(!output.contains("return final_color"), "GLSL must NOT return in void main");
+    }
+
+    #[test]
+    fn glsl_palette_emits_iq_helper_and_lookup() {
+        let cin = make_cinematic(vec![
+            Stage { name: "fbm".into(), args: vec![Arg { name: None, value: Expr::Number(2.0) }] },
+            Stage { name: "palette".into(), args: vec![Arg { name: None, value: Expr::Ident("fire".into()) }] },
+        ]);
+        let output = generate_fragment(&cin, &[]);
+        // Helper function emitted with C-style params
+        assert!(output.contains("vec3 iq_palette(float t, vec3 a, vec3 b, vec3 c, vec3 d)"), "C-style iq_palette helper");
+        // Palette lookup in fragment body
+        assert!(output.contains("float pal_t = clamp("), "should use float, not let");
+        assert!(output.contains("iq_palette(pal_t"), "should call iq_palette with pal_t");
+        assert!(output.contains("vec4 color_result"), "should produce color_result");
     }
 
     #[test]

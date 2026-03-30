@@ -86,12 +86,11 @@ react {
 ```
 
 ### Adding cross-layer feedback
-Use a `resonate` block:
+Use a `resonate` block (syntax: `source -> target.field * weight`):
 ```game
 resonate {
-  fire.freq ~ ice.clarity * 2.0
-  ice.density ~ fire.intensity * -1.5
-  damping: 0.96
+  fire -> ice.clarity * 2.0
+  ice -> fire.intensity * -1.5
 }
 ```
 

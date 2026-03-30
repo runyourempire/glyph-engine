@@ -162,6 +162,30 @@ mod tests {
     }
 
     #[test]
+    fn palette_pipeline_fbm_to_color() {
+        let stages = vec![stage("fbm"), stage("palette")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn palette_pipeline_with_post_processing() {
+        let stages = vec![stage("voronoi"), stage("palette"), stage("tint")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ShaderState::Color);
+    }
+
+    #[test]
+    fn palette_rejects_position_input() {
+        // palette expects Sdf, not Position
+        let stages = vec![stage("palette")];
+        let result = validate_pipeline(&stages);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn type_mismatch_after_color_stage() {
         // circle -> glow -> tint puts pipeline in Color state.
         // Then 'glow' expects Sdf — should error with previous stage info.
