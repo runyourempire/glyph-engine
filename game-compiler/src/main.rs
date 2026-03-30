@@ -1,368 +1,272 @@
-use std::fs;
 use std::path::PathBuf;
-use std::process;
 
-use clap::{Parser, Subcommand};
+use anyhow::{Context, Result};
+use clap::{Parser, Subcommand, ValueEnum};
 
-#[derive(Parser)]
-#[command(name = "game", version = "0.2.0")]
-#[command(about = "GAME — Generative Animation Matrix Engine")]
+use game_compiler::{CompileConfig, OutputFormat, ShaderTarget};
+
+/// GAME compiler — compiles .game DSL to WebGPU shaders + Web Components.
+#[derive(Parser, Debug)]
+#[command(name = "game", version, about)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Command,
+
+    /// Optimization level: 0 = none, 1 = default, 2 = aggressive.
+    #[arg(global = true, long, short = 'O', default_value = "1")]
+    optimize: u8,
 }
 
-#[derive(Subcommand)]
-enum Commands {
-    /// Compile a .game file to WGSL, HTML, or Web Component
+#[derive(Subcommand, Debug)]
+enum Command {
+    /// Compile .game file(s) to output.
+    Build {
+        /// Input .game file(s).
+        #[arg(required = true)]
+        input: Vec<PathBuf>,
+
+        /// Output directory.
+        #[arg(short, long, default_value = "dist")]
+        output_dir: PathBuf,
+
+        /// Output format.
+        #[arg(short, long, default_value = "component")]
+        format: FormatArg,
+
+        /// Shader target.
+        #[arg(short, long, default_value = "both")]
+        target: TargetArg,
+    },
+
+    /// Compile a .game file and print output to stdout.
+    ///
+    /// Used by the MCP server and scripts that capture compiler output.
     Compile {
-        /// Input .game file
-        file: PathBuf,
+        /// Input .game file.
+        input: PathBuf,
 
-        /// Output a self-contained ES module Web Component
-        #[arg(long)]
-        component: bool,
-
-        /// Output a self-contained HTML file
+        /// Output as self-contained HTML.
         #[arg(long)]
         html: bool,
 
-        /// Custom element tag name (default: derived from filename)
+        /// Output as ES module Web Component.
+        #[arg(long)]
+        component: bool,
+
+        /// Custom element tag name (with --component).
         #[arg(long)]
         tag: Option<String>,
 
-        /// Write output to file instead of stdout
-        #[arg(short)]
-        o: Option<PathBuf>,
-
-        /// Additional library search paths for imports (e.g., stdlib directory)
-        #[arg(long = "lib")]
-        lib_dirs: Vec<PathBuf>,
+        /// Print AST instead of compiled output.
+        #[arg(long)]
+        emit_ast: bool,
     },
 
-    /// Start a hot-reload dev server for a .game file
-    Dev {
-        /// Input .game file
-        file: PathBuf,
+    /// Check .game files for errors without producing output.
+    Check {
+        /// Input .game file(s).
+        #[arg(required = true)]
+        input: Vec<PathBuf>,
+    },
 
-        /// Server port
-        #[arg(long, default_value_t = 3333)]
+    /// Launch the hot-reload dev server.
+    Dev {
+        /// Input .game file(s).
+        #[arg(required = true)]
+        input: Vec<PathBuf>,
+
+        /// Dev server port.
+        #[arg(short, long, default_value_t = 3333)]
         port: u16,
     },
-
-    /// Batch compile all .game files in a directory
-    Build {
-        /// Input directory containing .game files
-        dir: PathBuf,
-
-        /// Output directory for compiled files
-        #[arg(long, default_value = "dist")]
-        outdir: PathBuf,
-
-        /// Additional library search paths for imports (e.g., stdlib directory)
-        #[arg(long = "lib")]
-        lib_dirs: Vec<PathBuf>,
-    },
-
-    /// Run visual snapshot tests against .game files
-    #[cfg(feature = "snapshot")]
-    Test {
-        /// .game files to test
-        files: Vec<PathBuf>,
-
-        /// Similarity threshold (0-100, default 99)
-        #[arg(long, default_value_t = 99.0)]
-        threshold: f64,
-
-        /// Update reference snapshots
-        #[arg(long)]
-        update: bool,
-
-        /// Render size in pixels
-        #[arg(long, default_value_t = 256)]
-        size: u32,
-
-        /// Time value for rendering (seconds)
-        #[arg(long, default_value_t = 0.5)]
-        time: f32,
-    },
 }
 
-fn main() {
+#[derive(Debug, Clone, ValueEnum)]
+enum FormatArg {
+    Component,
+    Html,
+    Standalone,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+enum TargetArg {
+    Webgpu,
+    Webgl2,
+    Both,
+}
+
+fn main() -> Result<()> {
     let cli = Cli::parse();
+    let opt_level = cli.optimize;
 
     match cli.command {
-        Commands::Compile {
-            file,
-            component,
+        Command::Build {
+            input,
+            output_dir,
+            format,
+            target,
+        } => {
+            let config = CompileConfig {
+                output_format: match format {
+                    FormatArg::Component => OutputFormat::Component,
+                    FormatArg::Html => OutputFormat::Html,
+                    FormatArg::Standalone => OutputFormat::Standalone,
+                },
+                target: match target {
+                    TargetArg::Webgpu => ShaderTarget::WebGpu,
+                    TargetArg::Webgl2 => ShaderTarget::WebGl2,
+                    TargetArg::Both => ShaderTarget::Both,
+                },
+            };
+
+            std::fs::create_dir_all(&output_dir)
+                .with_context(|| format!("create output dir: {}", output_dir.display()))?;
+
+            for path in &input {
+                eprintln!("[game] compiling {}", path.display());
+                let source = std::fs::read_to_string(path)
+                    .with_context(|| format!("read: {}", path.display()))?;
+
+                let results = game_compiler::compile(&source, &config)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+                for output in &results {
+                    let stem = &output.name;
+
+                    // Write JS component
+                    let js_path = output_dir.join(format!("{stem}.js"));
+                    std::fs::write(&js_path, &output.js)
+                        .with_context(|| format!("write: {}", js_path.display()))?;
+                    eprintln!("[game] wrote {}", js_path.display());
+
+                    // Write HTML if generated
+                    if let Some(html) = &output.html {
+                        let html_path = output_dir.join(format!("{stem}.html"));
+                        std::fs::write(&html_path, html)
+                            .with_context(|| format!("write: {}", html_path.display()))?;
+                        eprintln!("[game] wrote {}", html_path.display());
+                    }
+
+                    // Write shader files
+                    if let Some(wgsl) = &output.wgsl {
+                        let wgsl_path = output_dir.join(format!("{stem}.wgsl"));
+                        std::fs::write(&wgsl_path, wgsl)
+                            .with_context(|| format!("write: {}", wgsl_path.display()))?;
+                    }
+                    if let Some(glsl) = &output.glsl {
+                        let glsl_path = output_dir.join(format!("{stem}.frag"));
+                        std::fs::write(&glsl_path, glsl)
+                            .with_context(|| format!("write: {}", glsl_path.display()))?;
+                    }
+                }
+            }
+        }
+        Command::Compile {
+            input,
             html,
-            tag,
-            o,
-            lib_dirs,
+            component,
+            tag: _tag,
+            emit_ast,
         } => {
-            let source = match fs::read_to_string(&file) {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("error: cannot read '{}': {e}", file.display());
-                    process::exit(1);
-                }
-            };
+            let source = std::fs::read_to_string(&input)
+                .with_context(|| format!("read: {}", input.display()))?;
 
-            // Use compile_file for import resolution, falling back to compile_full
-            let full_output = match game_compiler::compile_file(&file, &lib_dirs) {
-                Ok(o) => o,
-                Err(e) => {
-                    print_error(&e, &source);
-                    process::exit(1);
-                }
-            };
-
-            // Print warnings to stderr
-            for w in &full_output.warnings {
-                eprintln!("warning: {w}");
+            // --emit-ast: print AST and exit
+            if emit_ast {
+                let program = game_compiler::compile_to_ast(&source)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                println!("{program:#?}");
+                return Ok(());
             }
 
-            let (output_str, kind) = if component {
-                let tag_name = tag.unwrap_or_else(|| game_compiler::derive_tag_name(&file));
-                (game_compiler::runtime::wrap_web_component(&full_output, &tag_name), "component")
-            } else if html {
-                (game_compiler::runtime::wrap_html_full(&full_output), "HTML")
+            let format = if html {
+                OutputFormat::Html
+            } else if component {
+                OutputFormat::Component
             } else {
-                (full_output.wgsl.clone(), "WGSL")
+                OutputFormat::Component // default: WGSL via component output
             };
 
-            if let Some(out_path) = o {
-                match fs::write(&out_path, &output_str) {
-                    Ok(()) => {
-                        eprintln!(
-                            "wrote {kind} to {} ({} bytes)",
-                            out_path.display(),
-                            output_str.len()
-                        );
+            let config = CompileConfig {
+                output_format: format,
+                target: ShaderTarget::Both,
+            };
+
+            let results = game_compiler::compile(&source, &config)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+            for output in &results {
+                if html {
+                    if let Some(h) = &output.html {
+                        print!("{h}");
                     }
-                    Err(e) => {
-                        eprintln!("error: cannot write '{}': {e}", out_path.display());
-                        process::exit(1);
+                } else if component {
+                    print!("{}", output.js);
+                } else {
+                    // Default: print WGSL
+                    if let Some(wgsl) = &output.wgsl {
+                        print!("{wgsl}");
                     }
                 }
-            } else {
-                print!("{output_str}");
             }
         }
+        Command::Check { input } => {
+            let mut had_errors = false;
 
-        Commands::Dev { file, port } => {
-            let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
-            rt.block_on(async {
-                if let Err(e) = game_compiler::server::run_dev_server(file, port).await {
-                    eprintln!("error: dev server failed: {e}");
-                    process::exit(1);
-                }
-            });
-        }
+            for path in &input {
+                let source = std::fs::read_to_string(path)
+                    .with_context(|| format!("read: {}", path.display()))?;
 
-        #[cfg(feature = "snapshot")]
-        Commands::Test {
-            files,
-            threshold,
-            update,
-            size,
-            time,
-        } => {
-            let renderer = match game_compiler::snapshot::SnapshotRenderer::new() {
-                Ok(r) => r,
-                Err(e) => {
-                    eprintln!("error: failed to initialize GPU: {e}");
-                    process::exit(1);
-                }
-            };
-
-            let mut passed = 0;
-            let mut failed = 0;
-            let mut updated = 0;
-
-            for file in &files {
-                let source = match fs::read_to_string(file) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        eprintln!("  {} ... READ ERROR: {e}", file.display());
-                        failed += 1;
-                        continue;
-                    }
-                };
-
-                let output = match game_compiler::compile_full(&source) {
-                    Ok(o) => o,
-                    Err(e) => {
-                        eprintln!("  {} ... COMPILE ERROR: {e}", file.display());
-                        failed += 1;
-                        continue;
-                    }
-                };
-
-                let pixels = match renderer.render_frame(&output, size, size, time) {
+                // Phase 1: lex + parse
+                let program = match game_compiler::compile_to_ast(&source) {
                     Ok(p) => p,
                     Err(e) => {
-                        eprintln!("  {} ... RENDER ERROR: {e}", file.display());
-                        failed += 1;
+                        eprintln!(
+                            "{}",
+                            game_compiler::error::render_with_source(&e, &source)
+                        );
+                        had_errors = true;
                         continue;
                     }
                 };
 
-                let snap_path = file.with_extension("game.snap.png");
-                let diff_path = file.with_extension("game.diff.png");
-
-                if update {
-                    if let Err(e) =
-                        game_compiler::snapshot::save_png(&pixels, size, size, &snap_path)
-                    {
-                        eprintln!("  {} ... SAVE ERROR: {e}", file.display());
-                        failed += 1;
-                    } else {
+                // Phase 2: codegen validation (pipeline type-flow, cast types)
+                for cinematic in &program.cinematics {
+                    if let Err(e) = game_compiler::codegen::validate(cinematic) {
                         eprintln!(
-                            "  {} ... UPDATED ({}x{})",
-                            file.display(),
-                            size,
-                            size
+                            "{}",
+                            game_compiler::error::render_with_source(&e, &source)
                         );
-                        updated += 1;
+                        had_errors = true;
                     }
-                    continue;
                 }
 
-                if !snap_path.exists() {
-                    eprintln!(
-                        "  {} ... NO REFERENCE (run with --update)",
-                        file.display()
-                    );
-                    failed += 1;
-                    continue;
+                // Phase 3: semantic checks (warnings)
+                let warnings = game_compiler::check(&program);
+                for w in &warnings {
+                    eprintln!("warning: {}: {w}", path.display());
                 }
 
-                let (ref_pixels, ref_w, ref_h) =
-                    match game_compiler::snapshot::load_png(&snap_path) {
-                        Ok(r) => r,
-                        Err(e) => {
-                            eprintln!("  {} ... REF ERROR: {e}", file.display());
-                            failed += 1;
-                            continue;
-                        }
-                    };
-
-                if ref_w != size || ref_h != size {
-                    eprintln!(
-                        "  {} ... SIZE MISMATCH (ref {}x{}, actual {}x{})",
-                        file.display(),
-                        ref_w,
-                        ref_h,
-                        size,
-                        size
-                    );
-                    failed += 1;
-                    continue;
-                }
-
-                let similarity =
-                    game_compiler::snapshot::compare_pixels(&pixels, &ref_pixels, 2);
-
-                if similarity >= threshold {
-                    eprintln!(
-                        "  {} ... PASS ({:.1}%)",
-                        file.display(),
-                        similarity
-                    );
-                    passed += 1;
-                    // Clean up any old diff
-                    let _ = fs::remove_file(&diff_path);
-                } else {
-                    eprintln!(
-                        "  {} ... FAIL ({:.1}%) -- diff: {}",
-                        file.display(),
-                        similarity,
-                        diff_path.display()
-                    );
-                    let diff_pixels =
-                        game_compiler::snapshot::generate_diff(&pixels, &ref_pixels, size, size);
-                    let _ =
-                        game_compiler::snapshot::save_png(&diff_pixels, size, size, &diff_path);
-                    failed += 1;
+                if !had_errors && warnings.is_empty() {
+                    eprintln!("[game] {}: ok", path.display());
                 }
             }
 
-            eprintln!();
-            if update {
-                eprintln!("{updated} snapshots updated, {failed} errors");
-            } else {
-                eprintln!(
-                    "{passed} passed, {failed} failed (threshold: {threshold}%)"
-                );
-            }
-            if failed > 0 {
-                process::exit(1);
+            if had_errors {
+                std::process::exit(1);
             }
         }
-
-        Commands::Build { dir, outdir, lib_dirs } => {
-            if !dir.is_dir() {
-                eprintln!("error: '{}' is not a directory", dir.display());
-                process::exit(1);
-            }
-
-            fs::create_dir_all(&outdir).unwrap_or_else(|e| {
-                eprintln!("error: cannot create output dir '{}': {e}", outdir.display());
-                process::exit(1);
-            });
-
-            let mut compiled = 0;
-            let mut errors = 0;
-
-            let entries: Vec<_> = match fs::read_dir(&dir) {
-                Ok(rd) => rd,
-                Err(e) => {
-                    eprintln!("error: cannot read '{}': {e}", dir.display());
-                    process::exit(1);
-                }
-            }
-                .filter_map(|e| e.ok())
-                .filter(|e| {
-                    e.path()
-                        .extension()
-                        .map(|ext| ext == "game")
-                        .unwrap_or(false)
-                })
-                .collect();
-
-            for entry in entries {
-                let path = entry.path();
-                let tag = game_compiler::derive_tag_name(&path);
-                let out_file = outdir.join(format!("{tag}.js"));
-
-                match game_compiler::compile_file(&path, &lib_dirs) {
-                    Ok(full) => {
-                        for w in &full.warnings {
-                            eprintln!("  warning: {}: {w}", path.display());
-                        }
-                        let js = game_compiler::runtime::wrap_web_component(&full, &tag);
-                        fs::write(&out_file, &js).unwrap_or_else(|e| {
-                            eprintln!("  error: cannot write {}: {e}", out_file.display());
-                        });
-                        eprintln!("  {} -> {} ({} bytes)", path.display(), out_file.display(), js.len());
-                        compiled += 1;
-                    }
-                    Err(e) => {
-                        eprintln!("  error: {}: {e}", path.display());
-                        errors += 1;
-                    }
-                }
-            }
-
-            eprintln!("built {compiled} components ({errors} errors)");
-            if errors > 0 {
-                process::exit(1);
-            }
+        Command::Dev { input, port } => {
+            let path = input.first().context("need at least one .game file")?;
+            let rt = tokio::runtime::Runtime::new()?;
+            rt.block_on(game_compiler::server::run_dev_server(path.clone(), port))
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
         }
     }
-}
 
-fn print_error(e: &game_compiler::error::GameError, source: &str) {
-    eprintln!("{}", game_compiler::error::render_with_source(e, source));
+    // Note: opt_level is available for future optimization-level-dependent behavior.
+    // Currently the optimizer always runs at level 1 inside compile().
+    let _ = opt_level;
+
+    Ok(())
 }

@@ -214,7 +214,7 @@ static SPECTRUM_PARAMS: &[BuiltinParam] = &[
 
 // ── Registry ─────────────────────────────────────────────
 
-static BUILTINS: &[BuiltinFn] = &[
+pub static BUILTINS: &[BuiltinFn] = &[
     // SDF generators: Position -> Sdf
     BuiltinFn { name: "circle",  params: CIRCLE_PARAMS,  input: ShaderState::Position, output: ShaderState::Sdf },
     BuiltinFn { name: "ring",    params: RING_PARAMS,    input: ShaderState::Position, output: ShaderState::Sdf },

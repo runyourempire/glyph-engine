@@ -69,6 +69,48 @@ pub fn compile_to_ast(source: &str) -> Result<ast::Program, CompileError> {
     parser.parse()
 }
 
+/// Convenience alias for `compile_to_ast`.
+pub use compile_to_ast as parse;
+
+/// Lex source into tokens. Useful for syntax highlighting and tooling.
+pub fn lex(source: &str) -> Result<Vec<(token::Token, usize, usize)>, CompileError> {
+    lexer::lex(source)
+}
+
+/// Run semantic analysis on a parsed program. Returns warnings (not errors).
+///
+/// Checks define body validity and builtin arity without performing codegen.
+pub fn check(program: &ast::Program) -> Vec<String> {
+    let mut warnings = Vec::new();
+    for cin in &program.cinematics {
+        warnings.extend(optimize::check_define_semantics(cin));
+        warnings.extend(optimize::check_arity(cin));
+    }
+    warnings
+}
+
+/// Builtin function metadata (name, type signature, parameters).
+#[derive(Debug, Clone)]
+pub struct BuiltinInfo {
+    pub name: &'static str,
+    pub input: String,
+    pub output: String,
+    pub params: Vec<String>,
+}
+
+/// List all available builtin functions with their type signatures.
+pub fn list_builtins() -> Vec<BuiltinInfo> {
+    builtins::BUILTINS
+        .iter()
+        .map(|b| BuiltinInfo {
+            name: b.name,
+            input: format!("{}", b.input),
+            output: format!("{}", b.output),
+            params: b.params.iter().map(|p| p.name.to_string()).collect(),
+        })
+        .collect()
+}
+
 /// Full compile pipeline: lex → parse → validate → codegen → runtime output.
 ///
 /// Returns one `CompileOutput` per cinematic in the program.
