@@ -1,0 +1,15 @@
+// Score Fingerprint — 24x24 unique visual from PASIFA relevance vector.
+// Uses 4 params as seeds for a procedural hash-grid pattern.
+
+cinematic "score-fingerprint" {
+  layer config {
+    relevance: 0.5
+    freshness: 0.5
+    depth: 0.5
+    confidence: 0.5
+  }
+
+  layer grid {
+    star(0.3, 6) | glow(1.0) | grain(0.8) | tint(0.83, 0.69, 0.22)
+  }
+}

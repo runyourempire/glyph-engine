@@ -1,0 +1,10 @@
+cinematic "n-body" {
+  gravity {
+    damping: 0.995,
+    bounds: reflect
+  }
+
+  layer stars {
+    circle(0.005) | glow(1.0) | tint(0.8, 0.9, 1.0)
+  }
+}

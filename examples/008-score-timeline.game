@@ -1,0 +1,17 @@
+cinematic "scored-viz" {
+  layer ring_viz {
+    ring(0.4, 0.02) | glow(2.0) | tint(0.8, 0.6, 1.0)
+  }
+
+  score tempo(120) {
+    motif rise {
+      ring_viz.scale: 0.5 -> 2.0 over 4bars ease_in
+    }
+    motif fall {
+      ring_viz.scale: 2.0 -> 0.5 over 2bars
+    }
+    phrase build = rise | fall
+    section verse = build
+    arrange: verse verse
+  }
+}

@@ -1,42 +1,66 @@
+//! Cinematic analysis: define expansion and signal detection.
+//!
+//! This module provides:
+//! - `expand_defines`: macro expansion for `define` blocks in layer pipelines
+//! - `cinematic_uses_audio` / `cinematic_uses_mouse`: signal detection across
+//!   an entire cinematic (params, layer bodies, lenses, react blocks)
+
 use std::collections::HashMap;
 
 use crate::ast::*;
-use crate::error::{GameError, Result};
+use crate::codegen::expr;
+use crate::error::CompileError;
 
-use super::RenderMode;
-
-/// Maximum define expansion depth (prevents infinite recursion in nested defines).
+/// Maximum depth for nested define expansion (prevents infinite recursion).
 const MAX_DEFINE_DEPTH: usize = 16;
 
-// ── Define expansion ──────────────────────────────────────────────────
-
-/// Expand all define calls in pipe chains (macro-style inlining).
-/// Mutates the cinematic in place, replacing define calls with their
-/// expanded bodies after parameter substitution.
+/// Expand all define calls in layer pipelines.
 ///
-/// Supports nested defines: loops until no more expansions happen (max depth 16).
-/// Returns an error if arity mismatches or expansion depth is exceeded.
-pub(super) fn expand_defines(cinematic: &mut Cinematic) -> Result<()> {
-    if cinematic.defines.is_empty() {
-        return Ok(());
-    }
-
-    let defines: HashMap<String, DefineBlock> = cinematic.defines.iter()
+/// Scans each layer's `Pipeline` body for stage names that match a `define` block.
+/// When found, replaces the call with the define's body stages, substituting
+/// formal parameters with the actual arguments provided at the call site.
+///
+/// Repeats up to `MAX_DEFINE_DEPTH` passes to handle nested defines.
+pub fn expand_defines(cinematic: &mut Cinematic) -> Result<(), CompileError> {
+    // Build lookup: define name -> DefineBlock
+    let defines: HashMap<String, DefineBlock> = cinematic
+        .defines
+        .iter()
         .map(|d| (d.name.clone(), d.clone()))
         .collect();
 
+    if defines.is_empty() {
+        return Ok(());
+    }
+
     for layer in &mut cinematic.layers {
-        if let Some(chain) = &mut layer.fn_chain {
-            // Loop until no more expansions (supports nested defines)
+        if let LayerBody::Pipeline(ref mut stages) = layer.body {
             for depth in 0..MAX_DEFINE_DEPTH {
-                let expanded = expand_chain_once(chain, &defines)?;
+                let mut expanded = false;
+                let mut new_stages = Vec::with_capacity(stages.len());
+
+                for stage in stages.iter() {
+                    if let Some(def) = defines.get(&stage.name) {
+                        // Substitute formal params with actual args
+                        let substituted = substitute_define(def, &stage.args);
+                        new_stages.extend(substituted);
+                        expanded = true;
+                    } else {
+                        new_stages.push(stage.clone());
+                    }
+                }
+
+                *stages = new_stages;
+
                 if !expanded {
                     break;
                 }
+
                 if depth == MAX_DEFINE_DEPTH - 1 {
-                    return Err(GameError::parse(&format!(
-                        "define expansion exceeded maximum depth of {MAX_DEFINE_DEPTH} — \
-                         check for recursive defines"
+                    return Err(CompileError::codegen(format!(
+                        "define expansion exceeded max depth ({MAX_DEFINE_DEPTH}) \
+                         in layer '{}' — possible recursive define",
+                        layer.name
                     )));
                 }
             }
@@ -46,232 +70,614 @@ pub(super) fn expand_defines(cinematic: &mut Cinematic) -> Result<()> {
     Ok(())
 }
 
-/// Expand one pass of define calls in a pipe chain.
-/// Returns `true` if any expansion occurred (caller should loop for nested defines).
-fn expand_chain_once(chain: &mut PipeChain, defines: &HashMap<String, DefineBlock>) -> Result<bool> {
-    let mut new_stages = Vec::new();
-    let mut expanded_any = false;
-
-    for stage in &chain.stages {
-        if let Some(define) = defines.get(&stage.name) {
-            // Arity check: number of args must match number of formal params
-            let actual_count = stage.args.len();
-            let formal_count = define.params.len();
-            if actual_count != formal_count {
-                return Err(GameError {
-                    kind: crate::error::ErrorKind::Message(format!(
-                        "define '{}' expects {} argument(s) but got {}",
-                        stage.name, formal_count, actual_count
-                    )),
-                    span: stage.span.clone(),
-                    source_text: None,
-                });
-            }
-
-            // Build substitution map: formal param → actual argument expr
-            let subs: HashMap<&str, Expr> = define.params.iter()
-                .zip(stage.args.iter())
-                .map(|(formal, actual)| {
-                    let expr = match actual {
-                        Arg::Positional(e) => e.clone(),
-                        Arg::Named { value, .. } => value.clone(),
-                    };
-                    (formal.as_str(), expr)
-                })
-                .collect();
-
-            // Clone body stages and substitute formal params with actual args
-            for body_stage in &define.body.stages {
-                let mut expanded = body_stage.clone();
-                for arg in &mut expanded.args {
-                    match arg {
-                        Arg::Positional(e) => substitute_expr(e, &subs),
-                        Arg::Named { value, .. } => substitute_expr(value, &subs),
-                    }
-                }
-                new_stages.push(expanded);
-            }
-            expanded_any = true;
-        } else {
-            new_stages.push(stage.clone());
+/// Substitute formal parameters in a define body with actual arguments.
+///
+/// For each stage in the define body, replaces `Expr::Ident` values that match
+/// a formal parameter name with the corresponding argument expression.
+fn substitute_define(def: &DefineBlock, actual_args: &[Arg]) -> Vec<Stage> {
+    // Map formal param name -> actual expression
+    let mut param_map: HashMap<&str, &Expr> = HashMap::new();
+    for (i, formal) in def.params.iter().enumerate() {
+        // Try named args first, then positional
+        let actual = actual_args
+            .iter()
+            .find(|a| a.name.as_deref() == Some(formal.as_str()))
+            .or_else(|| actual_args.get(i));
+        if let Some(arg) = actual {
+            param_map.insert(formal.as_str(), &arg.value);
         }
     }
 
-    chain.stages = new_stages;
-    Ok(expanded_any)
+    def.body
+        .iter()
+        .map(|stage| Stage {
+            name: stage.name.clone(),
+            args: stage
+                .args
+                .iter()
+                .map(|arg| Arg {
+                    name: arg.name.clone(),
+                    value: substitute_expr(&arg.value, &param_map),
+                })
+                .collect(),
+        })
+        .collect()
 }
 
-fn substitute_expr(expr: &mut Expr, subs: &HashMap<&str, Expr>) {
+/// Recursively substitute identifiers in an expression using the parameter map.
+fn substitute_expr(expr: &Expr, param_map: &HashMap<&str, &Expr>) -> Expr {
     match expr {
         Expr::Ident(name) => {
-            if let Some(replacement) = subs.get(name.as_str()) {
-                *expr = replacement.clone();
+            if let Some(replacement) = param_map.get(name.as_str()) {
+                (*replacement).clone()
+            } else {
+                expr.clone()
             }
         }
-        Expr::BinaryOp { left, right, .. } => {
-            substitute_expr(left, subs);
-            substitute_expr(right, subs);
+        Expr::Paren(inner) => {
+            Expr::Paren(Box::new(substitute_expr(inner, param_map)))
         }
-        Expr::Negate(inner) => substitute_expr(inner, subs),
-        Expr::Call(call) => {
-            for arg in &mut call.args {
-                match arg {
-                    Arg::Positional(e) => substitute_expr(e, subs),
-                    Arg::Named { value, .. } => substitute_expr(value, subs),
+        Expr::Neg(inner) => {
+            Expr::Neg(Box::new(substitute_expr(inner, param_map)))
+        }
+        Expr::BinOp { op, left, right } => Expr::BinOp {
+            op: op.clone(),
+            left: Box::new(substitute_expr(left, param_map)),
+            right: Box::new(substitute_expr(right, param_map)),
+        },
+        Expr::Call { name, args } => Expr::Call {
+            name: name.clone(),
+            args: args
+                .iter()
+                .map(|a| Arg {
+                    name: a.name.clone(),
+                    value: substitute_expr(&a.value, param_map),
+                })
+                .collect(),
+        },
+        Expr::Array(elems) => {
+            Expr::Array(elems.iter().map(|e| substitute_expr(e, param_map)).collect())
+        }
+        Expr::Ternary {
+            condition,
+            if_true,
+            if_false,
+        } => Expr::Ternary {
+            condition: Box::new(substitute_expr(condition, param_map)),
+            if_true: Box::new(substitute_expr(if_true, param_map)),
+            if_false: Box::new(substitute_expr(if_false, param_map)),
+        },
+        // Literals pass through unchanged
+        _ => expr.clone(),
+    }
+}
+
+/// Check if a cinematic uses audio signals anywhere.
+///
+/// Scans layer params, layer pipeline stage args, layer opts, lens properties,
+/// lens post-processing stages, and react signal/action expressions.
+pub fn cinematic_uses_audio(cinematic: &Cinematic) -> bool {
+    // Check layer bodies and opts
+    for layer in &cinematic.layers {
+        for opt in &layer.opts {
+            if param_uses_audio(opt) {
+                return true;
+            }
+        }
+        match &layer.body {
+            LayerBody::Params(params) => {
+                for param in params {
+                    if param_uses_audio(param) {
+                        return true;
+                    }
                 }
             }
-        }
-        Expr::FieldAccess { object, .. } => substitute_expr(object, subs),
-        Expr::Array(elements) => {
-            for e in elements {
-                substitute_expr(e, subs);
-            }
-        }
-        Expr::Ternary { condition, if_true, if_false } => {
-            substitute_expr(condition, subs);
-            substitute_expr(if_true, subs);
-            substitute_expr(if_false, subs);
-        }
-        Expr::Number(_) | Expr::String(_) => {}
-    }
-}
-
-/// Check if an expression references audio signals.
-pub(super) fn expr_uses_audio(expr: &Expr) -> bool {
-    match expr {
-        Expr::Ident(s) => s == "audio",
-        Expr::FieldAccess { object, .. } => expr_uses_audio(object),
-        Expr::BinaryOp { left, right, .. } => expr_uses_audio(left) || expr_uses_audio(right),
-        Expr::Negate(inner) => expr_uses_audio(inner),
-        Expr::Call(call) => call.args.iter().any(|a| match a {
-            Arg::Positional(e) | Arg::Named { value: e, .. } => expr_uses_audio(e),
-        }),
-        _ => false,
-    }
-}
-
-/// Check if an expression references data signals.
-pub(super) fn expr_uses_data(expr: &Expr) -> bool {
-    match expr {
-        Expr::Ident(s) => s == "data",
-        Expr::FieldAccess { object, .. } => expr_uses_data(object),
-        Expr::BinaryOp { left, right, .. } => expr_uses_data(left) || expr_uses_data(right),
-        Expr::Negate(inner) => expr_uses_data(inner),
-        Expr::Call(call) => call.args.iter().any(|a| match a {
-            Arg::Positional(e) | Arg::Named { value: e, .. } => expr_uses_data(e),
-        }),
-        _ => false,
-    }
-}
-
-/// Collect `data.*` field names from an expression.
-pub(super) fn collect_data_fields_into(expr: &Expr, fields: &mut Vec<String>) {
-    match expr {
-        Expr::FieldAccess { object, field } => {
-            if let Expr::Ident(obj) = object.as_ref() {
-                if obj == "data" && !fields.contains(field) {
-                    fields.push(field.clone());
-                }
-            }
-            collect_data_fields_into(object, fields);
-        }
-        Expr::BinaryOp { left, right, .. } => {
-            collect_data_fields_into(left, fields);
-            collect_data_fields_into(right, fields);
-        }
-        Expr::Negate(inner) => collect_data_fields_into(inner, fields),
-        Expr::Call(call) => {
-            for arg in &call.args {
-                match arg {
-                    Arg::Positional(e) | Arg::Named { value: e, .. } => {
-                        collect_data_fields_into(e, fields);
+            LayerBody::Pipeline(stages) => {
+                for stage in stages {
+                    for arg in &stage.args {
+                        if expr::uses_audio(&arg.value) {
+                            return true;
+                        }
                     }
                 }
             }
         }
-        _ => {}
     }
-}
 
-/// Check if an expression references mouse signals.
-pub(super) fn expr_uses_mouse(expr: &Expr) -> bool {
-    match expr {
-        Expr::Ident(s) => s == "mouse",
-        Expr::FieldAccess { object, .. } => expr_uses_mouse(object),
-        Expr::BinaryOp { left, right, .. } => expr_uses_mouse(left) || expr_uses_mouse(right),
-        Expr::Negate(inner) => expr_uses_mouse(inner),
-        Expr::Call(call) => call.args.iter().any(|a| match a {
-            Arg::Positional(e) | Arg::Named { value: e, .. } => expr_uses_mouse(e),
-        }),
-        _ => false,
-    }
-}
-
-/// Extract a numeric value from an expression (for base_value).
-pub(super) fn extract_number(expr: &Expr) -> Option<f64> {
-    match expr {
-        Expr::Number(n) => Some(*n),
-        Expr::Negate(inner) => extract_number(inner).map(|n| -n),
-        _ => None,
-    }
-}
-
-/// Extract audio file path from cinematic properties.
-pub(super) fn extract_audio_file(cinematic: &Cinematic) -> Option<String> {
-    cinematic.properties.iter().find_map(|p| {
-        if p.name == "audio" {
-            if let Expr::String(s) = &p.value {
-                return Some(s.clone());
+    // Check lenses
+    for lens in &cinematic.lenses {
+        for prop in &lens.properties {
+            if param_uses_audio(prop) {
+                return true;
             }
         }
-        None
-    })
-}
-
-/// Determine rendering mode from the first lens block.
-pub(super) fn determine_render_mode(cinematic: &Cinematic) -> RenderMode {
-    if let Some(lens) = cinematic.lenses.first() {
-        // Check for mode: raymarch
-        let is_raymarch = lens.properties.iter().any(|p| {
-            p.name == "mode" && matches!(&p.value, Expr::Ident(s) if s == "raymarch")
-        });
-
-        if is_raymarch {
-            // Extract camera params
-            let (radius, height, speed) = extract_camera_params(lens);
-            return RenderMode::Raymarch {
-                cam_radius: radius,
-                cam_height: height,
-                cam_speed: speed,
-            };
-        }
-    }
-    RenderMode::Flat
-}
-
-fn extract_camera_params(lens: &Lens) -> (f64, f64, f64) {
-    for prop in &lens.properties {
-        if prop.name == "camera" {
-            if let Expr::Call(call) = &prop.value {
-                if call.name == "orbit" {
-                    let radius = extract_named_number(&call.args, "radius", 5.0);
-                    let height = extract_named_number(&call.args, "height", 2.0);
-                    let speed = extract_named_number(&call.args, "speed", 0.05);
-                    return (radius, height, speed);
+        for stage in &lens.post {
+            for arg in &stage.args {
+                if expr::uses_audio(&arg.value) {
+                    return true;
                 }
             }
         }
     }
-    (5.0, 2.0, 0.05)
-}
 
-fn extract_named_number(args: &[Arg], name: &str, default: f64) -> f64 {
-    for arg in args {
-        if let Arg::Named { name: n, value } = arg {
-            if n == name {
-                return extract_number(value).unwrap_or(default);
+    // Check react block
+    if let Some(ref react) = cinematic.react {
+        for reaction in &react.reactions {
+            if expr::uses_audio(&reaction.signal) || expr::uses_audio(&reaction.action) {
+                return true;
             }
         }
     }
-    default
+
+    // Check listen block presence (if listen exists, audio is used)
+    if cinematic.listen.is_some() {
+        return true;
+    }
+
+    false
+}
+
+/// Check if a cinematic uses mouse input anywhere.
+///
+/// Same scan scope as `cinematic_uses_audio` but checks for `mouse.*` references.
+pub fn cinematic_uses_mouse(cinematic: &Cinematic) -> bool {
+    // Check layer bodies and opts
+    for layer in &cinematic.layers {
+        for opt in &layer.opts {
+            if param_uses_mouse(opt) {
+                return true;
+            }
+        }
+        match &layer.body {
+            LayerBody::Params(params) => {
+                for param in params {
+                    if param_uses_mouse(param) {
+                        return true;
+                    }
+                }
+            }
+            LayerBody::Pipeline(stages) => {
+                for stage in stages {
+                    for arg in &stage.args {
+                        if expr::uses_mouse(&arg.value) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check lenses
+    for lens in &cinematic.lenses {
+        for prop in &lens.properties {
+            if param_uses_mouse(prop) {
+                return true;
+            }
+        }
+        for stage in &lens.post {
+            for arg in &stage.args {
+                if expr::uses_mouse(&arg.value) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // Check react block
+    if let Some(ref react) = cinematic.react {
+        for reaction in &react.reactions {
+            if expr::uses_mouse(&reaction.signal) || expr::uses_mouse(&reaction.action) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Check if a `Param` references audio (value or modulation).
+fn param_uses_audio(param: &Param) -> bool {
+    expr::uses_audio(&param.value)
+        || param.modulation.as_ref().map_or(false, |m| expr::uses_audio(m))
+}
+
+/// Check if a `Param` references mouse (value or modulation).
+fn param_uses_mouse(param: &Param) -> bool {
+    expr::uses_mouse(&param.value)
+        || param.modulation.as_ref().map_or(false, |m| expr::uses_mouse(m))
+}
+
+// ── Tests ────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Helper to build a minimal cinematic for testing.
+    fn make_cinematic_with_defines(
+        defines: Vec<DefineBlock>,
+        pipeline: Vec<Stage>,
+    ) -> Cinematic {
+        Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(pipeline),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            lenses: vec![],
+            react: None,
+            defines,
+        }
+    }
+
+    fn empty_cinematic() -> Cinematic {
+        Cinematic {
+            name: "empty".into(),
+            layers: vec![],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            lenses: vec![],
+            react: None,
+            defines: vec![],
+        }
+    }
+
+    // ── expand_defines ───────────────────────────────────
+
+    #[test]
+    fn expand_defines_substitutes_params() {
+        let define = DefineBlock {
+            name: "my_shape".into(),
+            params: vec!["r".into()],
+            body: vec![Stage {
+                name: "circle".into(),
+                args: vec![Arg {
+                    name: Some("radius".into()),
+                    value: Expr::Ident("r".into()),
+                }],
+            }],
+        };
+
+        let pipeline = vec![Stage {
+            name: "my_shape".into(),
+            args: vec![Arg {
+                name: None,
+                value: Expr::Number(0.5),
+            }],
+        }];
+
+        let mut cin = make_cinematic_with_defines(vec![define], pipeline);
+        expand_defines(&mut cin).unwrap();
+
+        if let LayerBody::Pipeline(stages) = &cin.layers[0].body {
+            assert_eq!(stages.len(), 1);
+            assert_eq!(stages[0].name, "circle");
+            // The "r" param should be replaced with 0.5
+            if let Expr::Number(v) = &stages[0].args[0].value {
+                assert!((v - 0.5).abs() < f64::EPSILON);
+            } else {
+                panic!("expected Number(0.5) after substitution");
+            }
+        } else {
+            panic!("expected Pipeline body");
+        }
+    }
+
+    #[test]
+    fn expand_defines_multi_stage_body() {
+        let define = DefineBlock {
+            name: "styled".into(),
+            params: vec!["color_r".into(), "color_g".into(), "color_b".into()],
+            body: vec![
+                Stage {
+                    name: "circle".into(),
+                    args: vec![],
+                },
+                Stage {
+                    name: "glow".into(),
+                    args: vec![],
+                },
+                Stage {
+                    name: "tint".into(),
+                    args: vec![
+                        Arg { name: Some("r".into()), value: Expr::Ident("color_r".into()) },
+                        Arg { name: Some("g".into()), value: Expr::Ident("color_g".into()) },
+                        Arg { name: Some("b".into()), value: Expr::Ident("color_b".into()) },
+                    ],
+                },
+            ],
+        };
+
+        let pipeline = vec![Stage {
+            name: "styled".into(),
+            args: vec![
+                Arg { name: None, value: Expr::Number(1.0) },
+                Arg { name: None, value: Expr::Number(0.0) },
+                Arg { name: None, value: Expr::Number(0.0) },
+            ],
+        }];
+
+        let mut cin = make_cinematic_with_defines(vec![define], pipeline);
+        expand_defines(&mut cin).unwrap();
+
+        if let LayerBody::Pipeline(stages) = &cin.layers[0].body {
+            assert_eq!(stages.len(), 3);
+            assert_eq!(stages[0].name, "circle");
+            assert_eq!(stages[1].name, "glow");
+            assert_eq!(stages[2].name, "tint");
+            // Check the tint r arg was substituted to 1.0
+            if let Expr::Number(v) = &stages[2].args[0].value {
+                assert!((v - 1.0).abs() < f64::EPSILON);
+            } else {
+                panic!("expected Number after substitution");
+            }
+        } else {
+            panic!("expected Pipeline body");
+        }
+    }
+
+    #[test]
+    fn expand_defines_no_defines_is_noop() {
+        let pipeline = vec![Stage {
+            name: "circle".into(),
+            args: vec![],
+        }];
+        let mut cin = make_cinematic_with_defines(vec![], pipeline);
+        expand_defines(&mut cin).unwrap();
+
+        if let LayerBody::Pipeline(stages) = &cin.layers[0].body {
+            assert_eq!(stages.len(), 1);
+            assert_eq!(stages[0].name, "circle");
+        }
+    }
+
+    #[test]
+    fn expand_defines_named_args() {
+        let define = DefineBlock {
+            name: "my_circle".into(),
+            params: vec!["size".into()],
+            body: vec![Stage {
+                name: "circle".into(),
+                args: vec![Arg {
+                    name: Some("radius".into()),
+                    value: Expr::Ident("size".into()),
+                }],
+            }],
+        };
+
+        let pipeline = vec![Stage {
+            name: "my_circle".into(),
+            args: vec![Arg {
+                name: Some("size".into()),
+                value: Expr::Number(0.3),
+            }],
+        }];
+
+        let mut cin = make_cinematic_with_defines(vec![define], pipeline);
+        expand_defines(&mut cin).unwrap();
+
+        if let LayerBody::Pipeline(stages) = &cin.layers[0].body {
+            if let Expr::Number(v) = &stages[0].args[0].value {
+                assert!((v - 0.3).abs() < f64::EPSILON);
+            } else {
+                panic!("expected Number(0.3)");
+            }
+        }
+    }
+
+    // ── cinematic_uses_audio ─────────────────────────────
+
+    #[test]
+    fn cinematic_uses_audio_from_pipeline() {
+        let cin = Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "circle".into(),
+                    args: vec![Arg {
+                        name: None,
+                        value: Expr::DottedIdent {
+                            object: "audio".into(),
+                            field: "bass".into(),
+                        },
+                    }],
+                }]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            lenses: vec![],
+            react: None,
+            defines: vec![],
+        };
+        assert!(cinematic_uses_audio(&cin));
+    }
+
+    #[test]
+    fn cinematic_uses_audio_from_params() {
+        let cin = Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "config".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Params(vec![Param {
+                    name: "intensity".into(),
+                    value: Expr::DottedIdent {
+                        object: "audio".into(),
+                        field: "energy".into(),
+                    },
+                    modulation: None,
+                    temporal_ops: vec![],
+                }]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            lenses: vec![],
+            react: None,
+            defines: vec![],
+        };
+        assert!(cinematic_uses_audio(&cin));
+    }
+
+    #[test]
+    fn cinematic_uses_audio_from_listen() {
+        let mut cin = empty_cinematic();
+        cin.listen = Some(ListenBlock { signals: vec![] });
+        assert!(cinematic_uses_audio(&cin));
+    }
+
+    #[test]
+    fn cinematic_uses_audio_from_modulation() {
+        let cin = Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "config".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Params(vec![Param {
+                    name: "size".into(),
+                    value: Expr::Number(0.5),
+                    modulation: Some(Expr::DottedIdent {
+                        object: "audio".into(),
+                        field: "beat".into(),
+                    }),
+                    temporal_ops: vec![],
+                }]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            lenses: vec![],
+            react: None,
+            defines: vec![],
+        };
+        assert!(cinematic_uses_audio(&cin));
+    }
+
+    #[test]
+    fn cinematic_uses_audio_false_for_empty() {
+        let cin = empty_cinematic();
+        assert!(!cinematic_uses_audio(&cin));
+    }
+
+    #[test]
+    fn cinematic_uses_audio_from_react() {
+        let mut cin = empty_cinematic();
+        cin.react = Some(ReactBlock {
+            reactions: vec![Reaction {
+                signal: Expr::DottedIdent {
+                    object: "audio".into(),
+                    field: "beat".into(),
+                },
+                action: Expr::Number(1.0),
+            }],
+        });
+        assert!(cinematic_uses_audio(&cin));
+    }
+
+    #[test]
+    fn cinematic_uses_audio_from_lens() {
+        let mut cin = empty_cinematic();
+        cin.lenses = vec![Lens {
+            name: Some("cam".into()),
+            properties: vec![Param {
+                name: "zoom".into(),
+                value: Expr::DottedIdent {
+                    object: "audio".into(),
+                    field: "treble".into(),
+                },
+                modulation: None,
+                temporal_ops: vec![],
+            }],
+            post: vec![],
+        }];
+        assert!(cinematic_uses_audio(&cin));
+    }
+
+    // ── cinematic_uses_mouse ─────────────────────────────
+
+    #[test]
+    fn cinematic_uses_mouse_from_pipeline() {
+        let cin = Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(vec![Stage {
+                    name: "translate".into(),
+                    args: vec![Arg {
+                        name: None,
+                        value: Expr::DottedIdent {
+                            object: "mouse".into(),
+                            field: "x".into(),
+                        },
+                    }],
+                }]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: None,
+            lenses: vec![],
+            react: None,
+            defines: vec![],
+        };
+        assert!(cinematic_uses_mouse(&cin));
+    }
+
+    #[test]
+    fn cinematic_uses_mouse_false_for_empty() {
+        let cin = empty_cinematic();
+        assert!(!cinematic_uses_mouse(&cin));
+    }
+
+    #[test]
+    fn cinematic_uses_mouse_from_react() {
+        let mut cin = empty_cinematic();
+        cin.react = Some(ReactBlock {
+            reactions: vec![Reaction {
+                signal: Expr::DottedIdent {
+                    object: "mouse".into(),
+                    field: "click".into(),
+                },
+                action: Expr::Number(1.0),
+            }],
+        });
+        assert!(cinematic_uses_mouse(&cin));
+    }
 }

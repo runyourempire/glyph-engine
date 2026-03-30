@@ -1,0 +1,18 @@
+cinematic "SVG Badge" {
+  signals {
+    pulse: audio.bass | smooth(0.3) | scale(0, 1)
+  }
+
+  layer core {
+    fn: circle(0.25) | glow(2.0) | tint(ember)
+  }
+
+  layer ring {
+    fn: ring(0.35, 0.02) | glow(g) | tint(gold)
+    g: 1.5 ~ pulse * 3.0
+  }
+
+  layer outer {
+    fn: ring(0.42, 0.01) | glow(1.0) | tint(cyan)
+  }
+}

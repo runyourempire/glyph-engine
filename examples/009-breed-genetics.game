@@ -1,0 +1,6 @@
+breed "child" from "fire" + "ice" {
+  inherit layers: mix(0.6)
+  inherit params: pick(0.5)
+  mutate scale: 0.3
+  mutate speed: 0.1
+}

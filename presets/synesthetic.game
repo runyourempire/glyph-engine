@@ -1,0 +1,27 @@
+cinematic "Synesthetic" {
+  signals {
+    pulse: audio.bass | smooth(0.2)
+    shimmer: audio.treble | smooth(0.1)
+  }
+
+  layer visual {
+    fn: circle(0.3) | glow(g) | tint(ember)
+    g: 1.0 ~ pulse * 4.0
+  }
+
+  layer halo {
+    fn: ring(0.4, 0.02) | glow(sg) | tint(gold)
+    sg: 0.5 ~ shimmer * 3.0
+  }
+
+  hear {
+    osc(sine, 220) | gain(pulse * 0.3) -> left
+    osc(saw, 440) | gain(shimmer * 0.1) | filter(lowpass, 800) -> right
+    noise(white) | gain(0.02) | filter(bandpass, 1000, q: 5) -> both
+  }
+
+  feel {
+    pulse > 0.7 -> vibrate(intensity: 1.0, duration: 100)
+    shimmer > 0.5 -> vibrate(intensity: 0.3, duration: 50, motor: right)
+  }
+}

@@ -1,0 +1,29 @@
+# Route Matrix — one audio signal routed to multiple params across layers
+# Phase 2 demo preset: route {} block with explicit signal-to-param mapping
+
+cinematic "Route Matrix" {
+  signals {
+    pulse: audio.bass | smooth(0.2) | scale(0, 1)
+  }
+
+  route {
+    pulse -> core.glow_val
+    pulse * 0.5 -> outer.ring_glow
+    pulse * 0.3 -> halo.halo_g
+  }
+
+  layer core {
+    fn: circle(0.15) | glow(glow_val) | tint(ember)
+    glow_val: 1.0
+  }
+
+  layer outer {
+    fn: ring(0.30, 0.02) | glow(ring_glow) | tint(gold)
+    ring_glow: 0.5
+  }
+
+  layer halo {
+    fn: ring(0.42, 0.01) | glow(halo_g) | tint(cyan)
+    halo_g: 0.3
+  }
+}

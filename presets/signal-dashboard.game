@@ -1,0 +1,25 @@
+# Signal Dashboard — demonstrates named, smoothed signals driving separate layers
+# Phase 1 demo preset: signals {} block with transform chains
+
+cinematic "Signal Dashboard" {
+  signals {
+    heartbeat: audio.bass | smooth(0.2) | scale(0, 1)
+    shimmer: audio.treble | smooth(0.05) | pow(2.0)
+    activity: audio.energy | clamp(0, 1) | normalize
+  }
+
+  layer pulse {
+    fn: circle(0.15) | glow(g) | tint(ember)
+    g: 1.0 ~ heartbeat * 5.0
+  }
+
+  layer ring {
+    fn: ring(0.30, 0.02) | glow(rg) | tint(gold)
+    rg: 1.0 ~ shimmer * 3.0
+  }
+
+  layer outer {
+    fn: ring(0.42, 0.015) | glow(og) | tint(cyan)
+    og: 0.5 ~ activity * 2.0
+  }
+}

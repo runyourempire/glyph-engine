@@ -1,813 +1,428 @@
-use crate::ast::*;
-use crate::error::{GameError, Result};
+//! Shader codegen orchestration.
+//!
+//! Generates WGSL and/or GLSL shaders from GAME AST, then hands off to
+//! the runtime module to wrap them in Web Components or standalone HTML.
 
-mod builtins;
-mod stages;
-mod raymarch;
-mod expr;
-mod analysis;
+pub mod analysis;
+pub mod breed;
+pub mod cast;
+pub mod expr;
 pub mod glsl;
-pub mod resonance;
+pub mod gravity;
+pub mod listen;
+pub mod memory;
+pub mod project;
 pub mod react;
+pub mod resonance;
+pub mod score;
+pub mod stages;
+pub mod temporal;
+pub mod voice;
+pub mod wgsl;
 
-#[cfg(test)]
-mod tests;
+use crate::ast::{Cinematic, Expr, LayerBody, Param};
+use crate::builtins;
+use crate::error::CompileError;
 
-pub use self::expr::compile_expr_js;
-use self::analysis::*;
-
-// ── Public types ───────────────────────────────────────────────────────
-
-/// Full compilation output: WGSL shader + metadata for the runtime.
+/// Describes a user-defined uniform parameter extracted from layers.
 #[derive(Debug, Clone)]
-pub struct CompileOutput {
-    pub wgsl: String,
-    pub title: String,
-    pub audio_file: Option<String>,
-    pub params: Vec<CompiledParam>,
-    pub uses_audio: bool,
-    pub uses_mouse: bool,
-    pub uses_data: bool,
-    /// Names of `data.*` fields referenced in modulation expressions.
-    pub data_fields: Vec<String>,
-    pub render_mode: RenderMode,
-    /// Number of f32 slots in the uniform buffer.
-    pub uniform_float_count: usize,
-    /// Arc timeline — moments with parameter transitions over time.
-    pub arc_moments: Vec<CompiledMoment>,
-    /// Compiler warnings (non-fatal issues the user should know about).
-    pub warnings: Vec<String>,
-    /// Resonance JS code (cross-layer param modulation). Empty if no resonate block.
-    pub resonance_js: String,
-    /// React JS code (event listeners for user interaction). Empty if no react block.
-    pub react_js: String,
-    /// Number of layers in the cinematic.
-    pub layer_count: usize,
-    /// GLSL ES 3.0 vertex shader for WebGL2 fallback.
-    pub glsl_vertex: String,
-    /// GLSL ES 3.0 fragment shader for WebGL2 fallback.
-    pub glsl_fragment: String,
-}
-
-/// A parameter with modulation metadata for the JS runtime.
-#[derive(Debug, Clone)]
-pub struct CompiledParam {
+pub struct UniformInfo {
     pub name: String,
-    pub uniform_field: String,
-    pub buffer_index: usize,
-    pub base_value: f64,
-    pub mod_js: Option<String>,
+    pub default: f64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum RenderMode {
-    Flat,
-    Raymarch {
-        cam_radius: f64,
-        cam_height: f64,
-        cam_speed: f64,
-    },
-}
-
-/// A compiled arc moment — a named point in the timeline.
+/// Collected shader output for a single cinematic.
 #[derive(Debug, Clone)]
-pub struct CompiledMoment {
-    pub time_seconds: f64,
-    pub name: Option<String>,
-    pub transitions: Vec<CompiledTransition>,
+pub struct ShaderOutput {
+    pub name: String,
+    pub wgsl_fragment: String,
+    pub wgsl_vertex: String,
+    pub glsl_fragment: String,
+    pub glsl_vertex: String,
+    pub uniforms: Vec<UniformInfo>,
+    pub uses_memory: bool,
+    /// Collected JS classes (listen, voice, score, breed, temporal, gravity).
+    pub js_modules: Vec<String>,
+    /// Gravity compute shader (separate pipeline).
+    pub compute_wgsl: Option<String>,
 }
 
-/// A compiled arc transition — targets a specific param by index.
-#[derive(Debug, Clone)]
-pub struct CompiledTransition {
-    /// Index into `CompileOutput.params`. None if target couldn't be resolved.
-    pub param_index: usize,
-    pub target_value: f64,
-    pub is_animated: bool,
-    /// Easing function name (linear, expo_in, expo_out, cubic_in_out, smooth, elastic, bounce).
-    pub easing: String,
-    /// Transition duration in seconds. None means "until next moment".
-    pub duration_secs: Option<f64>,
-}
+/// Extract user-defined uniform parameters from a cinematic's layers.
+///
+/// Any layer with `LayerBody::Params` contributes named uniforms.
+/// Pipeline stages with `Ident` args that are NOT builtin names are also uniforms.
+fn extract_uniforms(cinematic: &Cinematic) -> Vec<UniformInfo> {
+    let mut uniforms = Vec::new();
+    let mut seen = std::collections::HashSet::new();
 
-// ── System uniform layout ──────────────────────────────────────────────
-// Float32Array indices:
-//   [0] time
-//   [1] audio_bass
-//   [2] audio_mid
-//   [3] audio_treble
-//   [4] audio_energy
-//   [5] audio_beat
-//   [6] resolution.x  (vec2f at byte offset 24, which is 8-aligned)
-//   [7] resolution.y
-//   [8] mouse.x
-//   [9] mouse.y
-//   [10..] dynamic params
-const SYSTEM_FLOAT_COUNT: usize = 10;
-
-// ── X-Ray variant ─────────────────────────────────────────────────────
-
-/// A single x-ray variant: WGSL for a truncated pipe chain.
-#[derive(Debug, Clone)]
-pub struct XrayVariant {
-    pub layer_index: usize,
-    pub layer_name: String,
-    /// Stage index (0-based) — the last stage included in this variant.
-    pub stage_index: usize,
-    pub stage_name: String,
-    pub wgsl: String,
-}
-
-/// Generate x-ray variants: one WGSL shader per chain prefix per layer.
-/// Each variant truncates one layer's chain at stage K while keeping all
-/// other layers fully rendered. Uniform struct is identical across all.
-pub fn generate_xray_variants(cinematic: &Cinematic) -> Result<Vec<XrayVariant>> {
-    let mut cinematic = cinematic.clone();
-    expand_defines(&mut cinematic)?;
-
-    let mut variants = Vec::new();
-
-    for (layer_idx, layer) in cinematic.layers.iter().enumerate() {
-        let chain = match &layer.fn_chain {
-            Some(c) => c,
-            None => continue,
-        };
-
-        for stage_idx in 0..chain.stages.len() {
-            let mut modified = cinematic.clone();
-            if let Some(ref mut c) = modified.layers[layer_idx].fn_chain {
-                c.stages.truncate(stage_idx + 1);
-            }
-
-            let output = generate_full(&modified)?;
-
-            variants.push(XrayVariant {
-                layer_index: layer_idx,
-                layer_name: layer
-                    .name
-                    .clone()
-                    .unwrap_or_else(|| format!("layer_{}", layer_idx)),
-                stage_index: stage_idx,
-                stage_name: chain.stages[stage_idx].name.clone(),
-                wgsl: output.wgsl,
-            });
-        }
-    }
-
-    Ok(variants)
-}
-
-// ── Public API ─────────────────────────────────────────────────────────
-
-/// Backward-compatible: compile to WGSL string only.
-pub fn generate_wgsl(cinematic: &Cinematic) -> Result<String> {
-    let output = generate_full(cinematic)?;
-    Ok(output.wgsl)
-}
-
-/// Full compilation: WGSL + metadata for the runtime.
-pub fn generate_full(cinematic: &Cinematic) -> Result<CompileOutput> {
-    let mut gen = WgslGen::new();
-    let mut warnings = Vec::new();
-
-    // Expand define calls before any other processing
-    let mut cinematic = cinematic.clone();
-    expand_defines(&mut cinematic)?;
-
-    // Validate pipe chain ordering for all layers (after define expansion)
     for layer in &cinematic.layers {
-        if let Some(chain) = &layer.fn_chain {
-            validate_pipe_chain(chain, &mut warnings)?;
-        }
-    }
-
-    // Collect params from all layers (needed for IR lowering)
-    gen.collect_params(&cinematic, &mut warnings);
-
-    // Determine rendering mode from lens block
-    gen.render_mode = determine_render_mode(&cinematic);
-
-    // ── IR pipeline: lower → optimize → reconstruct ──────────────────
-    //
-    // The IR captures the shader structure with semantic metadata, enabling
-    // optimization passes (constant folding, no-op elimination, dead uniform
-    // removal). After optimization, the IR is reconstructed back to an AST
-    // that the existing WgslGen pipeline emits as WGSL.
-    let mut ir = crate::lower::lower(&cinematic, &gen.params, &gen.render_mode);
-    let opt_stats = crate::optimize::optimize(&mut ir);
-    let (optimized_cinematic, optimized_params, optimized_render_mode) =
-        crate::emit_wgsl::reconstruct(&ir);
-
-    // Log optimization results as warnings (visible in MCP lint output)
-    if opt_stats.constants_folded > 0 || opt_stats.noop_stages_removed > 0
-        || opt_stats.dead_uniforms_marked > 0
-    {
-        warnings.push(format!(
-            "[optimizer] {} constant(s) folded, {} no-op stage(s) removed, {} dead uniform(s) eliminated",
-            opt_stats.constants_folded,
-            opt_stats.noop_stages_removed,
-            opt_stats.dead_uniforms_marked,
-        ));
-    }
-
-    // Apply optimized params and render mode
-    gen.params = optimized_params;
-    gen.render_mode = optimized_render_mode;
-    gen.valid_idents.clear();
-    // Rebuild valid_idents with optimized param names
-    for name in &[
-        "time", "p", "uv", "height", "pi", "tau", "e", "phi",
-        "black", "white", "red", "green", "blue", "gold", "midnight",
-        "obsidian", "ember", "cyan", "ivory", "frost", "orange",
-        "deep_blue", "ash", "charcoal", "plasma", "violet", "magenta",
-        "audio", "mouse", "data", "i",
-    ] {
-        gen.valid_idents.insert(name.to_string());
-    }
-    for p in &gen.params {
-        gen.valid_idents.insert(p.name.clone());
-    }
-    // ── end IR pipeline ──────────────────────────────────────────────
-
-    // Raymarch mode still only uses first layer
-    if matches!(gen.render_mode, RenderMode::Raymarch { .. }) && optimized_cinematic.layers.len() > 1 {
-        warnings.push(format!(
-            "raymarch mode only uses the first layer; {} additional layer(s) will be ignored",
-            optimized_cinematic.layers.len() - 1
-        ));
-    }
-
-    // Warn for parsed-but-unused lens properties (from original AST)
-    for lens in &cinematic.lenses {
-        for prop in &lens.properties {
-            match prop.name.as_str() {
-                "mode" | "camera" => {} // Handled by determine_render_mode
-                "lighting" | "fields" | "overlay" | "dof" | "motion_blur" => {
-                    warnings.push(format!(
-                        "lens property '{}' is parsed but not yet implemented — it will be ignored",
-                        prop.name
-                    ));
-                }
-                _ => {}
-            }
-        }
-    }
-
-    // Generate WGSL from optimized AST
-    gen.generate(&optimized_cinematic)?;
-
-    let title = cinematic.name.clone().unwrap_or_else(|| "Untitled".to_string());
-    let audio_file = extract_audio_file(&cinematic);
-    let param_count = gen.params.len();
-
-    // Compile arc timeline (from original AST — arc references original param names)
-    let arc_moments = compile_arc(&cinematic, &gen.params, &mut warnings);
-
-    // Compile resonance block (from original AST)
-    let resonance_js = if let Some(res_block) = &cinematic.resonance {
-        let compiled = resonance::compile_resonance(res_block, &gen.params, &mut warnings);
-        compiled.js_code
-    } else {
-        String::new()
-    };
-
-    // Compile react block (from original AST)
-    let react_js = if let Some(react_block) = &cinematic.react {
-        react::compile_react(react_block, &gen.params, &mut warnings)
-    } else {
-        String::new()
-    };
-
-    // Generate GLSL fallback shaders
-    let param_fields: Vec<String> = gen.params.iter()
-        .map(|p| p.uniform_field.clone())
-        .collect();
-    let (glsl_vertex, glsl_fragment) = glsl::wgsl_to_glsl(&gen.output, &param_fields);
-
-    Ok(CompileOutput {
-        wgsl: gen.output,
-        title,
-        audio_file,
-        uses_audio: gen.uses_audio,
-        uses_mouse: gen.uses_mouse,
-        uses_data: gen.uses_data,
-        data_fields: gen.data_fields,
-        params: gen.params,
-        render_mode: gen.render_mode,
-        uniform_float_count: SYSTEM_FLOAT_COUNT + param_count,
-        arc_moments,
-        warnings,
-        resonance_js,
-        react_js,
-        layer_count: optimized_cinematic.layers.len(),
-        glsl_vertex,
-        glsl_fragment,
-    })
-}
-
-/// Compile arc block into resolved moments with param indices.
-///
-/// Supports:
-/// - `param_name` → matches first param with that name
-/// - `layer.param` → matches param named `param` (layer prefix stripped)
-/// - `ALL.param` → expands to target every param named `param` across all layers
-fn compile_arc(cinematic: &Cinematic, params: &[CompiledParam], warnings: &mut Vec<String>) -> Vec<CompiledMoment> {
-    let arc = match &cinematic.arc {
-        Some(a) => a,
-        None => return Vec::new(),
-    };
-
-    arc.moments
-        .iter()
-        .map(|moment| {
-            let mut transitions = Vec::new();
-
-            for t in &moment.transitions {
-                let target_value = extract_number(&t.value).unwrap_or(0.0);
-                let easing = t.easing.clone().unwrap_or_else(|| "linear".to_string());
-
-                // Check for ALL keyword: "ALL.param_name"
-                if t.target.starts_with("ALL.") {
-                    let param_suffix = &t.target[4..]; // strip "ALL."
-                    let matching: Vec<usize> = params.iter()
-                        .enumerate()
-                        .filter(|(_, p)| p.name == param_suffix)
-                        .map(|(i, _)| i)
-                        .collect();
-
-                    if matching.is_empty() {
-                        warnings.push(format!(
-                            "arc ALL target '{}' does not match any declared param",
-                            t.target
-                        ));
-                    }
-
-                    for param_idx in matching {
-                        transitions.push(CompiledTransition {
-                            param_index: param_idx,
-                            target_value,
-                            is_animated: t.is_animated,
-                            easing: easing.clone(),
-                            duration_secs: t.duration_secs,
-                        });
-                    }
-                    continue;
-                }
-
-                // Standard resolution: try full name first, then strip layer prefix
-                let param_idx = resolve_param_index(&t.target, params);
-
-                match param_idx {
-                    Some(idx) => {
-                        transitions.push(CompiledTransition {
-                            param_index: idx,
-                            target_value,
-                            is_animated: t.is_animated,
-                            easing,
-                            duration_secs: t.duration_secs,
-                        });
-                    }
-                    None => {
-                        warnings.push(format!(
-                            "arc transition target '{}' does not match any declared param",
-                            t.target
-                        ));
-                    }
-                }
-            }
-
-            CompiledMoment {
-                time_seconds: moment.time_seconds,
-                name: moment.name.clone(),
-                transitions,
-            }
-        })
-        .collect()
-}
-
-/// Resolve a transition target to a param index.
-///
-/// Strategy:
-/// 1. Exact match on full target name (e.g., param named "scale" matches "scale")
-/// 2. Strip layer prefix from "layer.param" and match on "param"
-fn resolve_param_index(target: &str, params: &[CompiledParam]) -> Option<usize> {
-    // Try exact match first
-    if let Some(idx) = params.iter().position(|p| p.name == target) {
-        return Some(idx);
-    }
-    // Try stripping layer prefix: "layer.param" → "param"
-    if let Some(dot_pos) = target.rfind('.') {
-        let param_name = &target[dot_pos + 1..];
-        return params.iter().position(|p| p.name == param_name);
-    }
-    None
-}
-
-/// Validate pipe chain stage ordering.
-///
-/// Critical violations (would produce invalid WGSL) are returned as errors.
-/// Non-critical concerns are pushed to the warnings vec.
-fn validate_pipe_chain(chain: &PipeChain, warnings: &mut Vec<String>) -> Result<()> {
-    if chain.stages.is_empty() {
-        return Ok(());
-    }
-
-    let first = &chain.stages[0];
-    let first_kind = classify_stage_kind(&first.name);
-
-    // Critical: glow as first stage produces invalid WGSL (no SDF input)
-    if matches!(first_kind, StageKind::Glow) {
-        return Err(GameError {
-            kind: crate::error::ErrorKind::Message(format!(
-                "pipe chain starts with '{}' which requires a prior SDF shape (circle, box, ring, etc.)",
-                first.name
-            )),
-            span: first.span.clone(),
-            source_text: None,
-        });
-    }
-
-    // Critical: post-process without any prior visual content
-    if matches!(first_kind, StageKind::PostProcess) {
-        return Err(GameError {
-            kind: crate::error::ErrorKind::Message(format!(
-                "pipe chain starts with post-process '{}' which requires prior visual content",
-                first.name
-            )),
-            span: first.span.clone(),
-            source_text: None,
-        });
-    }
-
-    // Track what state we've seen to catch ordering issues
-    let mut has_sdf = false;
-    let mut has_color = false;
-
-    for stage in &chain.stages {
-        let kind = classify_stage_kind(&stage.name);
-        match kind {
-            StageKind::Sdf | StageKind::Position => has_sdf = true,
-            StageKind::Glow => {
-                if !has_sdf {
-                    // Critical: glow before any SDF — produces invalid WGSL
-                    return Err(GameError {
-                        kind: crate::error::ErrorKind::Message(format!(
-                            "'{}' appears before any SDF shape — it needs an SDF input",
-                            stage.name
-                        )),
-                        span: stage.span.clone(),
-                        source_text: None,
+        // Params-style layers declare uniforms directly
+        if let LayerBody::Params(params) = &layer.body {
+            for param in params {
+                if seen.insert(param.name.clone()) {
+                    let default = match &param.value {
+                        Expr::Number(v) => *v,
+                        _ => 0.0,
+                    };
+                    uniforms.push(UniformInfo {
+                        name: param.name.clone(),
+                        default,
                     });
                 }
             }
-            StageKind::Color => has_color = true,
-            StageKind::PostProcess => {
-                if !has_color && !has_sdf {
-                    warnings.push(format!(
-                        "post-process '{}' appears before any visual content",
-                        stage.name
-                    ));
+        }
+
+        // Inline params from `fn:` mixed body (stored in opts)
+        for param in &layer.opts {
+            if seen.insert(param.name.clone()) {
+                let default = match &param.value {
+                    Expr::Number(v) => *v,
+                    _ => 0.0,
+                };
+                uniforms.push(UniformInfo {
+                    name: param.name.clone(),
+                    default,
+                });
+            }
+        }
+
+        // Pipeline stages: ident args that aren't builtins are user uniforms
+        if let LayerBody::Pipeline(stages) = &layer.body {
+            for stage in stages {
+                for arg in &stage.args {
+                    if let Expr::Ident(name) = &arg.value {
+                        if builtins::lookup(name).is_none() && seen.insert(name.clone()) {
+                            uniforms.push(UniformInfo {
+                                name: name.clone(),
+                                default: 0.0,
+                            });
+                        }
+                    }
                 }
             }
-            StageKind::Unknown => {}
         }
     }
 
+    uniforms
+}
+
+/// Validate all pipeline layers in a cinematic.
+pub fn validate(cinematic: &Cinematic) -> Result<(), CompileError> {
+    for layer in &cinematic.layers {
+        if let LayerBody::Pipeline(pipeline) = &layer.body {
+            stages::validate_pipeline(pipeline)?;
+        }
+    }
+    // Cast type validation (checks pipeline output matches declared cast)
+    cast::validate_casts(cinematic)?;
     Ok(())
 }
 
-/// Lightweight stage classification for validation (separate from ShaderState).
-enum StageKind {
-    Position,
-    Sdf,
-    Glow,
-    Color,
-    PostProcess,
-    Unknown,
-}
-
-fn classify_stage_kind(name: &str) -> StageKind {
-    match name {
-        "translate" | "rotate" | "scale" | "repeat" | "mirror" | "twist"
-            => StageKind::Position,
-        "circle" | "sphere" | "ring" | "box" | "torus" | "cylinder" | "plane"
-        | "line" | "polygon" | "star" | "fbm" | "simplex" | "voronoi" | "noise"
-        | "mask_arc" | "displace" | "round" | "onion"
-        | "curl_noise" | "concentric_waves" | "threshold"
-        | "progress_arc" | "hexgrid" | "shield" | "pulse_wave"
-            => StageKind::Sdf,
-        "glow" => StageKind::Glow,
-        "shade" | "emissive" | "colormap" | "spectrum" | "tint" | "gradient"
-        | "particles"
-            => StageKind::Color,
-        "bloom" | "chromatic" | "vignette" | "grain" | "fog" | "glitch"
-        | "scanlines" | "tonemap" | "invert" | "saturate_color" | "iridescent"
-            => StageKind::PostProcess,
-        _ => StageKind::Unknown,
-    }
-}
-
-// ── WgslGen ────────────────────────────────────────────────────────────
-
-pub(super) struct WgslGen {
-    pub(super) output: String,
-    pub(super) indent: usize,
-    pub(super) params: Vec<CompiledParam>,
-    pub(super) uses_audio: bool,
-    pub(super) uses_mouse: bool,
-    pub(super) uses_data: bool,
-    pub(super) data_fields: Vec<String>,
-    pub(super) render_mode: RenderMode,
-    pub(super) used_builtins: std::collections::HashSet<&'static str>,
-    /// Valid identifiers for expression validation. Populated during collect_params().
-    pub(super) valid_idents: std::collections::HashSet<String>,
-}
-
-impl WgslGen {
-    fn new() -> Self {
-        // System uniforms, constants, and named colors that are always valid
-        let mut valid_idents: std::collections::HashSet<String> = [
-            // System uniforms / variables
-            "time", "p", "uv", "height",
-            // Math constants
-            "pi", "tau", "e", "phi",
-            // Named colors
-            "black", "white", "red", "green", "blue", "gold", "midnight",
-            "obsidian", "ember", "cyan", "ivory", "frost", "orange",
-            "deep_blue", "ash", "charcoal", "plasma", "violet", "magenta",
-            // Signal roots (validated by FieldAccess, not bare ident)
-            "audio", "mouse", "data",
-        ]
+/// Collect all `Param` references from a cinematic's `LayerBody::Params` layers.
+fn collect_all_params(cinematic: &Cinematic) -> Vec<&Param> {
+    cinematic
+        .layers
         .iter()
-        .map(|s| s.to_string())
-        .collect();
-        // Add 'i' which is used as loop variable in raymarch and elsewhere
-        valid_idents.insert("i".to_string());
-
-        Self {
-            output: String::with_capacity(8192),
-            indent: 0,
-            params: Vec::new(),
-            uses_audio: false,
-            uses_mouse: false,
-            uses_data: false,
-            data_fields: Vec::new(),
-            render_mode: RenderMode::Flat,
-            used_builtins: std::collections::HashSet::new(),
-            valid_idents,
-        }
-    }
-
-    pub(super) fn line(&mut self, s: &str) {
-        for _ in 0..self.indent {
-            self.output.push_str("    ");
-        }
-        self.output.push_str(s);
-        self.output.push('\n');
-    }
-
-    pub(super) fn blank(&mut self) {
-        self.output.push('\n');
-    }
-
-    // ── Parameter collection ───────────────────────────────────────────
-
-    fn collect_params(&mut self, cinematic: &Cinematic, warnings: &mut Vec<String>) {
-        for layer in &cinematic.layers {
-            let layer_name = layer.name.as_deref().unwrap_or("unnamed");
-
-            // Collect explicit params (with ~ modulation)
-            for param in &layer.params {
-                // Check for cross-layer duplicate param names
-                if self.params.iter().any(|p| p.name == param.name) {
-                    warnings.push(format!(
-                        "param '{}' in layer '{}' duplicates a param from an earlier layer; \
-                         use unique names per layer to avoid invalid WGSL",
-                        param.name, layer_name
-                    ));
-                    continue;
-                }
-
-                let idx = SYSTEM_FLOAT_COUNT + self.params.len();
-                let uniform_field = format!("p_{}", param.name);
-
-                let mod_js = param.modulation.as_ref().map(|m| {
-                    let js = compile_expr_js(&m.signal);
-                    // Check for audio/mouse/data signals
-                    if expr_uses_audio(&m.signal) {
-                        self.uses_audio = true;
-                    }
-                    if expr_uses_mouse(&m.signal) {
-                        self.uses_mouse = true;
-                    }
-                    if expr_uses_data(&m.signal) {
-                        self.uses_data = true;
-                        collect_data_fields_into(&m.signal, &mut self.data_fields);
-                    }
-                    js
-                });
-
-                let base_value = extract_number(&param.base_value).unwrap_or(0.0);
-
-                self.valid_idents.insert(param.name.clone());
-                self.params.push(CompiledParam {
-                    name: param.name.clone(),
-                    uniform_field,
-                    buffer_index: idx,
-                    base_value,
-                    mod_js,
-                });
+        .filter_map(|layer| {
+            if let LayerBody::Params(params) = &layer.body {
+                Some(params.iter())
+            } else {
+                None
             }
-
-            // Promote numeric layer properties to params (no modulation).
-            // This ensures properties like `intensity: 2.0` become WGSL uniforms
-            // that can be referenced in fn chains and targeted by arcs.
-            for prop in &layer.properties {
-                if let Some(num) = extract_number(&prop.value) {
-                    // Skip non-numeric or already-collected names
-                    if self.params.iter().any(|p| p.name == prop.name) {
-                        continue;
-                    }
-                    let idx = SYSTEM_FLOAT_COUNT + self.params.len();
-                    let uniform_field = format!("p_{}", prop.name);
-                    self.valid_idents.insert(prop.name.clone());
-                    self.params.push(CompiledParam {
-                        name: prop.name.clone(),
-                        uniform_field,
-                        buffer_index: idx,
-                        base_value: num,
-                        mod_js: None,
-                    });
-                }
-            }
-        }
-    }
-
-    // ── Main generation ────────────────────────────────────────────────
-
-    fn generate(&mut self, cinematic: &Cinematic) -> Result<()> {
-        // Phase 1: Emit fragment shader to a temp buffer to collect used_builtins
-        let saved_output = std::mem::take(&mut self.output);
-
-        match &self.render_mode {
-            RenderMode::Flat => {
-                // Collect layers that have fn chains
-                let flat_layers: Vec<&Layer> = cinematic.layers.iter()
-                    .filter(|l| l.fn_chain.is_some())
-                    .collect();
-
-                if flat_layers.is_empty() {
-                    self.emit_empty_fragment();
-                } else if flat_layers.len() == 1 {
-                    self.emit_flat_fragment(flat_layers[0])?;
-                } else {
-                    self.emit_multi_layer_fragment(&flat_layers)?;
-                }
-            }
-            RenderMode::Raymarch { cam_radius, cam_height, cam_speed } => {
-                let cr = *cam_radius;
-                let ch = *cam_height;
-                let cs = *cam_speed;
-                if let Some(layer) = cinematic.layers.first() {
-                    self.emit_raymarch_helpers(layer)?;
-                    self.emit_raymarch_fragment(layer, cr, ch, cs)?;
-                } else {
-                    self.emit_empty_fragment();
-                }
-            }
-        }
-
-        let fragment_output = std::mem::replace(&mut self.output, saved_output);
-
-        // Phase 2: Now emit in correct order with tree-shaken builtins
-        self.emit_header();
-        self.emit_uniforms();
-        self.emit_vertex_shader();
-        self.emit_builtin_functions();
-        self.output.push_str(&fragment_output);
-
-        Ok(())
-    }
-
-    // ── Structural WGSL ────────────────────────────────────────────────
-
-    fn emit_header(&mut self) {
-        self.line("// Generated by GAME compiler v0.2.0");
-        self.line("// https://github.com/runyourempire/game-engine");
-        self.blank();
-    }
-
-    fn emit_uniforms(&mut self) {
-        // Collect param field names to avoid borrow conflict
-        let param_fields: Vec<String> = self.params.iter()
-            .map(|p| p.uniform_field.clone())
-            .collect();
-
-        self.line("struct Uniforms {");
-        self.indent += 1;
-        self.line("time: f32,");
-        self.line("audio_bass: f32,");
-        self.line("audio_mid: f32,");
-        self.line("audio_treble: f32,");
-        self.line("audio_energy: f32,");
-        self.line("audio_beat: f32,");
-        self.line("resolution: vec2f,");
-        self.line("mouse: vec2f,");
-        for field in &param_fields {
-            self.line(&format!("{field}: f32,"));
-        }
-        self.indent -= 1;
-        self.line("}");
-        self.blank();
-        self.line("@group(0) @binding(0) var<uniform> u: Uniforms;");
-        self.blank();
-    }
-
-    fn emit_vertex_shader(&mut self) {
-        self.line("struct VertexOutput {");
-        self.indent += 1;
-        self.line("@builtin(position) position: vec4f,");
-        self.line("@location(0) uv: vec2f,");
-        self.indent -= 1;
-        self.line("}");
-        self.blank();
-        self.line("@vertex");
-        self.line("fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {");
-        self.indent += 1;
-        self.line("var pos = array<vec2f, 4>(");
-        self.indent += 1;
-        self.line("vec2f(-1.0, -1.0),");
-        self.line("vec2f( 1.0, -1.0),");
-        self.line("vec2f(-1.0,  1.0),");
-        self.line("vec2f( 1.0,  1.0),");
-        self.indent -= 1;
-        self.line(");");
-        self.line("var out: VertexOutput;");
-        self.line("out.position = vec4f(pos[vi], 0.0, 1.0);");
-        self.line("out.uv = pos[vi] * 0.5 + 0.5;");
-        self.line("return out;");
-        self.indent -= 1;
-        self.line("}");
-        self.blank();
-    }
-
-    // ── Common helpers ─────────────────────────────────────────────────
-
-    pub(super) fn emit_param_bindings(&mut self) {
-        if self.params.is_empty() {
-            return;
-        }
-        let bindings: Vec<(String, String)> = self.params.iter()
-            .map(|p| (p.name.clone(), p.uniform_field.clone()))
-            .collect();
-        for (name, field) in &bindings {
-            self.line(&format!("let {name} = u.{field};"));
-        }
-        self.blank();
-    }
-
-    pub(super) fn is_postprocess(&self, name: &str) -> bool {
-        matches!(name, "bloom" | "vignette" | "chromatic" | "grain"
-            | "fog" | "glitch" | "scanlines" | "tonemap" | "invert" | "saturate_color")
-    }
-
-    pub(super) fn classify_stage(&self, name: &str) -> Result<ShaderState> {
-        match name {
-            "circle" | "sphere" | "ring" | "box" | "torus" | "cylinder" | "plane"
-            | "line" | "polygon" | "star"
-            | "progress_arc" | "hexgrid" | "shield" | "pulse_wave" => Ok(ShaderState::Sdf),
-            "glow" => Ok(ShaderState::Glow),
-            "shade" | "emissive" | "colormap" | "spectrum" | "tint"
-            | "gradient" | "particles" => Ok(ShaderState::Color),
-            "fbm" | "simplex" | "voronoi" | "noise"
-            | "curl_noise" | "concentric_waves" => Ok(ShaderState::Sdf),
-            "mask_arc" | "threshold" => Ok(ShaderState::Sdf),
-            "translate" | "rotate" | "scale" | "repeat" | "mirror" | "twist"
-            => Ok(ShaderState::Position),
-            "displace" | "round" | "onion" => Ok(ShaderState::Sdf),
-            "bloom" | "chromatic" | "vignette" | "grain"
-            | "fog" | "glitch" | "scanlines" | "tonemap" | "invert"
-            | "saturate_color" | "iridescent" => Ok(ShaderState::Color),
-            _ => Err(crate::error::GameError::unknown_function(name)),
-        }
-    }
-
-    pub(super) fn emit_empty_fragment(&mut self) {
-        self.line("@fragment");
-        self.line("fn fs_main(input: VertexOutput) -> @location(0) vec4f {");
-        self.indent += 1;
-        self.line("return vec4f(0.0, 0.0, 0.0, 1.0);");
-        self.indent -= 1;
-        self.line("}");
-    }
+        })
+        .flatten()
+        .collect()
 }
 
-// ── Types ──────────────────────────────────────────────────────────────
+/// Generate shaders for a single cinematic.
+pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
+    validate(cinematic)?;
 
-#[derive(Debug, Clone)]
-pub(super) enum ShaderState {
-    Position,
-    Sdf,
-    Glow,
-    Color,
+    let uniforms = extract_uniforms(cinematic);
+
+    let wgsl_fragment = wgsl::generate_fragment(cinematic, &uniforms);
+    let glsl_fragment = glsl::generate_fragment(cinematic, &uniforms);
+
+    let uses_memory = memory::any_layer_uses_memory(&cinematic.layers);
+
+    // Collect JS feature modules
+    let mut js_modules = Vec::new();
+
+    // Temporal: collect params from all layers
+    let all_params: Vec<Param> = collect_all_params(cinematic).into_iter().cloned().collect();
+    if temporal::any_param_uses_temporal(&all_params) {
+        let (init, update) = temporal::generate_temporal_js(&all_params);
+        js_modules.push(format!("{init}\n{update}"));
+    }
+
+    // Listen → GameListenPipeline class
+    if let Some(ref lb) = cinematic.listen {
+        js_modules.push(listen::generate_listen_js(lb));
+    }
+
+    // Voice → GameVoiceSynth class
+    if let Some(ref vb) = cinematic.voice {
+        js_modules.push(voice::generate_voice_js(vb));
+    }
+
+    // Score → GameScorePlayer class
+    if let Some(ref sb) = cinematic.score {
+        js_modules.push(score::generate_score_js(sb));
+    }
+
+    // Gravity → compute WGSL + GameGravitySim JS class
+    let compute_wgsl = if let Some(ref gb) = cinematic.gravity {
+        let n = 1024u32;
+        js_modules.push(gravity::generate_compute_runtime_js(n));
+        Some(gravity::generate_compute_wgsl(gb, n))
+    } else {
+        None
+    };
+
+    // React → JS event listeners
+    if let Some(ref rb) = cinematic.react {
+        let react_js = react::generate_react_js(rb, &uniforms);
+        if !react_js.is_empty() {
+            js_modules.push(react_js);
+        }
+    }
+
+    // Resonance → JS cross-layer modulation
+    for res_block in &cinematic.resonates {
+        let res_js = resonance::generate_resonance_js(res_block, &uniforms);
+        if !res_js.is_empty() {
+            js_modules.push(res_js);
+        }
+    }
+
+    // Arc → JS timeline animation
+    if !cinematic.arcs.is_empty() {
+        let arc_js = crate::runtime::arc::generate_arc_js(&cinematic.arcs, &uniforms);
+        if !arc_js.is_empty() {
+            js_modules.push(arc_js);
+        }
+    }
+
+    Ok(ShaderOutput {
+        name: cinematic.name.clone(),
+        wgsl_fragment,
+        wgsl_vertex: wgsl::vertex_shader().to_string(),
+        glsl_fragment,
+        glsl_vertex: glsl::vertex_shader().to_string(),
+        uniforms,
+        uses_memory,
+        js_modules,
+        compute_wgsl,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::*;
+
+    fn make_cinematic(stages: Vec<Stage>) -> Cinematic {
+        Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(stages),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
+            lenses: vec![], react: None, defines: vec![],
+        }
+    }
+
+    #[test]
+    fn generate_produces_both_shaders() {
+        let cin = make_cinematic(vec![
+            Stage { name: "circle".into(), args: vec![] },
+            Stage { name: "glow".into(), args: vec![] },
+        ]);
+        let output = generate(&cin).unwrap();
+        assert!(output.wgsl_fragment.contains("fn fs_main"));
+        assert!(output.glsl_fragment.contains("void main()"));
+        assert!(output.wgsl_vertex.contains("fn vs_main"));
+        assert!(output.glsl_vertex.contains("#version 300 es"));
+    }
+
+    #[test]
+    fn extract_ident_uniforms() {
+        let cin = make_cinematic(vec![
+            Stage {
+                name: "circle".into(),
+                args: vec![Arg {
+                    name: None,
+                    value: Expr::Ident("my_radius".into()),
+                }],
+            },
+            Stage { name: "glow".into(), args: vec![] },
+        ]);
+        let uniforms = extract_uniforms(&cin);
+        assert_eq!(uniforms.len(), 1);
+        assert_eq!(uniforms[0].name, "my_radius");
+    }
+
+    #[test]
+    fn validate_rejects_bad_pipeline() {
+        let cin = make_cinematic(vec![
+            Stage { name: "glow".into(), args: vec![] },
+        ]);
+        assert!(generate(&cin).is_err());
+    }
+
+    #[test]
+    fn extract_param_uniforms() {
+        let cin = Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "config".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Params(vec![
+                    Param {
+                        name: "intensity".into(),
+                        value: Expr::Number(0.5),
+                        modulation: None,
+                        temporal_ops: vec![],
+                    },
+                ]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
+            lenses: vec![], react: None, defines: vec![],
+        };
+        let uniforms = extract_uniforms(&cin);
+        assert_eq!(uniforms.len(), 1);
+        assert_eq!(uniforms[0].name, "intensity");
+        assert!((uniforms[0].default - 0.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn cast_validation_through_generate() {
+        let cin = Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: Some("sdf".into()),
+                body: LayerBody::Pipeline(vec![
+                    Stage { name: "circle".into(), args: vec![] },
+                ]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
+            lenses: vec![], react: None, defines: vec![],
+        };
+        assert!(generate(&cin).is_ok());
+    }
+
+    #[test]
+    fn cast_mismatch_rejected_through_generate() {
+        let cin = Cinematic {
+            name: "test".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: Some("sdf".into()),
+                body: LayerBody::Pipeline(vec![
+                    Stage { name: "circle".into(), args: vec![] },
+                    Stage { name: "glow".into(), args: vec![] },
+                ]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None, voice: None, score: None, gravity: None,
+            lenses: vec![], react: None, defines: vec![],
+        };
+        let err = generate(&cin).unwrap_err();
+        assert!(err.to_string().contains("cast as 'sdf'"));
+    }
+
+    #[test]
+    fn generate_with_listen_produces_js_module() {
+        let cin = Cinematic {
+            name: "audio-viz".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(vec![
+                    Stage { name: "circle".into(), args: vec![] },
+                    Stage { name: "glow".into(), args: vec![] },
+                ]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: Some(crate::ast::ListenBlock {
+                signals: vec![crate::ast::ListenSignal {
+                    name: "onset".into(),
+                    algorithm: "attack".into(),
+                    params: vec![],
+                }],
+            }),
+            voice: None,
+            score: None,
+            gravity: None,
+            lenses: vec![], react: None, defines: vec![],
+        };
+        let output = generate(&cin).unwrap();
+        assert_eq!(output.js_modules.len(), 1);
+        assert!(output.js_modules[0].contains("GameListenPipeline"));
+        assert!(output.compute_wgsl.is_none());
+    }
+
+    #[test]
+    fn generate_with_gravity_produces_compute() {
+        let cin = Cinematic {
+            name: "particles".into(),
+            layers: vec![Layer {
+                name: "main".into(),
+                opts: vec![],
+                memory: None,
+                cast: None,
+                body: LayerBody::Pipeline(vec![
+                    Stage { name: "circle".into(), args: vec![] },
+                    Stage { name: "glow".into(), args: vec![] },
+                ]),
+            }],
+            arcs: vec![],
+            resonates: vec![],
+            listen: None,
+            voice: None,
+            score: None,
+            gravity: Some(crate::ast::GravityBlock {
+                force_law: Expr::Number(1.0),
+                damping: 0.99,
+                bounds: crate::ast::BoundsMode::Reflect,
+            }),
+            lenses: vec![], react: None, defines: vec![],
+        };
+        let output = generate(&cin).unwrap();
+        assert!(output.compute_wgsl.is_some());
+        assert!(output.compute_wgsl.unwrap().contains("cs_main"));
+        assert!(output.js_modules.iter().any(|m| m.contains("GameGravitySim")));
+    }
+
+    #[test]
+    fn generate_default_has_empty_js_modules() {
+        let cin = make_cinematic(vec![
+            Stage { name: "circle".into(), args: vec![] },
+            Stage { name: "glow".into(), args: vec![] },
+        ]);
+        let output = generate(&cin).unwrap();
+        assert!(output.js_modules.is_empty());
+        assert!(output.compute_wgsl.is_none());
+    }
 }

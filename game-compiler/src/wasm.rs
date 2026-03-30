@@ -5,99 +5,89 @@
 
 use wasm_bindgen::prelude::*;
 
+use crate::{CompileConfig, OutputFormat, ShaderTarget};
+
 /// Compile `.game` source to WGSL shader code.
 ///
-/// Returns the WGSL string on success, or throws a JS error on failure.
+/// Returns the WGSL fragment shader string on success, or throws a JS error.
 #[wasm_bindgen]
 pub fn compile_to_wgsl(source: &str) -> Result<String, JsError> {
-    let tokens = crate::lexer::lex(source).map_err(|e| JsError::new(&e.to_string()))?;
-    let mut parser = crate::parser::Parser::new(tokens);
-    let cinematic = parser.parse().map_err(|e| JsError::new(&e.to_string()))?;
-    crate::codegen::generate_wgsl(&cinematic).map_err(|e| JsError::new(&e.to_string()))
+    let config = CompileConfig {
+        output_format: OutputFormat::Component,
+        target: ShaderTarget::WebGpu,
+    };
+    let outputs = crate::compile(source, &config).map_err(|e| JsError::new(&e.to_string()))?;
+    let first = outputs
+        .first()
+        .ok_or_else(|| JsError::new("no cinematic found in source"))?;
+    first
+        .wgsl
+        .clone()
+        .ok_or_else(|| JsError::new("no WGSL output generated"))
 }
 
 /// Compile `.game` source to a self-contained HTML file with WebGPU rendering.
 ///
-/// Returns the HTML string on success, or throws a JS error on failure.
+/// Returns the HTML string on success, or throws a JS error.
 #[wasm_bindgen]
 pub fn compile_to_html(source: &str) -> Result<String, JsError> {
-    let tokens = crate::lexer::lex(source).map_err(|e| JsError::new(&e.to_string()))?;
-    let mut parser = crate::parser::Parser::new(tokens);
-    let cinematic = parser.parse().map_err(|e| JsError::new(&e.to_string()))?;
-    let output =
-        crate::codegen::generate_full(&cinematic).map_err(|e| JsError::new(&e.to_string()))?;
-    Ok(crate::runtime::wrap_html_full(&output))
+    let config = CompileConfig {
+        output_format: OutputFormat::Html,
+        target: ShaderTarget::Both,
+    };
+    let outputs = crate::compile(source, &config).map_err(|e| JsError::new(&e.to_string()))?;
+    let first = outputs
+        .first()
+        .ok_or_else(|| JsError::new("no cinematic found in source"))?;
+    first
+        .html
+        .clone()
+        .ok_or_else(|| JsError::new("no HTML output generated"))
 }
 
 /// Compile `.game` source to a Web Component ES module.
 ///
-/// `tag_name` must be a valid custom element name (must contain a hyphen).
-/// Returns the JavaScript module string on success, or throws a JS error on failure.
+/// Returns the JavaScript module string on success, or throws a JS error.
 #[wasm_bindgen]
-pub fn compile_to_component(source: &str, tag_name: &str) -> Result<String, JsError> {
-    let tokens = crate::lexer::lex(source).map_err(|e| JsError::new(&e.to_string()))?;
-    let mut parser = crate::parser::Parser::new(tokens);
-    let cinematic = parser.parse().map_err(|e| JsError::new(&e.to_string()))?;
-    let output =
-        crate::codegen::generate_full(&cinematic).map_err(|e| JsError::new(&e.to_string()))?;
-    Ok(crate::runtime::wrap_web_component(&output, tag_name))
+pub fn compile_to_component(source: &str) -> Result<String, JsError> {
+    let config = CompileConfig {
+        output_format: OutputFormat::Component,
+        target: ShaderTarget::Both,
+    };
+    let outputs = crate::compile(source, &config).map_err(|e| JsError::new(&e.to_string()))?;
+    let first = outputs
+        .first()
+        .ok_or_else(|| JsError::new("no cinematic found in source"))?;
+    Ok(first.js.clone())
 }
 
 /// Validate `.game` source without full compilation.
 ///
-/// Returns a JSON object with:
-/// - `valid`: boolean
-/// - `error`: string (only if invalid)
-/// - `warnings`: string[] (only if valid)
-/// - `layers`: number (only if valid)
-/// - `params`: string[] (only if valid)
-/// - `uses_audio`: boolean (only if valid)
-/// - `uses_mouse`: boolean (only if valid)
+/// Returns a JSON string with validation result:
+/// `{ "valid": true, "cinematics": 2, "layers": 5 }` or
+/// `{ "valid": false, "error": "..." }`
 #[wasm_bindgen]
-pub fn validate(source: &str) -> JsValue {
-    let result = (|| -> Result<crate::codegen::CompileOutput, String> {
-        let tokens = crate::lexer::lex(source).map_err(|e| e.to_string())?;
-        let mut parser = crate::parser::Parser::new(tokens);
-        let cinematic = parser.parse().map_err(|e| e.to_string())?;
-        crate::codegen::generate_full(&cinematic).map_err(|e| e.to_string())
-    })();
-
-    match result {
-        Ok(output) => {
-            let obj = js_sys::Object::new();
-            let _ = js_sys::Reflect::set(&obj, &"valid".into(), &JsValue::TRUE);
-            let warnings = js_sys::Array::new();
-            for w in &output.warnings {
-                warnings.push(&JsValue::from_str(w));
-            }
-            let _ = js_sys::Reflect::set(&obj, &"warnings".into(), &warnings.into());
-            let _ = js_sys::Reflect::set(
-                &obj,
-                &"layers".into(),
-                &JsValue::from_f64(output.layer_count as f64),
-            );
-            let params = js_sys::Array::new();
-            for p in &output.params {
-                params.push(&JsValue::from_str(&p.name));
-            }
-            let _ = js_sys::Reflect::set(&obj, &"params".into(), &params.into());
-            let _ = js_sys::Reflect::set(
-                &obj,
-                &"uses_audio".into(),
-                &JsValue::from_bool(output.uses_audio),
-            );
-            let _ = js_sys::Reflect::set(
-                &obj,
-                &"uses_mouse".into(),
-                &JsValue::from_bool(output.uses_mouse),
-            );
-            obj.into()
+pub fn validate(source: &str) -> String {
+    match crate::compile_to_ast(source) {
+        Ok(program) => {
+            let total_layers: usize = program
+                .cinematics
+                .iter()
+                .map(|c| c.layers.len())
+                .sum();
+            format!(
+                r#"{{"valid":true,"cinematics":{},"layers":{}}}"#,
+                program.cinematics.len(),
+                total_layers
+            )
         }
-        Err(msg) => {
-            let obj = js_sys::Object::new();
-            let _ = js_sys::Reflect::set(&obj, &"valid".into(), &JsValue::FALSE);
-            let _ = js_sys::Reflect::set(&obj, &"error".into(), &JsValue::from_str(&msg));
-            obj.into()
+        Err(e) => {
+            let escaped = e
+                .to_string()
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+                .replace('\n', "\\n");
+            format!(r#"{{"valid":false,"error":"{}"}}"#, escaped)
         }
     }
 }

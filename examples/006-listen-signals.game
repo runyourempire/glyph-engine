@@ -1,0 +1,11 @@
+cinematic "audio-reactive" {
+  listen {
+    onset: attack(threshold: 0.7, decay: 300ms)
+    melody: pitch(min: 200, max: 4000)
+    rhythm: phase(subdivide: 16)
+  }
+
+  layer pulse {
+    circle(0.2) | glow(2.0) | tint(1.0, 0.5, 0.2)
+  }
+}

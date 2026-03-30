@@ -1,0 +1,25 @@
+cinematic "Temporal Monitor" {
+  signals {
+    cpu: audio.bass | smooth(0.3)
+    trend: cpu | slope(window: 30)
+    spike: cpu | deviation(window: 60)
+    forecast: cpu | predict(frames: 10)
+    settled: cpu | stable(threshold: 0.05, frames: 30)
+  }
+
+  layer gauge {
+    fn: ring(0.35, 0.03) | mask_arc(fill) | glow(g) | tint(gold)
+    fill: 0.0 ~ cpu * 6.283
+    g: 1.5 ~ trend * 3.0
+  }
+
+  layer spike_ring {
+    fn: ring(0.42, 0.01) | glow(sg) | tint(ember)
+    sg: 0.5 ~ spike * 2.0
+  }
+
+  layer stable_core {
+    fn: circle(0.15) | glow(cg) | tint(cyan)
+    cg: 1.0 ~ settled * 3.0
+  }
+}

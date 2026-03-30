@@ -699,8 +699,9 @@ dependencies = [
 
 [[package]]
 name = "game-compiler"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "anyhow",
  "axum",
  "clap",
  "image",
@@ -711,6 +712,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "thiserror 2.0.18",
  "tokio",
  "tower",
  "tower-livereload",

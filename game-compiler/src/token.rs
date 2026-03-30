@@ -1,144 +1,150 @@
-use logos::Logos;
+/// A source-location span: (start_byte, end_byte).
+pub type Spanned<T> = (T, usize, usize);
 
-/// Tokens produced by lexing a `.game` file.
-///
-/// Design: keywords are kept minimal — only tokens that change parsing structure.
-/// Everything else (fn, mode, depth, etc.) is an Ident and the parser gives it meaning.
-#[derive(Logos, Debug, Clone, PartialEq)]
-#[logos(skip r"[ \t\r\n]+|#[^\n]*")]
+/// Every lexeme the GAME language can produce.
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    // ── Structural keywords ────────────────────────────────────────────
-    #[token("cinematic")]
+    // --- keywords ---
     Cinematic,
-    #[token("layer")]
     Layer,
-    #[token("lens")]
-    Lens,
-    #[token("arc")]
-    Arc,
-    #[token("react")]
-    React,
-    #[token("resonate")]
-    Resonate,
-    #[token("define")]
-    Define,
-    #[token("import")]
     Import,
-    #[token("expose")]
-    Expose,
-    #[token("ease")]
-    Ease,
-    #[token("over")]
+    As,
+    Arc,
+    Resonate,
+    Memory,
+    Cast,
     Over,
-    #[token("ALL")]
+    Listen,
+    Voice,
+    Score,
+    Breed,
+    From,
+    Inherit,
+    Mutate,
+    Gravity,
+    Project,
+    Signals,
+    Route,
+    Hear,
+    Feel,
+    // --- D:/GAME unified keywords ---
+    Lens,
+    React,
+    Define,
+    Expose,
+    Ease,
     All,
 
-    // ── Literals ───────────────────────────────────────────────────────
-    #[regex(r"[0-9]+\.[0-9]+", |lex| lex.slice().parse::<f64>().ok())]
+    // --- punctuation ---
+    Pipe,      // |
+    Tilde,     // ~
+    LBrace,    // {
+    RBrace,    // }
+    LParen,    // (
+    RParen,    // )
+    LBracket,  // [
+    RBracket,  // ]
+    Colon,     // :
+    Comma,     // ,
+    Dot,       // .
+    Plus,      // +
+    Minus,     // -
+    Star,      // *
+    Slash,     // /
+    Caret,     // ^
+    Eq,        // =
+    Arrow,     // ->
+    ShiftRight,// >>
+    Diamond,   // <>
+    BangBang,  // !!
+    DotDot,    // ..
+    Greater,   // >
+    Less,      // <
+    Question,  // ?
+
+    // --- literals ---
     Float(f64),
-
-    #[regex(r"[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<u64>().ok())]
-    Int(u64),
-
-    #[regex(r#""[^"]*""#, |lex| {
-        let s = lex.slice();
-        Some(s[1..s.len()-1].to_string())
-    })]
-    String(String),
-
-    // ── Identifiers (catch-all for names, property keys, colors, etc.) ─
-    #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", priority = 1, callback = |lex| Some(lex.slice().to_string()))]
+    Integer(i64),
+    StringLit(String),
     Ident(String),
 
-    // ── Operators ──────────────────────────────────────────────────────
-    #[token("|")]
-    Pipe,
-    #[token("~")]
-    Tilde,
-    #[token("->")]
-    Arrow,
-    #[token(":")]
-    Colon,
-    #[token(",")]
-    Comma,
-    #[token(".")]
-    Dot,
-    #[token("+")]
-    Plus,
-    #[token("-")]
-    Minus,
-    #[token("*")]
-    Star,
-    #[token("/")]
-    Slash,
-    #[token(">")]
-    Greater,
-    #[token("<")]
-    Less,
-    #[token("?")]
-    Question,
+    // --- units (number already embedded) ---
+    Seconds(f64),
+    Millis(f64),
+    Bars(i64),
+    Degrees(f64),
 
-    // ── Delimiters ─────────────────────────────────────────────────────
-    #[token("{")]
-    LBrace,
-    #[token("}")]
-    RBrace,
-    #[token("(")]
-    LParen,
-    #[token(")")]
-    RParen,
-    #[token("[")]
-    LBracket,
-    #[token("]")]
-    RBracket,
+    // --- unit keywords ---
+    Hz,
+    Bpm,
 }
 
-impl Token {
-    /// Human-readable name for error messages.
-    pub fn describe(&self) -> &'static str {
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::Cinematic => "'cinematic'",
-            Token::Layer => "'layer'",
-            Token::Lens => "'lens'",
-            Token::Arc => "'arc'",
-            Token::React => "'react'",
-            Token::Resonate => "'resonate'",
-            Token::Define => "'define'",
-            Token::Import => "'import'",
-            Token::Expose => "'expose'",
-            Token::Ease => "'ease'",
-            Token::Over => "'over'",
-            Token::All => "'ALL'",
-            Token::Float(_) => "float",
-            Token::Int(_) => "integer",
-            Token::String(_) => "string",
-            Token::Ident(_) => "identifier",
-            Token::Pipe => "'|'",
-            Token::Tilde => "'~'",
-            Token::Arrow => "'->'",
-            Token::Colon => "':'",
-            Token::Comma => "','",
-            Token::Dot => "'.'",
-            Token::Plus => "'+'",
-            Token::Minus => "'-'",
-            Token::Star => "'*'",
-            Token::Slash => "'/'",
-            Token::Greater => "'>'",
-            Token::Less => "'<'",
-            Token::Question => "'?'",
-            Token::LBrace => "'{'",
-            Token::RBrace => "'}'",
-            Token::LParen => "'('",
-            Token::RParen => "')'",
-            Token::LBracket => "'['",
-            Token::RBracket => "']'",
+            Token::Cinematic => write!(f, "cinematic"),
+            Token::Layer => write!(f, "layer"),
+            Token::Import => write!(f, "import"),
+            Token::As => write!(f, "as"),
+            Token::Arc => write!(f, "arc"),
+            Token::Resonate => write!(f, "resonate"),
+            Token::Memory => write!(f, "memory"),
+            Token::Cast => write!(f, "cast"),
+            Token::Over => write!(f, "over"),
+            Token::Listen => write!(f, "listen"),
+            Token::Voice => write!(f, "voice"),
+            Token::Score => write!(f, "score"),
+            Token::Breed => write!(f, "breed"),
+            Token::From => write!(f, "from"),
+            Token::Inherit => write!(f, "inherit"),
+            Token::Mutate => write!(f, "mutate"),
+            Token::Gravity => write!(f, "gravity"),
+            Token::Project => write!(f, "project"),
+            Token::Signals => write!(f, "signals"),
+            Token::Route => write!(f, "route"),
+            Token::Hear => write!(f, "hear"),
+            Token::Feel => write!(f, "feel"),
+            Token::Lens => write!(f, "lens"),
+            Token::React => write!(f, "react"),
+            Token::Define => write!(f, "define"),
+            Token::Expose => write!(f, "expose"),
+            Token::Ease => write!(f, "ease"),
+            Token::All => write!(f, "ALL"),
+            Token::Pipe => write!(f, "|"),
+            Token::Tilde => write!(f, "~"),
+            Token::LBrace => write!(f, "{{"),
+            Token::RBrace => write!(f, "}}"),
+            Token::LParen => write!(f, "("),
+            Token::RParen => write!(f, ")"),
+            Token::LBracket => write!(f, "["),
+            Token::RBracket => write!(f, "]"),
+            Token::Colon => write!(f, ":"),
+            Token::Comma => write!(f, ","),
+            Token::Dot => write!(f, "."),
+            Token::Plus => write!(f, "+"),
+            Token::Minus => write!(f, "-"),
+            Token::Star => write!(f, "*"),
+            Token::Slash => write!(f, "/"),
+            Token::Caret => write!(f, "^"),
+            Token::Eq => write!(f, "="),
+            Token::Arrow => write!(f, "->"),
+            Token::ShiftRight => write!(f, ">>"),
+            Token::Diamond => write!(f, "<>"),
+            Token::BangBang => write!(f, "!!"),
+            Token::DotDot => write!(f, ".."),
+            Token::Greater => write!(f, ">"),
+            Token::Less => write!(f, "<"),
+            Token::Question => write!(f, "?"),
+            Token::Float(v) => write!(f, "{v}"),
+            Token::Integer(v) => write!(f, "{v}"),
+            Token::StringLit(s) => write!(f, "\"{s}\""),
+            Token::Ident(s) => write!(f, "{s}"),
+            Token::Seconds(v) => write!(f, "{v}s"),
+            Token::Millis(v) => write!(f, "{v}ms"),
+            Token::Bars(v) => write!(f, "{v}bars"),
+            Token::Degrees(v) => write!(f, "{v}deg"),
+            Token::Hz => write!(f, "Hz"),
+            Token::Bpm => write!(f, "bpm"),
         }
     }
-}
-
-/// A token with its source location (byte offset span).
-#[derive(Debug, Clone)]
-pub struct Spanned {
-    pub token: Token,
-    pub span: std::ops::Range<usize>,
 }

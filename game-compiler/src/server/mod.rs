@@ -1,183 +1,212 @@
+//! Hot-reload dev server for the GAME compiler.
+//!
+//! Serves a live preview UI with split-pane layout, WGSL inspector, inline editor,
+//! and param sliders. File changes trigger automatic recompilation via LiveReload.
+
+pub mod css;
+pub mod export;
+pub mod page;
+pub mod util;
+
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use axum::extract::State;
-use axum::response::Html;
+use axum::http::header;
+use axum::response::{Html, IntoResponse};
 use axum::routing::{get, post};
-use axum::Router;
+use axum::{Json, Router};
 use notify::{Event, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use tower_livereload::LiveReloadLayer;
 
-use crate::codegen::CompileOutput;
-use crate::codegen::XrayVariant;
+use crate::{CompileConfig, CompileOutput, OutputFormat, ShaderTarget};
 
-mod css;
-mod toolbar;
-mod panels;
-mod timeline;
-mod inline_js;
-mod page;
-mod export;
-pub(crate) mod util;
+// ── State ───────────────────────────────────────────
 
 struct DevState {
     source_path: PathBuf,
     tag_name: String,
 }
 
-/// Start the dev server with hot-reload for a `.game` file.
-pub async fn run_dev_server(path: PathBuf, port: u16) -> Result<(), Box<dyn std::error::Error>> {
-    let tag_name = crate::derive_tag_name(&path);
+// ── Helpers ─────────────────────────────────────────
+
+/// Derive a Web Component tag name from a file path.
+///
+/// Takes the file stem, lowercases it, replaces non-alphanumeric chars with hyphens,
+/// and prefixes with `game-`.
+/// E.g. `hello.game` -> `game-hello`, `Boot Ring.game` -> `game-boot-ring`.
+fn derive_tag_name(path: &Path) -> String {
+    let stem = path
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    let kebab: String = stem
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let trimmed = kebab.trim_matches('-').to_string();
+    // Collapse consecutive hyphens
+    let mut collapsed = String::with_capacity(trimmed.len());
+    let mut prev_hyphen = false;
+    for c in trimmed.chars() {
+        if c == '-' {
+            if !prev_hyphen {
+                collapsed.push('-');
+            }
+            prev_hyphen = true;
+        } else {
+            collapsed.push(c);
+            prev_hyphen = false;
+        }
+    }
+    format!("game-{collapsed}")
+}
+
+/// Read the source file and compile it, returning the source text and compilation result.
+fn compile_source(state: &DevState) -> (String, Result<Vec<CompileOutput>, String>) {
+    let source = match std::fs::read_to_string(&state.source_path) {
+        Ok(s) => s,
+        Err(e) => return (String::new(), Err(format!("read error: {e}"))),
+    };
+    let config = CompileConfig {
+        output_format: OutputFormat::Html,
+        target: ShaderTarget::Both,
+    };
+    let result = crate::compile(&source, &config).map_err(|e| e.to_string());
+    (source, result)
+}
+
+/// Extract uniform info by compiling to AST and running codegen.
+fn extract_uniforms_from_source(source: &str) -> Vec<UniformParam> {
+    let program = match crate::compile_to_ast(source) {
+        Ok(p) => p,
+        Err(_) => return Vec::new(),
+    };
+    let mut params = Vec::new();
+    for cinematic in &program.cinematics {
+        if let Ok(shader) = crate::codegen::generate(cinematic) {
+            for u in &shader.uniforms {
+                params.push(UniformParam {
+                    name: u.name.clone(),
+                    default: u.default,
+                });
+            }
+        }
+    }
+    params
+}
+
+// ── Public entry point ──────────────────────────────
+
+/// Start the hot-reload dev server for a single `.game` file.
+pub async fn run_dev_server(path: PathBuf, port: u16) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let tag_name = derive_tag_name(&path);
+
     let state = Arc::new(Mutex::new(DevState {
         source_path: path.clone(),
-        tag_name,
+        tag_name: tag_name.clone(),
     }));
 
+    // LiveReload layer — injected into HTML responses
     let livereload = LiveReloadLayer::new();
     let reloader = livereload.reloader();
 
-    // File watcher
+    // File watcher — triggers livereload on source change
     let watch_path = path.clone();
-    let mut watcher = notify::recommended_watcher(move |res: Result<Event, _>| {
+    let mut watcher = notify::recommended_watcher(move |res: Result<Event, notify::Error>| {
         if let Ok(event) = res {
-            if event.kind.is_modify() {
+            if event.kind.is_modify() || event.kind.is_create() {
                 reloader.reload();
             }
         }
     })?;
-    watcher.watch(path.parent().unwrap_or(path.as_ref()), RecursiveMode::NonRecursive)?;
+
+    // Watch the parent directory (watching a single file can be unreliable on some OSes)
+    let watch_dir = path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .to_path_buf();
+    watcher.watch(&watch_dir, RecursiveMode::NonRecursive)?;
 
     let app = Router::new()
         .route("/", get(serve_preview))
         .route("/component.js", get(serve_component))
         .route("/preview.html", get(serve_fullscreen))
-        .route("/xray.json", get(serve_xray))
         .route("/compile", post(serve_compile))
         .route("/save", post(serve_save))
-        .route("/export/react", get(serve_export_react))
-        .route("/export/vue", get(serve_export_vue))
-        .route("/export/css", get(serve_export_css))
         .layer(livereload)
         .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    eprintln!("GAME dev server");
-    eprintln!("  file:       {}", watch_path.display());
-    eprintln!("  preview:    http://localhost:{port}/");
-    eprintln!("  component:  http://localhost:{port}/component.js");
-    eprintln!("  fullscreen: http://localhost:{port}/preview.html");
-    eprintln!("  watching for changes...");
+    eprintln!();
+    eprintln!("  GAME dev server");
+    eprintln!("  ───────────────────────────────────");
+    eprintln!("  File:      {}", watch_path.display());
+    eprintln!("  Tag:       <{tag_name}>");
+    eprintln!("  Preview:   http://127.0.0.1:{port}/");
+    eprintln!("  Component: http://127.0.0.1:{port}/component.js");
+    eprintln!("  Fullscreen: http://127.0.0.1:{port}/preview.html");
+    eprintln!("  ───────────────────────────────────");
+    eprintln!();
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app.into_make_service()).await?;
 
-    // Keep watcher alive
+    // Keep watcher alive for the duration of the server
     drop(watcher);
     Ok(())
 }
 
-// ── Compile helper ────────────────────────────────────────────────────
+// ── Route handlers ──────────────────────────────────
 
-enum CompileResult {
-    Ok(CompileOutput),
-    Err(String),
-}
-
-fn compile_source(state: &Arc<Mutex<DevState>>) -> (String, CompileResult) {
-    let (source_path, tag_name) = match state.lock() {
-        Ok(s) => (s.source_path.clone(), s.tag_name.clone()),
-        Err(e) => return (String::new(), CompileResult::Err(format!("Lock error: {e}"))),
-    };
-    let source = match std::fs::read_to_string(&source_path) {
-        Ok(s) => s,
-        Err(e) => return (tag_name, CompileResult::Err(format!("Read error: {e}"))),
-    };
-    match crate::compile_full(&source) {
-        Ok(output) => (tag_name, CompileResult::Ok(output)),
-        Err(e) => (tag_name, CompileResult::Err(format!("{e}"))),
-    }
-}
-
-fn read_source(state: &Arc<Mutex<DevState>>) -> Option<String> {
-    let source_path = state.lock().ok()?.source_path.clone();
-    std::fs::read_to_string(&source_path).ok()
-}
-
-// ── Route handlers ────────────────────────────────────────────────────
-
-/// Serve the full dev UI (split-pane, sliders, toolbar).
 async fn serve_preview(State(state): State<Arc<Mutex<DevState>>>) -> Html<String> {
-    let (tag_name, result) = compile_source(&state);
-    let source = read_source(&state).unwrap_or_default();
+    let st = state.lock().unwrap();
+    let (source, result) = compile_source(&st);
     match result {
-        CompileResult::Ok(output) => Html(page::build_preview_page(&output, &tag_name, &source)),
-        CompileResult::Err(e) => Html(page::build_error_page(&tag_name, &e)),
+        Ok(outputs) => Html(page::build_preview_page(&outputs, &st.tag_name, &source)),
+        Err(e) => Html(page::build_error_page(&st.tag_name, &e)),
     }
 }
 
-/// Serve the compiled Web Component JS module.
-async fn serve_component(State(state): State<Arc<Mutex<DevState>>>) -> (
-    [(axum::http::header::HeaderName, &'static str); 1],
-    String,
-) {
-    let (tag_name, result) = compile_source(&state);
-    let js = match result {
-        CompileResult::Ok(output) => crate::runtime::wrap_web_component(&output, &tag_name),
-        CompileResult::Err(e) => {
-            let escaped = e.replace('\\', "\\\\").replace('\'', "\\'");
-            format!("console.error('GAME: {escaped}');")
+async fn serve_component(State(state): State<Arc<Mutex<DevState>>>) -> impl IntoResponse {
+    let st = state.lock().unwrap();
+    let (_, result) = compile_source(&st);
+    match result {
+        Ok(outputs) => {
+            let js = outputs.first().map(|o| o.js.clone()).unwrap_or_default();
+            ([(header::CONTENT_TYPE, "text/javascript")], js)
         }
-    };
-    ([(axum::http::header::CONTENT_TYPE, "text/javascript")], js)
+        Err(e) => {
+            let escaped = util::json_escape(&e);
+            let err_js = format!("console.error('GAME compile error: {escaped}');");
+            ([(header::CONTENT_TYPE, "text/javascript")], err_js)
+        }
+    }
 }
 
-/// Serve standalone HTML preview (no dev chrome).
 async fn serve_fullscreen(State(state): State<Arc<Mutex<DevState>>>) -> Html<String> {
-    let (tag_name, result) = compile_source(&state);
+    let st = state.lock().unwrap();
+    let (_, result) = compile_source(&st);
     match result {
-        CompileResult::Ok(output) => Html(crate::runtime::wrap_html_full(&output)),
-        CompileResult::Err(e) => Html(page::build_error_page(&tag_name, &e)),
+        Ok(outputs) => {
+            let html = outputs
+                .first()
+                .and_then(|o| o.html.clone())
+                .unwrap_or_else(|| "<html><body>No HTML output</body></html>".into());
+            Html(html)
+        }
+        Err(e) => Html(page::build_error_page(&st.tag_name, &e)),
     }
 }
-
-/// Serve x-ray variants as JSON for pipeline swapping.
-async fn serve_xray(
-    State(state): State<Arc<Mutex<DevState>>>,
-) -> ([(axum::http::header::HeaderName, &'static str); 1], String) {
-    let source_path = match state.lock() {
-        Ok(s) => s.source_path.clone(),
-        Err(_) => {
-            return (
-                [(axum::http::header::CONTENT_TYPE, "application/json")],
-                r#"{"variants":[]}"#.to_string(),
-            );
-        }
-    };
-    let source = match std::fs::read_to_string(&source_path) {
-        Ok(s) => s,
-        Err(_) => {
-            return (
-                [(axum::http::header::CONTENT_TYPE, "application/json")],
-                r#"{"variants":[]}"#.to_string(),
-            );
-        }
-    };
-    let variants = match crate::compile_xray_variants(&source) {
-        Ok(v) => v,
-        Err(_) => {
-            return (
-                [(axum::http::header::CONTENT_TYPE, "application/json")],
-                r#"{"variants":[]}"#.to_string(),
-            );
-        }
-    };
-    let json = xray_variants_to_json(&variants);
-    ([(axum::http::header::CONTENT_TYPE, "application/json")], json)
-}
-
-// ── POST /compile — live editor recompilation ─────────────────────────
 
 #[derive(Deserialize)]
 struct CompileRequest {
@@ -187,59 +216,45 @@ struct CompileRequest {
 #[derive(Serialize)]
 struct CompileResponse {
     wgsl: Option<String>,
-    component_js: Option<String>,
-    params: Vec<CompileParamInfo>,
-    warnings: Vec<String>,
+    js: Option<String>,
     error: Option<String>,
-    uniform_count: usize,
+    params: Vec<UniformParam>,
 }
 
-#[derive(Serialize)]
-struct CompileParamInfo {
+#[derive(Serialize, Clone)]
+struct UniformParam {
     name: String,
-    base: f64,
+    default: f64,
 }
 
 async fn serve_compile(
-    State(state): State<Arc<Mutex<DevState>>>,
-    axum::Json(req): axum::Json<CompileRequest>,
-) -> axum::Json<CompileResponse> {
-    let tag_name = state
-        .lock()
-        .map(|s| s.tag_name.clone())
-        .unwrap_or_else(|_| "game-component".to_string());
-
-    match crate::compile_full(&req.source) {
-        Ok(output) => {
-            let component_js = crate::runtime::wrap_web_component(&output, &tag_name);
-            axum::Json(CompileResponse {
-                wgsl: Some(output.wgsl),
-                component_js: Some(component_js),
-                params: output
-                    .params
-                    .iter()
-                    .map(|p| CompileParamInfo {
-                        name: p.name.clone(),
-                        base: p.base_value,
-                    })
-                    .collect(),
-                warnings: output.warnings,
+    State(_state): State<Arc<Mutex<DevState>>>,
+    Json(req): Json<CompileRequest>,
+) -> Json<CompileResponse> {
+    let config = CompileConfig {
+        output_format: OutputFormat::Html,
+        target: ShaderTarget::Both,
+    };
+    match crate::compile(&req.source, &config) {
+        Ok(outputs) => {
+            let wgsl = outputs.first().and_then(|o| o.wgsl.clone());
+            let js = outputs.first().map(|o| o.js.clone());
+            let params = extract_uniforms_from_source(&req.source);
+            Json(CompileResponse {
+                wgsl,
+                js,
                 error: None,
-                uniform_count: output.uniform_float_count,
+                params,
             })
         }
-        Err(e) => axum::Json(CompileResponse {
+        Err(e) => Json(CompileResponse {
             wgsl: None,
-            component_js: None,
+            js: None,
+            error: Some(e.to_string()),
             params: Vec::new(),
-            warnings: Vec::new(),
-            error: Some(format!("{e}")),
-            uniform_count: 0,
         }),
     }
 }
-
-// ── POST /save — write source to disk ─────────────────────────────────
 
 #[derive(Deserialize)]
 struct SaveRequest {
@@ -254,90 +269,53 @@ struct SaveResponse {
 
 async fn serve_save(
     State(state): State<Arc<Mutex<DevState>>>,
-    axum::Json(req): axum::Json<SaveRequest>,
-) -> axum::Json<SaveResponse> {
-    let source_path = match state.lock() {
-        Ok(s) => s.source_path.clone(),
-        Err(e) => {
-            return axum::Json(SaveResponse {
-                ok: false,
-                error: Some(format!("Lock error: {e}")),
-            });
-        }
-    };
-    match std::fs::write(&source_path, &req.source) {
-        Ok(()) => axum::Json(SaveResponse {
+    Json(req): Json<SaveRequest>,
+) -> Json<SaveResponse> {
+    let st = state.lock().unwrap();
+    match std::fs::write(&st.source_path, &req.source) {
+        Ok(()) => Json(SaveResponse {
             ok: true,
             error: None,
         }),
-        Err(e) => axum::Json(SaveResponse {
+        Err(e) => Json(SaveResponse {
             ok: false,
-            error: Some(format!("Write error: {e}")),
+            error: Some(e.to_string()),
         }),
     }
 }
 
-// ── Export routes ─────────────────────────────────────────────────────
+// ── Tests ───────────────────────────────────────────
 
-async fn serve_export_react(
-    State(state): State<Arc<Mutex<DevState>>>,
-) -> ([(axum::http::header::HeaderName, &'static str); 2], String) {
-    let (tag_name, result) = compile_source(&state);
-    let body = match result {
-        CompileResult::Ok(output) => export::generate_react(&output, &tag_name),
-        CompileResult::Err(e) => format!("// Compile error: {e}"),
-    };
-    ([
-        (axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8"),
-        (axum::http::header::CONTENT_DISPOSITION, "attachment; filename=\"GameComponent.jsx\""),
-    ], body)
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-async fn serve_export_vue(
-    State(state): State<Arc<Mutex<DevState>>>,
-) -> ([(axum::http::header::HeaderName, &'static str); 2], String) {
-    let (tag_name, result) = compile_source(&state);
-    let body = match result {
-        CompileResult::Ok(output) => export::generate_vue(&output, &tag_name),
-        CompileResult::Err(e) => format!("<!-- Compile error: {} -->", e),
-    };
-    ([
-        (axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8"),
-        (axum::http::header::CONTENT_DISPOSITION, "attachment; filename=\"GameComponent.vue\""),
-    ], body)
-}
-
-async fn serve_export_css(
-    State(state): State<Arc<Mutex<DevState>>>,
-) -> ([(axum::http::header::HeaderName, &'static str); 2], String) {
-    let (tag_name, result) = compile_source(&state);
-    let body = match result {
-        CompileResult::Ok(output) => export::generate_css(&output, &tag_name),
-        CompileResult::Err(e) => format!("/* Compile error: {} */", e),
-    };
-    ([
-        (axum::http::header::CONTENT_TYPE, "text/css; charset=utf-8"),
-        (axum::http::header::CONTENT_DISPOSITION, "attachment; filename=\"fallback.css\""),
-    ], body)
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────
-
-fn xray_variants_to_json(variants: &[XrayVariant]) -> String {
-    let mut json = String::from(r#"{"variants":["#);
-    for (i, v) in variants.iter().enumerate() {
-        if i > 0 {
-            json.push(',');
-        }
-        json.push_str(&format!(
-            r#"{{"layer":{},"layerName":{},"stage":{},"stageName":{},"wgsl":{}}}"#,
-            v.layer_index,
-            util::serde_json_inline(&v.layer_name),
-            v.stage_index,
-            util::serde_json_inline(&v.stage_name),
-            util::serde_json_inline(&v.wgsl),
-        ));
+    #[test]
+    fn derive_tag_name_simple() {
+        assert_eq!(derive_tag_name(Path::new("hello.game")), "game-hello");
     }
-    json.push_str("]}");
-    json
+
+    #[test]
+    fn derive_tag_name_spaces() {
+        assert_eq!(
+            derive_tag_name(Path::new("Boot Ring.game")),
+            "game-boot-ring"
+        );
+    }
+
+    #[test]
+    fn derive_tag_name_nested_path() {
+        assert_eq!(
+            derive_tag_name(Path::new("/home/user/shaders/My Cool Viz.game")),
+            "game-my-cool-viz"
+        );
+    }
+
+    #[test]
+    fn derive_tag_name_already_kebab() {
+        assert_eq!(
+            derive_tag_name(Path::new("particle-storm.game")),
+            "game-particle-storm"
+        );
+    }
 }
