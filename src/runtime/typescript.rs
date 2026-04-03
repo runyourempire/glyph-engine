@@ -194,6 +194,7 @@ mod tests {
             states_js: None,
             particles_sim_wgsl: None,
             particles_raster_wgsl: None,
+            complexity: crate::codegen::ShaderComplexity::default(),
         }
     }
 

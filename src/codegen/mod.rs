@@ -108,6 +108,44 @@ pub struct ShaderOutput {
     pub has_states: bool,
     /// Generated JS state machine class (if states are present).
     pub states_js: Option<String>,
+    /// Compile-time complexity metadata for runtime power management.
+    pub complexity: ShaderComplexity,
+}
+
+/// Compile-time shader complexity metadata.
+///
+/// Calculated during codegen to allow runtime power management decisions
+/// (e.g., adaptive FPS, resolution scaling) without profiling the shader.
+#[derive(Debug, Clone)]
+pub struct ShaderComplexity {
+    /// Number of rendering layers.
+    pub layer_count: usize,
+    /// Total FBM octaves across all layers (higher = more GPU work).
+    pub total_fbm_octaves: usize,
+    /// Number of post-processing passes.
+    pub pass_count: usize,
+    /// Whether memory/feedback ping-pong is used.
+    pub uses_memory: bool,
+    /// Whether compute shaders are used (particles, reaction-diffusion, etc.).
+    pub uses_compute: bool,
+    /// Whether 3D ray marching is used.
+    pub is_3d: bool,
+    /// Estimated complexity tier: "minimal", "light", "medium", "heavy", "extreme".
+    pub tier: String,
+}
+
+impl Default for ShaderComplexity {
+    fn default() -> Self {
+        Self {
+            layer_count: 0,
+            total_fbm_octaves: 0,
+            pass_count: 0,
+            uses_memory: false,
+            uses_compute: false,
+            is_3d: false,
+            tier: "minimal".to_string(),
+        }
+    }
 }
 
 /// A string-typed property for DOM binding.
@@ -524,6 +562,13 @@ pub fn generate_with_fns(
         })
         .collect();
 
+    let has_any_compute = compute_wgsl.is_some()
+        || react_wgsl.is_some()
+        || swarm_agent_wgsl.is_some()
+        || flow_wgsl.is_some()
+        || particles_sim_wgsl.is_some();
+    let complexity = compute_complexity(cinematic, pass_count, uses_memory, uses_feedback, is_3d, has_any_compute);
+
     Ok(ShaderOutput {
         name: cinematic.name.clone(),
         wgsl_fragment,
@@ -560,7 +605,69 @@ pub fn generate_with_fns(
         },
         particles_sim_wgsl,
         particles_raster_wgsl,
+        complexity,
     })
+}
+
+/// Calculate compile-time shader complexity for runtime power management.
+fn compute_complexity(
+    cinematic: &crate::ast::Cinematic,
+    pass_count: usize,
+    uses_memory: bool,
+    uses_feedback: bool,
+    is_3d: bool,
+    uses_compute: bool,
+) -> ShaderComplexity {
+    let layer_count = cinematic.layers.iter().filter(|l| l.name != "config").count();
+
+    // Count total FBM octaves across all layers by scanning stage arguments.
+    // Stage is a struct { name, args }, Arg is { name: Option<String>, value: Expr }.
+    let mut total_fbm_octaves: usize = 0;
+    for layer in &cinematic.layers {
+        if let crate::ast::LayerBody::Pipeline(ref stages) = layer.body {
+            for stage in stages {
+                if stage.name == "fbm" || stage.name == "warp" {
+                    for arg in &stage.args {
+                        if let Some(ref aname) = arg.name {
+                            if aname == "octaves" || aname == "oct" {
+                                if let crate::ast::Expr::Number(v) = arg.value {
+                                    total_fbm_octaves += v as usize;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Compute a complexity score: each factor contributes weighted points
+    let mut score: usize = 0;
+    score += layer_count * 10;
+    score += total_fbm_octaves * 5;
+    score += pass_count * 15;
+    if uses_memory || uses_feedback { score += 20; }
+    if uses_compute { score += 40; }
+    if is_3d { score += 30; }
+
+    let tier = match score {
+        0..=20 => "minimal",
+        21..=50 => "light",
+        51..=100 => "medium",
+        101..=160 => "heavy",
+        _ => "extreme",
+    }
+    .to_string();
+
+    ShaderComplexity {
+        layer_count,
+        total_fbm_octaves,
+        pass_count,
+        uses_memory: uses_memory || uses_feedback,
+        uses_compute,
+        is_3d,
+        tier,
+    }
 }
 
 #[cfg(test)]

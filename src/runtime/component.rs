@@ -59,6 +59,18 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
     }
     s.push_str(&format!("const UNIFORMS = [{uniform_defs_json}];\n"));
 
+    // Complexity metadata for runtime power management
+    s.push_str(&format!(
+        "const COMPLEXITY = {{layers:{},fbmOctaves:{},passes:{},memory:{},compute:{},is3d:{},tier:'{}'}};\n",
+        shader.complexity.layer_count,
+        shader.complexity.total_fbm_octaves,
+        shader.complexity.pass_count,
+        shader.complexity.uses_memory,
+        shader.complexity.uses_compute,
+        shader.complexity.is_3d,
+        shader.complexity.tier,
+    ));
+
     // Pass shader constants
     if has_passes {
         for (i, pass_wgsl) in shader.pass_wgsl.iter().enumerate() {
@@ -492,8 +504,9 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
     s.push_str("  _resize() {\n");
     s.push_str("    const rect = this.getBoundingClientRect();\n");
     s.push_str("    const dpr = window.devicePixelRatio || 1;\n");
-    s.push_str("    this._canvas.width = Math.round(rect.width * dpr);\n");
-    s.push_str("    this._canvas.height = Math.round(rect.height * dpr);\n");
+    s.push_str("    const scale = this._renderer?._resScale || 1.0;\n");
+    s.push_str("    this._canvas.width = Math.round(rect.width * dpr * scale);\n");
+    s.push_str("    this._canvas.height = Math.round(rect.height * dpr * scale);\n");
     s.push_str("    if (this._renderer?._resizeMemory) this._renderer._resizeMemory();\n");
     if has_passes {
         s.push_str("    if (this._renderer?._resizePassFBOs) this._renderer._resizePassFBOs();\n");
@@ -508,6 +521,20 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
     s.push_str(
         "  setAudioSource(bridge) { bridge?.subscribe(d => this._renderer?.setAudioData(d)); }\n\n",
     );
+
+    // ── Wallpaper-grade APIs ────────────────────────────────────────
+    s.push_str("  pause() { this._renderer?.pause(); }\n");
+    s.push_str("  resume() { this._renderer?.resume(); }\n\n");
+    s.push_str("  setFPS(fps) { this._renderer?.setFPS(fps); }\n\n");
+    s.push_str("  setResolutionScale(scale) {\n");
+    s.push_str("    this._renderer?.setResolutionScale(scale);\n");
+    s.push_str("    this._resize();\n");
+    s.push_str("  }\n\n");
+    s.push_str("  fullscreen() {\n");
+    s.push_str("    if (this.requestFullscreen) this.requestFullscreen();\n");
+    s.push_str("    else if (this.webkitRequestFullscreen) this.webkitRequestFullscreen();\n");
+    s.push_str("  }\n\n");
+    s.push_str("  get complexity() { return COMPLEXITY; }\n\n");
 
     // Texture loading methods (only when textures are declared)
     if !shader.textures.is_empty() {
@@ -766,6 +793,7 @@ mod tests {
             states_js: None,
             particles_sim_wgsl: None,
             particles_raster_wgsl: None,
+            complexity: crate::codegen::ShaderComplexity::default(),
         }
     }
 
@@ -1111,5 +1139,76 @@ mod tests {
             js.contains("this.loadTexture('bg', 'https://example.com/bg.png')"),
             "should auto-load texture with source URL"
         );
+    }
+
+    // ── Wallpaper feature tests ─────────────────────────────────────
+
+    #[test]
+    fn component_has_fps_limiter() {
+        let shader = make_shader("wallpaper");
+        let js = generate_component(&shader, ShaderTarget::Both);
+        // Renderer has FPS limiter
+        assert!(js.contains("setFPS(fps)"), "renderer should have setFPS method");
+        assert!(js.contains("this._fpsLimit"), "should track FPS limit");
+        assert!(js.contains("this._fpsInterval"), "should track FPS interval");
+        // Component exposes it
+        assert!(js.contains("setFPS(fps) { this._renderer?.setFPS(fps)"), "component should proxy setFPS");
+    }
+
+    #[test]
+    fn component_has_pause_resume() {
+        let shader = make_shader("wallpaper");
+        let js = generate_component(&shader, ShaderTarget::Both);
+        // Renderer has pause/resume
+        assert!(js.contains("pause() { this._paused = true; }"), "renderer should have pause");
+        assert!(js.contains("resume() { this._paused = false;"), "renderer should have resume");
+        // Component exposes it
+        assert!(js.contains("pause() { this._renderer?.pause()"), "component should proxy pause");
+        assert!(js.contains("resume() { this._renderer?.resume()"), "component should proxy resume");
+    }
+
+    #[test]
+    fn component_has_visibility_auto_pause() {
+        let shader = make_shader("wallpaper");
+        let js = generate_component(&shader, ShaderTarget::Both);
+        assert!(js.contains("visibilitychange"), "should listen for visibilitychange");
+        assert!(js.contains("this._docHidden"), "should track document hidden state");
+        assert!(js.contains("document.hidden"), "should check document.hidden");
+    }
+
+    #[test]
+    fn component_has_resolution_scale() {
+        let shader = make_shader("wallpaper");
+        let js = generate_component(&shader, ShaderTarget::Both);
+        assert!(js.contains("setResolutionScale(scale)"), "should have setResolutionScale");
+        assert!(js.contains("this._resScale"), "should track resolution scale");
+        // Resize uses scale
+        assert!(js.contains("const scale = this._renderer?._resScale || 1.0"), "resize should use scale");
+    }
+
+    #[test]
+    fn component_has_fullscreen() {
+        let shader = make_shader("wallpaper");
+        let js = generate_component(&shader, ShaderTarget::Both);
+        assert!(js.contains("fullscreen()"), "should have fullscreen method");
+        assert!(js.contains("requestFullscreen"), "should use requestFullscreen API");
+    }
+
+    #[test]
+    fn component_has_complexity_metadata() {
+        let shader = make_shader("wallpaper");
+        let js = generate_component(&shader, ShaderTarget::Both);
+        assert!(js.contains("const COMPLEXITY = {"), "should emit COMPLEXITY constant");
+        assert!(js.contains("get complexity()"), "should expose complexity getter");
+        assert!(js.contains("tier:'minimal'"), "empty shader should be minimal tier");
+    }
+
+    #[test]
+    fn fps_limiter_in_render_loop() {
+        let shader = make_shader("fps-test");
+        let js = generate_component(&shader, ShaderTarget::Both);
+        // The FPS limiter should be in the render loop
+        assert!(js.contains("if (this._fpsLimit > 0)"), "should check FPS limit in loop");
+        assert!(js.contains("(now - this._lastFrameTime) < this._fpsInterval"), "should compare delta time");
     }
 }

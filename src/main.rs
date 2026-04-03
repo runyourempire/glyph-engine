@@ -88,6 +88,7 @@ enum FormatArg {
     Html,
     Standalone,
     Artblocks,
+    Wallpaper,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -665,6 +666,7 @@ fn main() -> Result<()> {
                     FormatArg::Html => OutputFormat::Html,
                     FormatArg::Standalone => OutputFormat::Standalone,
                     FormatArg::Artblocks => OutputFormat::ArtBlocks,
+                    FormatArg::Wallpaper => OutputFormat::Wallpaper,
                 },
                 target: match target {
                     TargetArg::Webgpu => ShaderTarget::WebGpu,

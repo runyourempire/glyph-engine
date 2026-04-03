@@ -82,6 +82,12 @@ pub fn webgpu_renderer(
     s.push_str("    this.uniformBuffer = null;\n");
     s.push_str("    this.bindGroup = null;\n");
     s.push_str("    this.running = false;\n");
+    s.push_str("    this._paused = false;\n");
+    s.push_str("    this._fpsLimit = 0;\n");
+    s.push_str("    this._fpsInterval = 0;\n");
+    s.push_str("    this._lastFrameTime = 0;\n");
+    s.push_str("    this._elapsed = 0;\n");
+    s.push_str("    this._resScale = 1.0;\n");
     s.push_str("    this.startTime = performance.now() / 1000;\n");
     s.push_str("    this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };\n");
     s.push_str("    this.mouseX = 0; this.mouseY = 0; this.mouseDown = 0;\n");
@@ -227,7 +233,7 @@ pub fn webgpu_renderer(
     s.push_str("    return true;\n");
     s.push_str("  }\n\n");
 
-    // ── start / stop ─────────────────────────────────────────────────
+    // ── start / stop / pause / resume ─────────────────────────────────
     s.push_str("  start() {\n");
     s.push_str("    if (this.running) return;\n");
     s.push_str("    this.running = true;\n");
@@ -236,21 +242,47 @@ pub fn webgpu_renderer(
     s.push_str("      this._visible = e.isIntersecting;\n");
     s.push_str("    }, { threshold: 0 });\n");
     s.push_str("    this._observer.observe(this.canvas);\n");
+    s.push_str("    this._onVisChange = () => {\n");
+    s.push_str("      if (document.hidden) this._docHidden = true;\n");
+    s.push_str("      else { this._docHidden = false; this._lastFrameTime = 0; }\n");
+    s.push_str("    };\n");
+    s.push_str("    document.addEventListener('visibilitychange', this._onVisChange);\n");
+    s.push_str("    this._docHidden = document.hidden;\n");
     s.push_str("    const loop = () => {\n");
     s.push_str("      if (!this.running) return;\n");
-    s.push_str("      if (!this._visible) { requestAnimationFrame(loop); return; }\n");
+    s.push_str("      if (this._paused || !this._visible || this._docHidden) {\n");
+    s.push_str("        requestAnimationFrame(loop); return;\n");
+    s.push_str("      }\n");
+    s.push_str("      if (this._fpsLimit > 0) {\n");
+    s.push_str("        const now = performance.now();\n");
+    s.push_str("        if (this._lastFrameTime && (now - this._lastFrameTime) < this._fpsInterval) {\n");
+    s.push_str("          requestAnimationFrame(loop); return;\n");
+    s.push_str("        }\n");
+    s.push_str("        this._lastFrameTime = now;\n");
+    s.push_str("      }\n");
     s.push_str("      this.render();\n");
     s.push_str("      requestAnimationFrame(loop);\n");
     s.push_str("    };\n");
     s.push_str("    requestAnimationFrame(loop);\n");
     s.push_str("  }\n\n");
     s.push_str("  stop() { this.running = false; }\n\n");
+    s.push_str("  pause() { this._paused = true; }\n");
+    s.push_str("  resume() { this._paused = false; this._lastFrameTime = 0; }\n\n");
+    s.push_str("  setFPS(fps) {\n");
+    s.push_str("    this._fpsLimit = fps > 0 ? fps : 0;\n");
+    s.push_str("    this._fpsInterval = fps > 0 ? 1000 / fps : 0;\n");
+    s.push_str("    this._lastFrameTime = 0;\n");
+    s.push_str("  }\n\n");
+    s.push_str("  setResolutionScale(scale) {\n");
+    s.push_str("    this._resScale = Math.max(0.125, Math.min(1.0, scale));\n");
+    s.push_str("  }\n\n");
 
     // ── render() ─────────────────────────────────────────────────────
     s.push_str("  render() {\n");
     s.push_str("    if (this._preRender) this._preRender();\n");
     // Uniform data
     s.push_str("    const t = performance.now() / 1000 - this.startTime;\n");
+    s.push_str("    this._elapsed = t;\n");
     s.push_str("    const w = this.canvas.width;\n");
     s.push_str("    const h = this.canvas.height;\n");
     s.push_str("    const data = new Float32Array(this.floatCount);\n");
@@ -471,6 +503,7 @@ pub fn webgpu_renderer(
     s.push_str("  destroy() {\n");
     s.push_str("    this.stop();\n");
     s.push_str("    this._observer?.disconnect();\n");
+    s.push_str("    if (this._onVisChange) document.removeEventListener('visibilitychange', this._onVisChange);\n");
     s.push_str("    this.canvas.removeEventListener('mousemove', this._onMouseMove);\n");
     s.push_str("    this.canvas.removeEventListener('mousedown', this._onMouseDown);\n");
     s.push_str("    this.canvas.removeEventListener('mouseup', this._onMouseUp);\n");
@@ -502,6 +535,12 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("    this.gl = null;\n");
     s.push_str("    this.program = null;\n");
     s.push_str("    this.running = false;\n");
+    s.push_str("    this._paused = false;\n");
+    s.push_str("    this._fpsLimit = 0;\n");
+    s.push_str("    this._fpsInterval = 0;\n");
+    s.push_str("    this._lastFrameTime = 0;\n");
+    s.push_str("    this._elapsed = 0;\n");
+    s.push_str("    this._resScale = 1.0;\n");
     s.push_str("    this.startTime = performance.now() / 1000;\n");
     s.push_str("    this.audioData = { bass: 0, mid: 0, treble: 0, energy: 0, beat: 0 };\n");
     s.push_str("    this.mouseX = 0; this.mouseY = 0; this.mouseDown = 0;\n");
@@ -600,7 +639,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("    return s;\n");
     s.push_str("  }\n\n");
 
-    // ── start / stop ─────────────────────────────────────────────────
+    // ── start / stop / pause / resume ─────────────────────────────────
     s.push_str("  start() {\n");
     s.push_str("    if (this.running) return;\n");
     s.push_str("    this.running = true;\n");
@@ -609,20 +648,46 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("      this._visible = e.isIntersecting;\n");
     s.push_str("    }, { threshold: 0 });\n");
     s.push_str("    this._observer.observe(this.canvas);\n");
+    s.push_str("    this._onVisChange = () => {\n");
+    s.push_str("      if (document.hidden) this._docHidden = true;\n");
+    s.push_str("      else { this._docHidden = false; this._lastFrameTime = 0; }\n");
+    s.push_str("    };\n");
+    s.push_str("    document.addEventListener('visibilitychange', this._onVisChange);\n");
+    s.push_str("    this._docHidden = document.hidden;\n");
     s.push_str("    const loop = () => {\n");
     s.push_str("      if (!this.running) return;\n");
-    s.push_str("      if (!this._visible) { requestAnimationFrame(loop); return; }\n");
+    s.push_str("      if (this._paused || !this._visible || this._docHidden) {\n");
+    s.push_str("        requestAnimationFrame(loop); return;\n");
+    s.push_str("      }\n");
+    s.push_str("      if (this._fpsLimit > 0) {\n");
+    s.push_str("        const now = performance.now();\n");
+    s.push_str("        if (this._lastFrameTime && (now - this._lastFrameTime) < this._fpsInterval) {\n");
+    s.push_str("          requestAnimationFrame(loop); return;\n");
+    s.push_str("        }\n");
+    s.push_str("        this._lastFrameTime = now;\n");
+    s.push_str("      }\n");
     s.push_str("      this.render();\n");
     s.push_str("      requestAnimationFrame(loop);\n");
     s.push_str("    };\n");
     s.push_str("    requestAnimationFrame(loop);\n");
     s.push_str("  }\n\n");
     s.push_str("  stop() { this.running = false; }\n\n");
+    s.push_str("  pause() { this._paused = true; }\n");
+    s.push_str("  resume() { this._paused = false; this._lastFrameTime = 0; }\n\n");
+    s.push_str("  setFPS(fps) {\n");
+    s.push_str("    this._fpsLimit = fps > 0 ? fps : 0;\n");
+    s.push_str("    this._fpsInterval = fps > 0 ? 1000 / fps : 0;\n");
+    s.push_str("    this._lastFrameTime = 0;\n");
+    s.push_str("  }\n\n");
+    s.push_str("  setResolutionScale(scale) {\n");
+    s.push_str("    this._resScale = Math.max(0.125, Math.min(1.0, scale));\n");
+    s.push_str("  }\n\n");
 
     // ── render() ─────────────────────────────────────────────────────
     s.push_str("  render() {\n");
     s.push_str("    const gl = this.gl;\n");
     s.push_str("    const t = performance.now() / 1000 - this.startTime;\n");
+    s.push_str("    this._elapsed = t;\n");
     s.push_str("    gl.viewport(0, 0, this.canvas.width, this.canvas.height);\n");
     s.push_str("    gl.clearColor(0, 0, 0, 1);\n");
     s.push_str("    gl.clear(gl.COLOR_BUFFER_BIT);\n");
@@ -719,6 +784,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
     s.push_str("  destroy() {\n");
     s.push_str("    this.stop();\n");
     s.push_str("    this._observer?.disconnect();\n");
+    s.push_str("    if (this._onVisChange) document.removeEventListener('visibilitychange', this._onVisChange);\n");
     s.push_str("    this.canvas.removeEventListener('mousemove', this._onMouseMove);\n");
     s.push_str("    this.canvas.removeEventListener('mousedown', this._onMouseDown);\n");
     s.push_str("    this.canvas.removeEventListener('mouseup', this._onMouseUp);\n");

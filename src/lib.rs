@@ -41,6 +41,9 @@ pub enum OutputFormat {
     Standalone,
     /// Art Blocks / fxhash compatible: deterministic, self-contained HTML.
     ArtBlocks,
+    /// Wallpaper-optimized HTML: adaptive FPS, visibility pause, resolution scaling,
+    /// Wallpaper Engine API bridge, complexity-aware power management.
+    Wallpaper,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -148,7 +151,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             OutputFormat::Component | OutputFormat::Standalone => {
                 runtime::component::generate_component(&shader, config.target)
             }
-            OutputFormat::Html | OutputFormat::ArtBlocks => {
+            OutputFormat::Html | OutputFormat::ArtBlocks | OutputFormat::Wallpaper => {
                 runtime::component::generate_component(&shader, config.target)
             }
         };
@@ -159,6 +162,9 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             }
             OutputFormat::ArtBlocks => {
                 Some(runtime::html::generate_artblocks_html(&shader, config.seed))
+            }
+            OutputFormat::Wallpaper => {
+                Some(runtime::html::generate_wallpaper_html(&shader))
             }
             OutputFormat::Component | OutputFormat::Split => None,
         };
