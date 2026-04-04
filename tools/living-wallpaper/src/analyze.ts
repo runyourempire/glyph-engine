@@ -77,7 +77,7 @@ export async function analyzeImage(imagePath: string): Promise<ImageRecipe> {
     : 'image/jpeg';
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6-20250514',
+    model: 'claude-sonnet-4-6',
     max_tokens: 2048,
     messages: [{
       role: 'user',
