@@ -1364,12 +1364,17 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "mask" => {
             // Region mask: Color -> Color (alpha multiply by mask texture)
+            // Optional invert: 0.0 = normal (white=visible), 1.0 = inverted (black=visible)
             let name = super::extract_string_arg(args, "name", 0);
+            let invert = get_arg_glsl(args, "invert", 1, "mask");
             s.push_str(&format!(
                 "{indent}vec2 _mask_uv = vec2(v_uv.x, 1.0 - v_uv.y);\n"
             ));
             s.push_str(&format!(
-                "{indent}float _mask_val = texture(u_tex_{name}, _mask_uv).r;\n"
+                "{indent}float _mask_raw = texture(u_tex_{name}, _mask_uv).r;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float _mask_val = mix(_mask_raw, 1.0 - _mask_raw, {invert});\n"
             ));
             s.push_str(&format!(
                 "{indent}color_result = vec4(color_result.rgb * _mask_val, color_result.a * _mask_val);\n"

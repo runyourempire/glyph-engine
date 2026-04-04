@@ -239,7 +239,9 @@ pub fn generate_pass_fragment(pass: &PassBlock) -> String {
 
     s.push_str("@fragment\n");
     s.push_str("fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {\n");
-    s.push_str("    let uv = input.uv;\n");
+    // Flip Y when reading FBO texture — vertex shader UV y=0 is at screen bottom,
+    // but texture row 0 is at top. Without this flip, passes render upside-down.
+    s.push_str("    let uv = vec2<f32>(input.uv.x, 1.0 - input.uv.y);\n");
     s.push_str("    let pixel = textureSample(pass_tex, pass_sampler, uv);\n");
     s.push_str("    var color_result = pixel;\n\n");
 
@@ -1515,12 +1517,17 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         "mask" => {
             // Region mask: Color -> Color (alpha multiply by mask texture)
             // Uses original screen UV (not animated p) so mask stays aligned to image regions
+            // Optional invert: 0.0 = normal (white=visible), 1.0 = inverted (black=visible)
             let name = super::extract_string_arg(args, "name", 0);
+            let invert = get_arg_wgsl(args, "invert", 1, "mask");
             s.push_str(&format!(
                 "{indent}let _mask_uv = vec2<f32>(input.uv.x, 1.0 - input.uv.y);\n"
             ));
             s.push_str(&format!(
-                "{indent}let _mask_val = textureSample({name}_tex, {name}_samp, _mask_uv).r;\n"
+                "{indent}let _mask_raw = textureSample({name}_tex, {name}_samp, _mask_uv).r;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}let _mask_val = mix(_mask_raw, 1.0 - _mask_raw, {invert});\n"
             ));
             s.push_str(&format!(
                 "{indent}color_result = vec4<f32>(color_result.rgb * _mask_val, color_result.a * _mask_val);\n"

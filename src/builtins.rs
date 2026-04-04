@@ -476,7 +476,10 @@ static FLOWMAP_PARAMS: &[BuiltinParam] = &[
     },
 ];
 
-static MASK_PARAMS: &[BuiltinParam] = &[];
+static MASK_PARAMS: &[BuiltinParam] = &[BuiltinParam {
+    name: "invert",
+    default: Some(0.0),
+}];
 
 static PARALLAX_PARAMS: &[BuiltinParam] = &[
     BuiltinParam {
