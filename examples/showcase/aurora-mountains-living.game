@@ -1,0 +1,97 @@
+// AURORA BOREALIS — Hand-crafted living wallpaper
+// Three-layer aurora light (green curtains, purple glow, bright shimmer),
+// twinkling stars, aurora reflection on snow, cold atmospheric air.
+// This is not a wallpaper. This is a window into the arctic night.
+
+cinematic "living-aurora-mountains" {
+  texture "photo" from "aurora-mountains.jpg"
+  texture "depth" from "aurora-mountains-depth.png"
+  texture "mask_sky" from "aurora-mountains-mask_sky.png"
+
+  // ══════ THE FROZEN WORLD — still, solid, breathing ══════
+  layer world {
+    parallax("photo", depth: "depth", strength: 0.025, orbit_speed: 0.08)
+  }
+
+  // ══════ SKY — the real aurora pixels, gently drifting ══════
+  layer sky_base opacity: 0.88 {
+    distort(scale: 0.35, speed: 0.06, strength: 0.018)
+    | sample("photo")
+    | mask("mask_sky")
+  }
+
+  // ══════ AURORA GREEN CURTAINS — flowing vertical light ══════
+  layer aurora_green opacity: 0.28 blend: add {
+    translate(time * 0.025, time * 0.004)
+    | warp(scale: 0.5, octaves: 5, persistence: 0.70, strength: 0.35)
+    | fbm(scale: 0.7, octaves: 5, persistence: 0.60)
+    | glow(2.5)
+    | tint(0.3, 1.0, 0.5)
+    | mask("mask_sky")
+  }
+
+  // ══════ AURORA PURPLE HEART — slower, deeper color ══════
+  layer aurora_purple opacity: 0.22 blend: add {
+    translate(time * 0.018, time * -0.006)
+    | warp(scale: 0.4, octaves: 4, persistence: 0.65, strength: 0.28)
+    | fbm(scale: 0.55, octaves: 4, persistence: 0.55)
+    | glow(3.5)
+    | tint(0.65, 0.25, 1.0)
+    | mask("mask_sky")
+  }
+
+  // ══════ AURORA SHIMMER — fast bright streaks dancing ══════
+  layer aurora_shimmer opacity: 0.16 blend: add {
+    translate(time * 0.04, time * 0.012)
+    | distort(scale: 0.8, speed: 0.25, strength: 0.06)
+    | warp(scale: 1.2, octaves: 3, strength: 0.22)
+    | voronoi(5.0)
+    | glow(5.0)
+    | tint(0.35, 0.95, 0.55)
+    | mask("mask_sky")
+  }
+
+  // ══════ STAR TWINKLE — pinpoint lights flickering ══════
+  layer stars opacity: 0.14 blend: add {
+    translate(time * 0.001, time * 0.0003)
+    | distort(scale: 18.0, speed: 2.5, strength: 0.12)
+    | voronoi(35.0)
+    | glow(10.0)
+    | tint(0.92, 0.95, 1.0)
+    | mask("mask_sky")
+  }
+
+  // ══════ SNOW AURORA REFLECTION — green light on the snow ══════
+  layer snow_glow opacity: 0.12 blend: screen {
+    translate(time * 0.01, time * 0.004)
+    | warp(scale: 0.35, octaves: 3, persistence: 0.5, strength: 0.12)
+    | fbm(scale: 0.3, octaves: 3, persistence: 0.5)
+    | glow(2.0)
+    | tint(0.25, 0.75, 0.45)
+    | mask("depth")
+  }
+
+  // ══════ COLD AIR — arctic atmospheric shimmer ══════
+  layer cold_air opacity: 0.09 blend: screen {
+    translate(time * 0.012, sin(time * 0.05) * 0.006)
+    | warp(scale: 0.8, octaves: 4, persistence: 0.6, strength: 0.16)
+    | fbm(scale: 1.2, octaves: 4, persistence: 0.5)
+    | glow(1.0)
+    | tint(0.35, 0.45, 0.80)
+    | mask("depth", invert: 1)
+  }
+
+  // ══════ AURORA BRIGHTNESS PULSE — whole-sky modulation ══════
+  layer aurora_pulse opacity: 0.10 blend: screen {
+    translate(time * 0.006, time * 0.002)
+    | warp(scale: 0.3, octaves: 2, persistence: 0.5, strength: 0.08)
+    | fbm(scale: 0.25, octaves: 3, persistence: 0.5)
+    | glow(1.5)
+    | tint(0.5, 0.9, 0.65)
+  }
+
+  // ══════ CINEMATIC POST ══════
+  pass soften { blur(0.5) }
+  pass frame { vignette(0.28) }
+  pass film { film_grain(0.014) }
+}
