@@ -1466,9 +1466,11 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             } else {
                 "unknown".to_string()
             };
-            // Map -1..1 position space -> 0..1 UV space, flip Y for correct orientation
+            // Map position -> texture UV: undo aspect correction so texture fills screen,
+            // then map to 0..1 with Y-flip. Warp/distort offsets are preserved but scaled
+            // to screen-proportional space.
             s.push_str(&format!(
-                "{indent}let _tex_uv = vec2<f32>(p.x * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5));\n"
+                "{indent}let _tex_uv = clamp(vec2<f32>(p.x / aspect * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5)), vec2<f32>(0.0), vec2<f32>(1.0));\n"
             ));
             s.push_str(&format!(
                 "{indent}var color_result = textureSample({name}_tex, {name}_samp, _tex_uv);\n"

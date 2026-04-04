@@ -1,0 +1,10 @@
+// Raw texture test — no memory, no effects, just display the image.
+// If this shows the photo, the pipeline works and memory: 0.96 was the issue.
+
+cinematic "texture-raw" {
+  texture "photo" from "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1920&q=80"
+
+  layer base {
+    sample("photo")
+  }
+}

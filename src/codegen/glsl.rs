@@ -1321,7 +1321,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 "unknown".to_string()
             };
             s.push_str(&format!(
-                "{indent}vec2 _tex_uv = vec2(p.x * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5));\n"
+                "{indent}vec2 _tex_uv = clamp(vec2(p.x / aspect * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5)), 0.0, 1.0);\n"
             ));
             s.push_str(&format!(
                 "{indent}vec4 color_result = texture(u_tex_{name}, _tex_uv);\n"
