@@ -76,6 +76,25 @@ enum Command {
         category: String,
     },
 
+    /// Transform a photo into a living wallpaper using AI analysis.
+    Living {
+        /// Input image file (jpg, png, webp).
+        #[arg(required = true)]
+        image: PathBuf,
+
+        /// Output directory for generated assets and compiled wallpaper.
+        #[arg(short, long, default_value = "dist")]
+        output_dir: PathBuf,
+
+        /// Skip Claude Vision API analysis (use generic landscape recipe).
+        #[arg(long)]
+        skip_analysis: bool,
+
+        /// Output format.
+        #[arg(short, long, default_value = "html")]
+        format: FormatArg,
+    },
+
     /// Start the Language Server Protocol server.
     #[cfg(feature = "lsp")]
     Lsp,
@@ -645,6 +664,160 @@ fn run_dev_server(input: PathBuf, port: u16) -> Result<()> {
     Ok(())
 }
 
+// ── Living wallpaper pipeline ────────────────────────────────
+
+fn run_living_pipeline(
+    image: PathBuf,
+    output_dir: PathBuf,
+    skip_analysis: bool,
+    format: FormatArg,
+) -> Result<()> {
+    let image = std::fs::canonicalize(&image)
+        .with_context(|| format!("resolve image: {}", image.display()))?;
+
+    std::fs::create_dir_all(&output_dir)?;
+
+    // Find the living-wallpaper tool relative to the compiler binary
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()));
+
+    // Look for the pipeline tool in known locations
+    let tool_dir = find_living_tool(&exe_dir)?;
+
+    println!("[game living] Image: {}", image.display());
+    println!("[game living] Output: {}", output_dir.display());
+
+    // Step 1: Run the AI pipeline (Node.js)
+    // On Windows, npm bins are .cmd scripts that must be run via cmd.exe
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        let tsx_cmd = tool_dir.join("node_modules/.bin/tsx.cmd");
+        let mut c = std::process::Command::new("cmd");
+        c.arg("/C");
+        if tsx_cmd.exists() {
+            c.arg(tsx_cmd.to_str().unwrap());
+        } else {
+            c.arg("npx").arg("tsx");
+        }
+        c.arg("src/cli.ts");
+        c
+    };
+    #[cfg(not(target_os = "windows"))]
+    let mut cmd = {
+        let tsx_bin = tool_dir.join("node_modules/.bin/tsx");
+        let mut c = if tsx_bin.exists() {
+            std::process::Command::new(tsx_bin)
+        } else {
+            let mut c = std::process::Command::new("npx");
+            c.arg("tsx");
+            c
+        };
+        c.arg("src/cli.ts");
+        c
+    };
+    cmd.arg(image.to_str().unwrap());
+    cmd.arg(output_dir.to_str().unwrap());
+    if skip_analysis {
+        cmd.arg("--skip-analysis");
+    }
+    cmd.current_dir(&tool_dir);
+
+    println!("[game living] Running AI pipeline...");
+    let status = cmd.status().with_context(|| {
+        "Failed to run living-wallpaper pipeline. Ensure Node.js and npx are installed."
+    })?;
+
+    if !status.success() {
+        anyhow::bail!("AI pipeline failed with exit code: {:?}", status.code());
+    }
+
+    // Step 2: Find the generated .game file
+    let game_files: Vec<_> = std::fs::read_dir(&output_dir)?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "game"))
+        .collect();
+
+    let game_file = game_files
+        .first()
+        .context("No .game file found in pipeline output")?;
+
+    // Step 3: Compile with GAME compiler
+    println!(
+        "\n[game living] Compiling: {}",
+        game_file.path().display()
+    );
+
+    let config = CompileConfig {
+        output_format: match format {
+            FormatArg::Component => OutputFormat::Component,
+            FormatArg::Split => OutputFormat::Split,
+            FormatArg::Html => OutputFormat::Html,
+            FormatArg::Standalone => OutputFormat::Standalone,
+            FormatArg::Artblocks => OutputFormat::ArtBlocks,
+            FormatArg::Wallpaper => OutputFormat::Wallpaper,
+        },
+        target: ShaderTarget::Both,
+        seed: None,
+    };
+
+    let source = std::fs::read_to_string(game_file.path())?;
+    let outputs = game_compiler::compile(&source, &config)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+
+    for output in &outputs {
+        let stem = &output.name;
+
+        let js_path = output_dir.join(format!("{stem}.js"));
+        std::fs::write(&js_path, &output.js)?;
+        eprintln!("[game] wrote {} ({:.1}KB)", js_path.display(), output.js.len() as f64 / 1024.0);
+
+        if let Some(dts) = &output.dts {
+            let dts_path = output_dir.join(format!("{stem}.d.ts"));
+            std::fs::write(&dts_path, dts)?;
+            eprintln!("[game] wrote {}", dts_path.display());
+        }
+
+        if let Some(html) = &output.html {
+            let html_path = output_dir.join(format!("{stem}.html"));
+            std::fs::write(&html_path, html)?;
+            eprintln!("[game] wrote {}", html_path.display());
+        }
+    }
+
+    println!("\n[game living] Done! Living wallpaper ready in {}/", output_dir.display());
+    Ok(())
+}
+
+fn find_living_tool(exe_dir: &Option<PathBuf>) -> Result<PathBuf> {
+    // Try relative to CWD first (development)
+    let cwd_path = std::env::current_dir()?.join("tools/living-wallpaper");
+    if cwd_path.join("src/cli.ts").exists() {
+        return Ok(cwd_path);
+    }
+
+    // Try relative to executable
+    if let Some(ref dir) = exe_dir {
+        let exe_path = dir.join("../tools/living-wallpaper");
+        if exe_path.join("src/cli.ts").exists() {
+            return Ok(exe_path);
+        }
+    }
+
+    // Try GAME_LIVING_TOOL env var
+    if let Ok(path) = std::env::var("GAME_LIVING_TOOL") {
+        let p = PathBuf::from(path);
+        if p.join("src/cli.ts").exists() {
+            return Ok(p);
+        }
+    }
+
+    anyhow::bail!(
+        "Cannot find living-wallpaper tool. Run from the game-compiler directory, \
+         or set GAME_LIVING_TOOL to the tools/living-wallpaper path."
+    )
+}
+
 // ── Main ────────────────────────────────────────────────────
 
 fn main() -> Result<()> {
@@ -881,6 +1054,15 @@ fn main() -> Result<()> {
         #[cfg(feature = "lsp")]
         Command::Lsp => {
             game_compiler::lsp::run_lsp();
+        }
+
+        Command::Living {
+            image,
+            output_dir,
+            skip_analysis,
+            format,
+        } => {
+            run_living_pipeline(image, output_dir, skip_analysis, format)?;
         }
 
         Command::Info { category } => match category.as_str() {
