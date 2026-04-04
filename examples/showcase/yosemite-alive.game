@@ -1,69 +1,87 @@
-// Living World — procedural atmospheric compositing over a static photo.
+// Living World v5 — DRAMATIC visible motion
+// Every effect tuned to be clearly visible in real-time
 
-cinematic "yosemite-alive" {
+cinematic "living-test-landscape" {
   texture "photo" from "test-landscape.jpg"
   texture "depth" from "test-landscape-depth.png"
+  texture "flow" from "test-landscape-flow.png"
   texture "mask_water" from "test-landscape-mask_water.png"
+  texture "mask_sky" from "test-landscape-mask_sky.png"
 
   layer config {
-    drift: 0.008
+    drift_x: 0.04000
   }
 
-  // THE WORLD — solid, barely moves
+  // ══════ THE WORLD — noticeable parallax breathing ══════
   layer world {
-    parallax("photo", depth: "depth", strength: 0.012, orbit_speed: 0.08)
+    parallax("photo", depth: "depth", strength: 0.040, orbit_speed: 0.20)
   }
 
-  // WATER CAUSTICS — voronoi shimmer composited as light on the river
-  layer caustics opacity: 0.09 blend: screen {
-    translate(time * 0.012, time * 0.006)
-    | warp(scale: 6.0, octaves: 2, strength: 0.12)
-    | voronoi(12.0)
-    | glow(1.5)
-    | tint(0.5, 0.7, 1.0)
+  // ══════ WATER FLOW — strong distortion of actual river pixels ══════
+  layer water_flow opacity: 0.95 {
+    distort(scale: 2.0, speed: 1.8, strength: 0.10)
+    | sample("photo")
     | mask("mask_water")
   }
 
-  // VALLEY MIST — atmospheric fog drifting through the scene
-  layer mist opacity: 0.06 blend: screen {
-    translate(time * drift, sin(time * 0.04) * 0.003)
-    | warp(scale: 1.2, octaves: 4, persistence: 0.65, strength: 0.1)
-    | fbm(scale: 1.8, octaves: 4, persistence: 0.55)
-    | glow(0.5)
-    | tint(0.8, 0.85, 0.95)
+  // ══════ WATER CAUSTICS — bright shimmer on the river ══════
+  layer caustics opacity: 0.35 blend: screen {
+    translate(time * 0.10, time * 0.05)
+    | warp(scale: 4.0, octaves: 3, strength: 0.25)
+    | voronoi(8.0)
+    | glow(2.5)
+    | tint(0.5, 0.75, 1.0)
+    | mask("mask_water")
   }
 
-  // LIGHT — gentle brightness fluctuation
-  layer light_pulse opacity: 0.06 blend: screen {
-    translate(time * 0.004, time * 0.001)
-    | warp(scale: 0.6, octaves: 2, persistence: 0.5, strength: 0.06)
-    | fbm(scale: 0.5, octaves: 3, persistence: 0.5)
-    | glow(0.6)
-    | tint(1.0, 0.9, 0.7)
-  }
-
-  // GOD RAYS — light shafts from the sunset glow
-  layer godrays opacity: 0.05 blend: add {
-    translate(0.0, 0.35)
-    | polar()
-    | distort(scale: 0.4, speed: 0.025, strength: 0.012)
-    | radial_fade(inner: 0.0, outer: 0.65)
-    | glow(3.0)
-    | tint(1.0, 0.92, 0.78)
-  }
-
-  // GOLDEN SPARKLE on water
-  layer sparkle opacity: 0.04 blend: add {
-    translate(time * 0.02, time * 0.01)
-    | distort(scale: 15.0, speed: 0.8, strength: 0.3)
-    | voronoi(25.0)
+  // ══════ WATER SPARKLE — golden flecks ══════
+  layer sparkle opacity: 0.20 blend: add {
+    translate(time * 0.12, time * 0.06)
+    | distort(scale: 8.0, speed: 2.0, strength: 0.6)
+    | voronoi(18.0)
     | glow(4.0)
-    | tint(1.0, 0.95, 0.8)
+    | tint(1.0, 0.88, 0.55)
     | mask("mask_water")
   }
 
-  // CINEMATIC POST-PROCESSING
-  pass soften { blur(1.0) }
-  pass frame { vignette(0.15) }
-  pass film { film_grain(0.012) }
+  // ══════ SKY — visible cloud drift ══════
+  layer sky_drift opacity: 0.90 {
+    distort(scale: 0.3, speed: 0.15, strength: 0.035)
+    | sample("photo")
+    | mask("mask_sky")
+  }
+
+  // ══════ MIST — clearly visible drifting fog ══════
+  layer mist opacity: 0.25 blend: screen {
+    translate(time * drift_x, sin(time * 0.12) * 0.02)
+    | warp(scale: 0.7, octaves: 5, persistence: 0.65, strength: 0.25)
+    | fbm(scale: 1.0, octaves: 5, persistence: 0.55)
+    | glow(1.5)
+    | tint(0.92, 0.88, 0.82)
+    | mask("depth", invert: 1)
+  }
+
+  // ══════ LIGHT SWEEP — obvious cloud shadow modulation ══════
+  layer light_pulse opacity: 0.22 blend: screen {
+    translate(time * 0.02, time * 0.005)
+    | warp(scale: 0.35, octaves: 3, persistence: 0.5, strength: 0.16)
+    | fbm(scale: 0.3, octaves: 4, persistence: 0.5)
+    | glow(2.0)
+    | tint(1.0, 0.88, 0.65)
+  }
+
+  // ══════ GOD RAYS — dramatic visible light shafts ══════
+  layer godrays opacity: 0.30 blend: add {
+    translate(0.00, 0.35)
+    | polar()
+    | distort(scale: 0.20, speed: 0.10, strength: 0.05)
+    | radial_fade(inner: 0.0, outer: 0.45)
+    | glow(6.0)
+    | tint(1.0, 0.88, 0.55)
+  }
+
+  // ══════ POST ══════
+  pass soften { blur(0.6) }
+  pass frame { vignette(0.25) }
+  pass film { film_grain(0.020) }
 }

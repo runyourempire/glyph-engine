@@ -68,9 +68,11 @@ export async function generateMasks(
 
           // Depth similarity — pixels at similar depth to the region's hint
           // are more likely to be part of this region
+          // Note: Depth Anything V2 outputs bright=near, dark=far
+          // Use soft weighting (0.8 multiplier) so bounds dominate over depth
           const depth = depthData[i];
           const depthDiff = Math.abs(depth - depth_hint);
-          const depthWeight = Math.max(0, 1.0 - depthDiff * 2.5);
+          const depthWeight = Math.max(0.15, 1.0 - depthDiff * 0.8);
 
           // Combine: bounds proximity * depth similarity
           const value = edgeFade * depthWeight;

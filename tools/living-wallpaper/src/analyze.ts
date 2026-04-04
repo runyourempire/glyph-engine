@@ -147,7 +147,7 @@ function fallbackAnalysis(): ImageRecipe {
       {
         name: 'foreground',
         bounds: { x: 0, y: 0.6, width: 1, height: 0.4 },
-        depth_hint: 0.8,
+        depth_hint: 0.25,
         animation_class: 'water',
         flow_direction: [0.3, 0.95],
         flow_speed: 0.35,
