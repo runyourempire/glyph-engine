@@ -1,0 +1,30 @@
+// Living Landscape — region-aware animation from a single photo.
+// Different regions animate differently: water flows via flowmap,
+// sky drifts slowly, everything gets subtle depth parallax.
+// Masks isolate each region so animations don't bleed.
+
+cinematic "living-landscape" {
+  texture "photo" from "landscape.jpg"
+  texture "depth" from "landscape-depth.png"
+  texture "flow_water" from "landscape-flow.png"
+  texture "mask_water" from "landscape-water-mask.png"
+  texture "mask_sky" from "landscape-sky-mask.png"
+
+  // Base layer — depth parallax for subtle 3D camera motion
+  layer base {
+    parallax("photo", depth: "depth", strength: 0.02, orbit_speed: 0.15)
+  }
+
+  // Water region — flows based on flowmap direction
+  layer water {
+    flowmap("photo", flow: "flow_water", speed: 0.3, scale: 0.06)
+    | mask("mask_water")
+  }
+
+  // Sky — slow horizontal drift
+  layer sky {
+    distort(scale: 0.8, speed: 0.04, strength: 0.008)
+    | sample("photo")
+    | mask("mask_sky")
+  }
+}

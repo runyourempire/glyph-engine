@@ -463,6 +463,32 @@ static SAMPLE_PARAMS: &[BuiltinParam] = &[BuiltinParam {
     default: None,
 }];
 
+// ── Region-aware animation ──────────────────────────────
+
+static FLOWMAP_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "speed",
+        default: Some(0.3),
+    },
+    BuiltinParam {
+        name: "scale",
+        default: Some(0.05),
+    },
+];
+
+static MASK_PARAMS: &[BuiltinParam] = &[];
+
+static PARALLAX_PARAMS: &[BuiltinParam] = &[
+    BuiltinParam {
+        name: "strength",
+        default: Some(0.03),
+    },
+    BuiltinParam {
+        name: "orbit_speed",
+        default: Some(0.2),
+    },
+];
+
 // ── Registry ─────────────────────────────────────────────
 
 static BUILTINS: &[BuiltinFn] = &[
@@ -770,6 +796,28 @@ static BUILTINS: &[BuiltinFn] = &[
         input: ShaderState::Position,
         output: ShaderState::Color,
     },
+    // ── Region-aware animation ──────────────────────────────
+    // Flowmap: two-phase seamless loop from flow texture (Position -> Color)
+    BuiltinFn {
+        name: "flowmap",
+        params: FLOWMAP_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Color,
+    },
+    // Mask: alpha-multiply by mask texture for per-region control (Color -> Color)
+    BuiltinFn {
+        name: "mask",
+        params: MASK_PARAMS,
+        input: ShaderState::Color,
+        output: ShaderState::Color,
+    },
+    // Parallax: depth-driven UV displacement with orbital motion (Position -> Color)
+    BuiltinFn {
+        name: "parallax",
+        params: PARALLAX_PARAMS,
+        input: ShaderState::Position,
+        output: ShaderState::Color,
+    },
 ];
 
 /// Look up a built-in function by name.
@@ -888,6 +936,10 @@ mod tests {
             "grid",
             // Texture sampling
             "sample",
+            // Region-aware animation
+            "flowmap",
+            "mask",
+            "parallax",
         ] {
             assert!(lookup(name).is_some(), "missing builtin: {name}");
         }

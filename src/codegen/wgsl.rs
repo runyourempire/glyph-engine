@@ -1457,37 +1457,100 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "sample" => {
             // Texture sampling: Position -> Color
-            // Maps GAME's -1..1 position to 0..1 texture UV, then samples the named texture.
-            // The `p` variable has been warped/distorted by prior stages, creating animation.
-            // Extract texture name from the string literal argument directly.
-            let name = if let Some(arg) = args.first() {
-                match &arg.value {
-                    crate::ast::Expr::String(s) => s.clone(),
-                    crate::ast::Expr::Ident(s) => s.clone(),
-                    _ => {
-                        // Named arg: sample(name: "photo")
-                        if let Some(named) = args.iter().find(|a| a.name.as_deref() == Some("name")) {
-                            match &named.value {
-                                crate::ast::Expr::String(s) => s.clone(),
-                                crate::ast::Expr::Ident(s) => s.clone(),
-                                _ => "unknown".to_string(),
-                            }
-                        } else {
-                            "unknown".to_string()
-                        }
-                    }
-                }
-            } else {
-                "unknown".to_string()
-            };
-            // Map position -> texture UV: undo aspect correction so texture fills screen,
-            // then map to 0..1 with Y-flip. Warp/distort offsets are preserved but scaled
-            // to screen-proportional space.
+            let name = super::extract_string_arg(args, "name", 0);
             s.push_str(&format!(
                 "{indent}let _tex_uv = clamp(vec2<f32>(p.x / aspect * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5)), vec2<f32>(0.0), vec2<f32>(1.0));\n"
             ));
             s.push_str(&format!(
                 "{indent}var color_result = textureSample({name}_tex, {name}_samp, _tex_uv);\n"
+            ));
+        }
+        "flowmap" => {
+            // Two-phase seamless flowmap animation (Valve/Catlikecoding technique): Position -> Color
+            // First positional arg = source texture, named "flow" = flow direction texture
+            let source = super::extract_string_arg(args, "source", 0);
+            let flow = super::extract_string_arg(args, "flow", 1);
+            let speed = get_arg_wgsl(args, "speed", 2, "flowmap");
+            let scale = get_arg_wgsl(args, "scale", 3, "flowmap");
+            // Convert position to texture UV
+            s.push_str(&format!(
+                "{indent}let _fm_uv = clamp(vec2<f32>(p.x / aspect * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5)), vec2<f32>(0.0), vec2<f32>(1.0));\n"
+            ));
+            // Sample flow direction from flow texture (RG channels, 0.5 = no motion)
+            s.push_str(&format!(
+                "{indent}let _fm_flow = textureSample({flow}_tex, {flow}_samp, _fm_uv).rg;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}let _fm_dir = (_fm_flow - vec2<f32>(0.5)) * 2.0 * {scale};\n"
+            ));
+            // Two phases offset by 0.5 for seamless looping
+            s.push_str(&format!(
+                "{indent}let _fm_phase0 = fract(time * {speed});\n"
+            ));
+            s.push_str(&format!(
+                "{indent}let _fm_phase1 = fract(time * {speed} + 0.5);\n"
+            ));
+            // Offset UVs by flow direction scaled by phase
+            s.push_str(&format!(
+                "{indent}let _fm_uv0 = clamp(_fm_uv + _fm_dir * _fm_phase0, vec2<f32>(0.0), vec2<f32>(1.0));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}let _fm_uv1 = clamp(_fm_uv + _fm_dir * _fm_phase1, vec2<f32>(0.0), vec2<f32>(1.0));\n"
+            ));
+            // Sample source texture at both phase-offset UVs
+            s.push_str(&format!(
+                "{indent}let _fm_c0 = textureSample({source}_tex, {source}_samp, _fm_uv0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}let _fm_c1 = textureSample({source}_tex, {source}_samp, _fm_uv1);\n"
+            ));
+            // Blend: triangle wave peaks at phase boundaries for seamless transition
+            s.push_str(&format!(
+                "{indent}let _fm_blend = abs(2.0 * _fm_phase0 - 1.0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}var color_result = mix(_fm_c0, _fm_c1, _fm_blend);\n"
+            ));
+        }
+        "mask" => {
+            // Region mask: Color -> Color (alpha multiply by mask texture)
+            // Uses original screen UV (not animated p) so mask stays aligned to image regions
+            let name = super::extract_string_arg(args, "name", 0);
+            s.push_str(&format!(
+                "{indent}let _mask_uv = vec2<f32>(input.uv.x, 1.0 - input.uv.y);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}let _mask_val = textureSample({name}_tex, {name}_samp, _mask_uv).r;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}color_result = vec4<f32>(color_result.rgb * _mask_val, color_result.a * _mask_val);\n"
+            ));
+        }
+        "parallax" => {
+            // Depth-driven parallax with orbital camera motion: Position -> Color
+            // First positional arg = source texture, named "depth" = depth map texture
+            let source = super::extract_string_arg(args, "source", 0);
+            let depth = super::extract_string_arg(args, "depth", 1);
+            let strength = get_arg_wgsl(args, "strength", 2, "parallax");
+            let orbit_speed = get_arg_wgsl(args, "orbit_speed", 3, "parallax");
+            // Convert position to texture UV
+            s.push_str(&format!(
+                "{indent}let _px_uv = clamp(vec2<f32>(p.x / aspect * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5)), vec2<f32>(0.0), vec2<f32>(1.0));\n"
+            ));
+            // Orbital camera motion — gentle elliptical path
+            s.push_str(&format!(
+                "{indent}let _px_orbit = vec2<f32>(sin(time * {orbit_speed}), cos(time * {orbit_speed} * 0.7)) * {strength};\n"
+            ));
+            // Sample depth map — near objects (high depth) move more
+            s.push_str(&format!(
+                "{indent}let _px_depth = textureSample({depth}_tex, {depth}_samp, _px_uv).r;\n"
+            ));
+            // Displace UV by orbit scaled by depth
+            s.push_str(&format!(
+                "{indent}let _px_displaced = clamp(_px_uv + _px_orbit * _px_depth, vec2<f32>(0.0), vec2<f32>(1.0));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}var color_result = textureSample({source}_tex, {source}_samp, _px_displaced);\n"
             ));
         }
         _ => {

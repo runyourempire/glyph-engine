@@ -275,5 +275,59 @@
       "}"
     ],
     "description": "Config layer declaring uniform parameters with defaults"
+  },
+  "Flowmap Animation": {
+    "prefix": "flowmap",
+    "body": [
+      "flowmap(\"${1:photo}\", flow: \"${2:flow_map}\", speed: ${3:0.3}, scale: ${4:0.05})"
+    ],
+    "description": "Two-phase seamless flowmap animation — water/liquid flow from a direction texture"
+  },
+  "Parallax Depth": {
+    "prefix": "parallax",
+    "body": [
+      "parallax(\"${1:photo}\", depth: \"${2:depth_map}\", strength: ${3:0.03}, orbit_speed: ${4:0.2})"
+    ],
+    "description": "Depth-driven parallax with orbital camera motion — creates 3D effect from a depth map"
+  },
+  "Region Mask": {
+    "prefix": "mask",
+    "body": [
+      "mask(\"${1:mask_texture}\")"
+    ],
+    "description": "Region mask — multiplies alpha by mask texture to isolate animated regions"
+  },
+  "Living Landscape": {
+    "prefix": "living-landscape",
+    "body": [
+      "// ${1:Description} — region-aware living photo",
+      "",
+      "cinematic \"${2:living-landscape}\" {",
+      "\ttexture \"photo\" from \"${3:landscape.jpg}\"",
+      "\ttexture \"depth\" from \"${4:landscape-depth.png}\"",
+      "\ttexture \"flow_water\" from \"${5:landscape-flow.png}\"",
+      "\ttexture \"mask_water\" from \"${6:landscape-water-mask.png}\"",
+      "\ttexture \"mask_sky\" from \"${7:landscape-sky-mask.png}\"",
+      "",
+      "\t// Base — depth parallax for subtle 3D",
+      "\tlayer base {",
+      "\t\tparallax(\"photo\", depth: \"depth\", strength: 0.02, orbit_speed: 0.15)",
+      "\t}",
+      "",
+      "\t// Water — flows based on flowmap direction",
+      "\tlayer water {",
+      "\t\tflowmap(\"photo\", flow: \"flow_water\", speed: 0.3, scale: 0.06)",
+      "\t\t| mask(\"mask_water\")",
+      "\t}",
+      "",
+      "\t// Sky — slow drift",
+      "\tlayer sky {",
+      "\t\tdistort(scale: 0.8, speed: 0.04, strength: 0.008)",
+      "\t\t| sample(\"photo\")",
+      "\t\t| mask(\"mask_sky\")",
+      "\t}",
+      "}"
+    ],
+    "description": "Region-aware living photo — different regions animate differently using flowmap, parallax, and masks"
   }
 }

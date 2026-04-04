@@ -1313,30 +1313,88 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             s.push_str(&format!("{indent}float sdf_result = min(gx, gy);\n"));
         }
         "sample" => {
-            let name = if let Some(arg) = args.first() {
-                match &arg.value {
-                    crate::ast::Expr::String(s) => s.clone(),
-                    crate::ast::Expr::Ident(s) => s.clone(),
-                    _ => {
-                        if let Some(named) = args.iter().find(|a| a.name.as_deref() == Some("name")) {
-                            match &named.value {
-                                crate::ast::Expr::String(s) => s.clone(),
-                                crate::ast::Expr::Ident(s) => s.clone(),
-                                _ => "unknown".to_string(),
-                            }
-                        } else {
-                            "unknown".to_string()
-                        }
-                    }
-                }
-            } else {
-                "unknown".to_string()
-            };
+            // Texture sampling: Position -> Color
+            let name = super::extract_string_arg(args, "name", 0);
             s.push_str(&format!(
                 "{indent}vec2 _tex_uv = clamp(vec2(p.x / aspect * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5)), 0.0, 1.0);\n"
             ));
             s.push_str(&format!(
                 "{indent}vec4 color_result = texture(u_tex_{name}, _tex_uv);\n"
+            ));
+        }
+        "flowmap" => {
+            // Two-phase seamless flowmap animation (Valve/Catlikecoding technique): Position -> Color
+            let source = super::extract_string_arg(args, "source", 0);
+            let flow = super::extract_string_arg(args, "flow", 1);
+            let speed = get_arg_glsl(args, "speed", 2, "flowmap");
+            let scale = get_arg_glsl(args, "scale", 3, "flowmap");
+            s.push_str(&format!(
+                "{indent}vec2 _fm_uv = clamp(vec2(p.x / aspect * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5)), 0.0, 1.0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec2 _fm_flow = texture(u_tex_{flow}, _fm_uv).rg;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec2 _fm_dir = (_fm_flow - vec2(0.5)) * 2.0 * {scale};\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float _fm_phase0 = fract(time * {speed});\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float _fm_phase1 = fract(time * {speed} + 0.5);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec2 _fm_uv0 = clamp(_fm_uv + _fm_dir * _fm_phase0, 0.0, 1.0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec2 _fm_uv1 = clamp(_fm_uv + _fm_dir * _fm_phase1, 0.0, 1.0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 _fm_c0 = texture(u_tex_{source}, _fm_uv0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 _fm_c1 = texture(u_tex_{source}, _fm_uv1);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float _fm_blend = abs(2.0 * _fm_phase0 - 1.0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 color_result = mix(_fm_c0, _fm_c1, _fm_blend);\n"
+            ));
+        }
+        "mask" => {
+            // Region mask: Color -> Color (alpha multiply by mask texture)
+            let name = super::extract_string_arg(args, "name", 0);
+            s.push_str(&format!(
+                "{indent}vec2 _mask_uv = vec2(v_uv.x, 1.0 - v_uv.y);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float _mask_val = texture(u_tex_{name}, _mask_uv).r;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}color_result = vec4(color_result.rgb * _mask_val, color_result.a * _mask_val);\n"
+            ));
+        }
+        "parallax" => {
+            // Depth-driven parallax with orbital camera motion: Position -> Color
+            let source = super::extract_string_arg(args, "source", 0);
+            let depth = super::extract_string_arg(args, "depth", 1);
+            let strength = get_arg_glsl(args, "strength", 2, "parallax");
+            let orbit_speed = get_arg_glsl(args, "orbit_speed", 3, "parallax");
+            s.push_str(&format!(
+                "{indent}vec2 _px_uv = clamp(vec2(p.x / aspect * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5)), 0.0, 1.0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec2 _px_orbit = vec2(sin(time * {orbit_speed}), cos(time * {orbit_speed} * 0.7)) * {strength};\n"
+            ));
+            s.push_str(&format!(
+                "{indent}float _px_depth = texture(u_tex_{depth}, _px_uv).r;\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec2 _px_displaced = clamp(_px_uv + _px_orbit * _px_depth, 0.0, 1.0);\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 color_result = texture(u_tex_{source}, _px_displaced);\n"
             ));
         }
         _ => {

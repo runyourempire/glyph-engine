@@ -23,13 +23,18 @@ cinematic "name" {
 
 Stages chain with `|`. Three states: **Position -> Sdf -> Color**. Every layer MUST end in Color.
 
-## Builtins (49)
+## Builtins (52)
 
 ### Position -> Position (transforms)
 translate(x,y), rotate(speed), scale(s), warp(scale,oct,pers,lac,strength), distort(scale,speed,strength), polar, repeat(sx,sy), mirror, radial(count)
 
 ### Position -> Sdf (generators)
 circle(r), ring(r,w), star(pts,r,inner), box(w,h), hex(r), triangle(size), line(x1,y1,x2,y2,w), capsule(len,r), arc_sdf(r,angle,w), cross(size,arm_w), heart(size), egg(r,k), spiral(turns,w), grid(spacing,w), fbm(scale,oct,pers,lac), simplex(scale), voronoi(scale), radial_fade(inner,outer)
+
+### Position -> Color (texture sampling)
+sample("texture_name") — sample external texture at current UV
+flowmap("source", flow: "flow_tex", speed, scale) — two-phase seamless flowmap animation
+parallax("source", depth: "depth_tex", strength, orbit_speed) — depth-driven parallax with orbital motion
 
 ### Sdf boolean ops
 union(a,b), subtract(a,b), intersect(a,b), smooth_union(a,b,k), smooth_subtract(a,b,k), smooth_intersect(a,b,k), xor(a,b), morph(a,b,t)
@@ -41,7 +46,7 @@ round(r), shell(w), onion(count,w), mask_arc(angle)
 glow(intensity), shade(r,g,b), emissive(intensity), palette(name_or_coefficients)
 
 ### Color -> Color
-tint(r,g,b), bloom(threshold,strength), grain(amount), outline(width)
+tint(r,g,b), bloom(threshold,strength), grain(amount), outline(width), mask("mask_tex")
 
 ## 30 Named Palettes
 fire, ocean, neon, aurora, sunset, ice, ember, lava, magma, inferno, plasma, electric, cyber, matrix, forest, moss, earth, desert, blood, rose, candy, royal, deep_sea, coral, arctic, twilight, vapor, gold, silver, monochrome

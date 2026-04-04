@@ -252,9 +252,14 @@
           "match": "\\b(glow|shade|emissive|palette)\\b"
         },
         {
+          "comment": "Position -> Color builtins (texture sampling)",
+          "name": "support.function.game",
+          "match": "\\b(sample|flowmap|parallax)\\b"
+        },
+        {
           "comment": "Color -> Color builtins",
           "name": "support.function.game",
-          "match": "\\b(tint|bloom|grain|outline)\\b"
+          "match": "\\b(tint|bloom|grain|outline|mask)\\b"
         },
         {
           "comment": "SDF -> SDF builtins",

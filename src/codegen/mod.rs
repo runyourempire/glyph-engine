@@ -161,6 +161,30 @@ pub struct EventPropInfo {
     pub name: String,
 }
 
+/// Extract a string value from a named or positional argument.
+/// Used for texture name arguments in builtins like sample, flowmap, mask, parallax.
+pub fn extract_string_arg(args: &[crate::ast::Arg], name: &str, pos: usize) -> String {
+    // Try named first
+    if let Some(named) = args.iter().find(|a| a.name.as_deref() == Some(name)) {
+        match &named.value {
+            crate::ast::Expr::String(s) => return s.clone(),
+            crate::ast::Expr::Ident(s) => return s.clone(),
+            _ => {}
+        }
+    }
+    // Try positional
+    if let Some(arg) = args.get(pos) {
+        if arg.name.is_none() {
+            match &arg.value {
+                crate::ast::Expr::String(s) => return s.clone(),
+                crate::ast::Expr::Ident(s) => return s.clone(),
+                _ => {}
+            }
+        }
+    }
+    "unknown".to_string()
+}
+
 /// Returns true if the name is a built-in shader variable (time, mouse, audio).
 fn is_builtin_variable(name: &str) -> bool {
     matches!(
