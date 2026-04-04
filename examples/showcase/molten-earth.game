@@ -1,0 +1,101 @@
+// Molten Earth — lava flows through cracked volcanic rock.
+// FORMULA: living-field architecture. Warm palette, strong warp, tiled embers.
+// Mouse pulls the flow. Click erupts.
+
+cinematic "molten-earth" {
+  layer config {
+    heat: 0.0
+    flow_speed: 0.2
+  }
+
+  // PRIMARY: flowing volcanic texture — warm palette, strong warp
+  layer magma memory: 0.91 {
+    warp(scale: 1.0, octaves: 6, persistence: 0.55, strength: 0.35 + mouse_down * 0.1)
+    | distort(scale: 2.0, speed: flow_speed, strength: 0.1)
+    | fbm(scale: 2.0, octaves: 5, persistence: 0.5)
+    | palette(
+        a_r: 0.45, a_g: 0.25, a_b: 0.12,
+        b_r: 0.3, b_g: 0.18, b_b: 0.1,
+        c_r: 0.8, c_g: 0.6, c_b: 0.3,
+        d_r: 0.0, d_g: 0.1, d_b: 0.15
+      )
+  }
+
+  // VEINS: voronoi creates cracked lava channels
+  layer cracks memory: 0.87 {
+    warp(scale: 2.0 + mouse_x * 0.4, octaves: 5, persistence: 0.5, strength: 0.3 + heat * 0.06)
+    | distort(scale: 2.5, speed: flow_speed * 1.2, strength: 0.08)
+    | voronoi(5.0)
+    | palette(
+        a_r: 0.4, a_g: 0.2, a_b: 0.08,
+        b_r: 0.28, b_g: 0.15, b_b: 0.07,
+        c_r: 1.2, c_g: 0.7, c_b: 0.3,
+        d_r: 0.05, d_g: 0.12, d_b: 0.2
+      )
+  }
+
+  // DETAIL: finer channels
+  layer fissures memory: 0.83 {
+    warp(scale: 3.5 + mouse_y * 0.3, octaves: 4, persistence: 0.45, strength: 0.25)
+    | distort(scale: 3.5, speed: flow_speed * 1.5, strength: 0.08)
+    | fbm(scale: 6.0, octaves: 4, persistence: 0.45)
+    | palette(
+        a_r: 0.35, a_g: 0.17, a_b: 0.06,
+        b_r: 0.22, b_g: 0.12, b_b: 0.05,
+        c_r: 1.0, c_g: 0.5, c_b: 0.2,
+        d_r: 0.08, d_g: 0.15, d_b: 0.25
+      )
+  }
+
+  // EMBERS: tiled hot spots flowing through channels (NO blend:add)
+  layer embers memory: 0.78 {
+    distort(scale: 5.0, speed: flow_speed + heat * 0.15, strength: 0.2)
+    | warp(scale: 2.5, octaves: 3, strength: 0.25)
+    | repeat(0.1, 0.1)
+    | circle(0.012 + heat * 0.004)
+    | glow(2.5 + heat * 1.2)
+    | tint(1.0, 0.55, 0.12)
+  }
+
+  // TRAILS: vapor rising from lava (NO blend:add)
+  layer smoke memory: 0.94 {
+    distort(scale: 3.0, speed: flow_speed * 0.4, strength: 0.1)
+    | warp(scale: 1.5, octaves: 4, persistence: 0.5, strength: 0.2)
+    | simplex(5.0)
+    | glow(1.0 + heat * 0.4)
+    | tint(0.6, 0.3, 0.1)
+  }
+
+  // FLARES: bright sparks (NO blend:add)
+  layer flares memory: 0.68 {
+    distort(scale: 7.0, speed: flow_speed * 1.2 + heat * 0.3, strength: 0.25)
+    | warp(scale: 3.0, octaves: 3, strength: 0.35)
+    | fbm(scale: 18.0, octaves: 2)
+    | glow(4.0 + heat * 1.5)
+    | tint(1.0, 0.8, 0.3)
+  }
+
+  // AMBIENT: warm radial glow
+  layer glow_base {
+    radial_fade(0.0, 0.6)
+    | palette(
+        a_r: 0.38, a_g: 0.2, a_b: 0.1,
+        b_r: 0.2, b_g: 0.12, b_b: 0.08,
+        c_r: 0.6, c_g: 0.4, c_b: 0.2,
+        d_r: 0.0, d_g: 0.1, d_b: 0.05
+      )
+  }
+
+  arc {
+    heat: 0.0 -> 0.9 over 12s ease-in-out
+  }
+
+  resonate {
+    heat -> embers.brightness * 0.4
+    heat -> flares.brightness * 0.3
+    heat -> cracks.intensity * 0.2
+  }
+
+  pass glow { blur(1.5) }
+  pass frame { vignette(0.3) }
+}

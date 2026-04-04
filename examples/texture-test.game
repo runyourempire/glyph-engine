@@ -1,0 +1,15 @@
+// Texture sampling test — loads an image and animates it with warp.
+
+cinematic "texture-test" {
+  texture "photo" from "test-image.jpg"
+
+  layer config {
+    flow: 0.5
+  }
+
+  layer base memory: 0.95 {
+    distort(scale: 2.0, speed: 0.15, strength: 0.03 + mouse_down * 0.02)
+    | warp(scale: 1.5, octaves: 3, strength: 0.02 + flow * 0.01)
+    | sample("photo")
+  }
+}

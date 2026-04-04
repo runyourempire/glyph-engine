@@ -1,0 +1,83 @@
+// Amethyst Flow — living-field formula, purple/violet palette.
+// EXACT same layer architecture. Only colors differ.
+
+cinematic "amethyst-flow" {
+  layer config {
+    life: 0.0
+    warmth: 0.0
+  }
+
+  // THE texture — purple/violet marble
+  layer crystal memory: 0.93 {
+    warp(scale: 1.0, octaves: 5, persistence: 0.5, strength: 0.3 + mouse_down * 0.08)
+    | fbm(scale: 2.0, octaves: 4)
+    | palette(
+        a_r: 0.4, a_g: 0.3, a_b: 0.5,
+        b_r: 0.3, b_g: 0.2, b_b: 0.3,
+        c_r: 0.8, c_g: 0.6, c_b: 0.3,
+        d_r: 0.15, d_g: 0.1, d_b: 0.2
+      )
+  }
+
+  // Organisms — tiled glowing nodes
+  layer nodes memory: 0.87 {
+    distort(scale: 4.0, speed: 0.4, strength: 0.2)
+    | repeat(0.15, 0.15)
+    | circle(0.03)
+    | glow(3.0 + life * 0.5)
+    | tint(0.7, 0.4, 1.0)
+  }
+
+  // Trails — flowing energy
+  layer energy memory: 0.96 {
+    distort(scale: 3.0, speed: 0.3, strength: 0.15)
+    | warp(scale: 2.0, octaves: 4, strength: 0.25)
+    | simplex(6.0)
+    | glow(1.5 + life * 0.3)
+    | tint(0.6, 0.3, 0.8)
+  }
+
+  // Pollen — floating particles
+  layer dust memory: 0.80 {
+    warp(scale: 5.0, octaves: 3, strength: 0.3)
+    | fbm(scale: 12.0, octaves: 3)
+    | glow(2.5 + life * 0.5)
+    | tint(0.8, 0.6, 1.0)
+  }
+
+  // Ambient
+  layer aura {
+    radial_fade(0.0, 0.7)
+    | palette(
+        a_r: 0.35, a_g: 0.25, a_b: 0.45,
+        b_r: 0.25, b_g: 0.2, b_b: 0.3,
+        c_r: 0.8, c_g: 0.5, c_b: 0.3,
+        d_r: 0.1, d_g: 0.05, d_b: 0.15
+      )
+  }
+
+  // Fireflies — bright crystal flashes
+  layer flashes memory: 0.72 {
+    distort(scale: 7.0, speed: 0.8, strength: 0.25)
+    | warp(scale: 3.0, octaves: 3, strength: 0.35)
+    | fbm(scale: 18.0, octaves: 2)
+    | glow(4.0 + life * 1.0)
+    | tint(0.9, 0.7, 1.0)
+  }
+
+  arc {
+    life: 0.0 -> 1.0 over 8s ease-in-out
+    warmth: 0.0 -> 0.8 over 6s ease-out
+  }
+
+  resonate {
+    life -> nodes.brightness * 0.6
+    life -> energy.intensity * 0.4
+    life -> flashes.brightness * 0.5
+    warmth -> crystal.brightness * 0.3
+    warmth -> aura.brightness * 0.5
+  }
+
+  pass bloom { blur(1.5) }
+  pass atmosphere { vignette(0.3) }
+}

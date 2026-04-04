@@ -71,6 +71,17 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
         shader.complexity.tier,
     ));
 
+    // Texture name-to-index mapping (for loadTexture -> setUserTexture wiring)
+    if !shader.textures.is_empty() {
+        let tex_map: Vec<String> = shader
+            .textures
+            .iter()
+            .enumerate()
+            .map(|(i, t)| format!("'{}': {}", t.name, i))
+            .collect();
+        s.push_str(&format!("const TEX_INDEX = {{{}}};\n", tex_map.join(", ")));
+    }
+
     // Pass shader constants
     if has_passes {
         for (i, pass_wgsl) in shader.pass_wgsl.iter().enumerate() {
@@ -139,12 +150,14 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
                 needs_prev_frame,
                 pass_count,
                 compute_type,
+                shader.textures.len(),
             ));
             s.push_str("\n\n");
         }
 
+        let tex_names: Vec<String> = shader.textures.iter().map(|t| t.name.clone()).collect();
         if emit_webgl2 {
-            s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame));
+            s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame, &tex_names));
             s.push_str("\n\n");
         }
     }
@@ -299,6 +312,9 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
 
     s.push_str("  async _initRenderer() {\n");
 
+    let has_user_textures = !shader.textures.is_empty();
+    let tex_count = shader.textures.len();
+
     if emit_webgpu && emit_webgl2 {
         // Both: try WebGPU first, fall back to WebGL2
         s.push_str("    const gpu = new GameRenderer(this._canvas, WGSL_V, WGSL_F, UNIFORMS");
@@ -310,6 +326,9 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
                 super::helpers::ComputeType::Flow => "flow",
             };
             s.push_str(&format!(", '{ct_str}'"));
+        }
+        if has_user_textures {
+            s.push_str(&format!(", {tex_count}"));
         }
         s.push_str(");\n");
         s.push_str("    if (await gpu.init()) {\n");
@@ -334,6 +353,9 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
                 super::helpers::ComputeType::Flow => "flow",
             };
             s.push_str(&format!(", '{ct_str}'"));
+        }
+        if has_user_textures {
+            s.push_str(&format!(", {tex_count}"));
         }
         s.push_str(");\n");
         s.push_str("    if (!(await gpu.init())) {\n");
@@ -557,7 +579,23 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
         s.push_str("    );\n");
         s.push_str("    this._textures = this._textures || {};\n");
         s.push_str("    this._textures[name] = tex;\n");
-        s.push_str("    // TODO: rebind group with new texture\n");
+        s.push_str("    // Wire texture into GPU bind group\n");
+        s.push_str("    if (typeof TEX_INDEX !== 'undefined' && name in TEX_INDEX) {\n");
+        s.push_str("      if (this._renderer.setUserTexture) this._renderer.setUserTexture(TEX_INDEX[name], tex);\n");
+        s.push_str("      else if (this._renderer.setUserTextureGL) {\n");
+        s.push_str("        // WebGL2: create GL texture from bitmap\n");
+        s.push_str("        const gl = this._renderer.gl;\n");
+        s.push_str("        const glTex = gl.createTexture();\n");
+        s.push_str("        gl.bindTexture(gl.TEXTURE_2D, glTex);\n");
+        s.push_str("        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);\n");
+        s.push_str("        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);\n");
+        s.push_str("        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);\n");
+        s.push_str("        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);\n");
+        s.push_str("        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);\n");
+        s.push_str("        gl.bindTexture(gl.TEXTURE_2D, null);\n");
+        s.push_str("        this._renderer.setUserTextureGL(name, glTex);\n");
+        s.push_str("      }\n");
+        s.push_str("    }\n");
         s.push_str("  }\n\n");
 
         s.push_str("  async loadTextureFromData(name, imageData) {\n");
@@ -575,7 +613,9 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
         s.push_str("    );\n");
         s.push_str("    this._textures = this._textures || {};\n");
         s.push_str("    this._textures[name] = tex;\n");
-        s.push_str("    // TODO: rebind group with new texture\n");
+        s.push_str("    if (typeof TEX_INDEX !== 'undefined' && name in TEX_INDEX) {\n");
+        s.push_str("      if (this._renderer.setUserTexture) this._renderer.setUserTexture(TEX_INDEX[name], tex);\n");
+        s.push_str("    }\n");
         s.push_str("  }\n\n");
     }
 
@@ -1210,5 +1250,61 @@ mod tests {
         // The FPS limiter should be in the render loop
         assert!(js.contains("if (this._fpsLimit > 0)"), "should check FPS limit in loop");
         assert!(js.contains("(now - this._lastFrameTime) < this._fpsInterval"), "should compare delta time");
+    }
+
+    // ── Texture sampling tests ──────────────────────────────────────
+
+    #[test]
+    fn component_with_texture_has_bind_group_rebuild() {
+        use crate::codegen::TextureInfo;
+        let mut shader = make_shader("photo-wall");
+        shader.textures = vec![TextureInfo {
+            name: "photo".into(),
+            binding: 5,
+            source: None,
+        }];
+        let js = generate_component(&shader, ShaderTarget::Both);
+        // TEX_INDEX mapping
+        assert!(js.contains("TEX_INDEX"), "should emit TEX_INDEX constant");
+        assert!(js.contains("'photo': 0"), "should map 'photo' to index 0");
+        // Placeholder textures
+        assert!(js.contains("this._userTextures"), "should create placeholder texture array");
+        assert!(js.contains("this._texSampler"), "should create shared sampler");
+        // Bind group rebuild
+        assert!(js.contains("_rebuildBindGroup"), "should have bind group rebuild method");
+        assert!(js.contains("setUserTexture"), "should have setUserTexture method");
+        // loadTexture wires to setUserTexture
+        assert!(js.contains("this._renderer.setUserTexture(TEX_INDEX[name], tex)"), "loadTexture should call setUserTexture");
+    }
+
+    #[test]
+    fn component_with_texture_has_webgl_support() {
+        use crate::codegen::TextureInfo;
+        let mut shader = make_shader("photo-gl");
+        shader.textures = vec![TextureInfo {
+            name: "bg".into(),
+            binding: 5,
+            source: None,
+        }];
+        let js = generate_component(&shader, ShaderTarget::Both);
+        // WebGL2 texture uniform locations
+        assert!(js.contains("this._texLocs['bg']"), "should get GL uniform location for texture");
+        assert!(js.contains("u_tex_bg"), "should use correct GLSL uniform name");
+        // WebGL2 texture binding
+        assert!(js.contains("setUserTextureGL"), "should have WebGL texture setter");
+    }
+
+    #[test]
+    fn component_with_multiple_textures() {
+        use crate::codegen::TextureInfo;
+        let mut shader = make_shader("multi-tex");
+        shader.textures = vec![
+            TextureInfo { name: "photo".into(), binding: 5, source: None },
+            TextureInfo { name: "depth".into(), binding: 7, source: None },
+        ];
+        let js = generate_component(&shader, ShaderTarget::Both);
+        assert!(js.contains("'photo': 0, 'depth': 1"), "should map both textures");
+        assert!(js.contains("this._texLocs['photo']"), "should get location for photo");
+        assert!(js.contains("this._texLocs['depth']"), "should get location for depth");
     }
 }

@@ -1,0 +1,140 @@
+// Nexus — a living neural network in the void.
+// Mouse-reactive: the network deforms around your cursor.
+// Click to send a pulse through the system.
+// Zero glow dependency — all beauty comes from structure and color.
+
+cinematic "nexus" {
+  layer config {
+    activity: 0.0
+    coherence: 0.0
+  }
+
+  // Layer 1: Void floor — near-black with barely visible warped texture
+  layer void {
+    warp(scale: 1.2, octaves: 4, persistence: 0.4, strength: 0.08)
+    | fbm(scale: 1.5, octaves: 4, persistence: 0.4)
+    | palette(
+        a_r: 0.01, a_g: 0.01, a_b: 0.02,
+        b_r: 0.02, b_g: 0.01, b_b: 0.04,
+        c_r: 0.06, c_g: 0.03, c_b: 0.1,
+        d_r: 0.0, d_g: 0.0, d_b: 0.05
+      )
+  }
+
+  // Layer 2: Primary neural network — large warped voronoi cells
+  // Mouse warps the network: cursor position influences distortion
+  layer network memory: 0.84 {
+    distort(scale: 2.5, speed: 0.25, strength: 0.08 + mouse_down * 0.06)
+    | warp(scale: 2.0 + mouse_x * 0.5, octaves: 5, persistence: 0.5, strength: 0.2 + activity * 0.08)
+    | voronoi(7.0)
+    | palette(
+        a_r: 0.02, a_g: 0.04, a_b: 0.08,
+        b_r: 0.08, b_g: 0.12, b_b: 0.25,
+        c_r: 1.5, c_g: 0.8, c_b: 0.5,
+        d_r: 0.55, d_g: 0.65, d_b: 0.75
+      )
+  }
+
+  // Layer 3: Secondary lattice — finer voronoi detail on top
+  layer lattice memory: 0.78 opacity: 0.6 {
+    warp(scale: 3.0 + mouse_y * 0.3, octaves: 4, persistence: 0.45, strength: 0.15 + activity * 0.05)
+    | distort(scale: 3.0, speed: 0.35, strength: 0.06)
+    | voronoi(15.0)
+    | palette(
+        a_r: 0.0, a_g: 0.02, a_b: 0.06,
+        b_r: 0.05, b_g: 0.1, b_b: 0.2,
+        c_r: 2.0, c_g: 1.0, c_b: 0.5,
+        d_r: 0.15, d_g: 0.35, d_b: 0.6
+      )
+  }
+
+  // Layer 4: Signal flow — polar simplex creating radial data streams
+  layer signals memory: 0.76 opacity: 0.4 {
+    translate(mouse_x * 0.1 - 0.05, mouse_y * 0.1 - 0.05)
+    | polar
+    | warp(scale: 3.0, octaves: 4, persistence: 0.4, strength: 0.12 + coherence * 0.06)
+    | simplex(8.0)
+    | palette(
+        a_r: 0.0, a_g: 0.02, a_b: 0.05,
+        b_r: 0.1, b_g: 0.15, b_b: 0.3,
+        c_r: 1.0, c_g: 0.8, c_b: 0.5,
+        d_r: 0.0, d_g: 0.2, d_b: 0.5
+      )
+  }
+
+  // Layer 5: Deep structure — fbm creating organic depth
+  layer deep memory: 0.82 opacity: 0.35 {
+    warp(scale: 2.5, octaves: 6, persistence: 0.55, strength: 0.2)
+    | fbm(scale: 3.0, octaves: 6, persistence: 0.5)
+    | palette(
+        a_r: 0.01, a_g: 0.02, a_b: 0.05,
+        b_r: 0.06, b_g: 0.08, b_b: 0.18,
+        c_r: 0.4, c_g: 0.25, c_b: 0.6,
+        d_r: 0.0, d_g: 0.1, d_b: 0.25
+      )
+  }
+
+  // Layer 6: Hub ring — the central nexus, mouse-reactive
+  layer hub memory: 0.80 blend: add {
+    translate(mouse_x * 0.08 - 0.04, mouse_y * 0.08 - 0.04)
+    | distort(scale: 2.0, speed: 0.35, strength: 0.015 + mouse_down * 0.01)
+    | ring(0.12 + coherence * 0.03, 0.005)
+    | glow(1.2 + coherence * 0.5)
+    | tint(0.4, 0.6, 1.0)
+  }
+
+  // Layer 7: Hub core — warm center point
+  layer core memory: 0.78 blend: add {
+    translate(mouse_x * 0.1 - 0.05, mouse_y * 0.1 - 0.05)
+    | circle(0.02 + mouse_down * 0.015 + activity * 0.01)
+    | glow(1.5 + activity * 0.8)
+    | tint(0.83, 0.69, 0.22)
+  }
+
+  // Layer 8: Orbiting node — traces the network
+  layer node_a memory: 0.70 blend: add {
+    translate(sin(time * 0.3) * 0.28, cos(time * 0.3) * 0.24)
+    | circle(0.008 + coherence * 0.004)
+    | glow(1.0 + coherence * 0.4)
+    | tint(0.3, 0.8, 1.0)
+  }
+
+  // Layer 9: Second node — counter-orbit
+  layer node_b memory: 0.68 blend: add {
+    translate(cos(time * 0.22) * 0.32, sin(time * 0.18) * 0.27)
+    | circle(0.006 + coherence * 0.003)
+    | glow(0.8 + coherence * 0.3)
+    | tint(1.0, 0.5, 0.8)
+  }
+
+  // Layer 10: Edge vignette — darkness at edges, built into composition
+  layer vignette {
+    radial_fade(0.25, 0.55)
+    | shade(0.0, 0.0, 0.0)
+  }
+
+  arc {
+    activity: 0.0 -> 1.0 over 10s ease-in-out
+    coherence: 0.0 -> 1.0 over 16s ease-out
+  }
+
+  resonate {
+    activity -> network.intensity * 0.3
+    activity -> lattice.brightness * 0.25
+    coherence -> signals.intensity * 0.3
+    coherence -> hub.brightness * 0.35
+    coherence -> core.brightness * 0.3
+  }
+
+  matrix color {
+    [
+      0.95, -0.02, 0.08,
+      0.0,   0.9,  0.05,
+      0.06,  0.0,  1.1
+    ]
+  }
+
+  pass glow { blur(1.5) }
+  pass split { chromatic(0.003) }
+  pass frame { vignette(0.3) }
+}

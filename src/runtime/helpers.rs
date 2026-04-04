@@ -24,11 +24,11 @@ pub fn generate_standalone_runtime() -> String {
     s.push_str("(function(){\n");
 
     // Emit WebGPU renderer with ALL features enabled
-    s.push_str(&webgpu_renderer(true, 8, Some(ComputeType::React)));
+    s.push_str(&webgpu_renderer(true, 8, Some(ComputeType::React), 4));
     s.push_str("\n\n");
 
     // Emit WebGL2 renderer with memory support
-    s.push_str(&webgl2_renderer(true));
+    s.push_str(&webgl2_renderer(true, &[]));
     s.push_str("\n\n");
 
     // Expose as globals
@@ -48,8 +48,10 @@ pub fn webgpu_renderer(
     needs_prev_frame: bool,
     pass_count: usize,
     compute_type: Option<ComputeType>,
+    texture_count: usize,
 ) -> String {
     let has_passes = pass_count > 0;
+    let has_textures = texture_count > 0;
     let mut s = String::with_capacity(8192);
 
     // ── Class declaration ────────────────────────────────────────────
@@ -62,6 +64,9 @@ pub fn webgpu_renderer(
     }
     if compute_type.is_some() {
         s.push_str(", computeType");
+    }
+    if has_textures {
+        s.push_str(", textureCount");
     }
     s.push_str(") {\n");
     s.push_str("    this.canvas = canvas;\n");
@@ -76,6 +81,11 @@ pub fn webgpu_renderer(
         s.push_str("    this._computeBuf = null;\n");
         s.push_str("    this._computeW = 0;\n");
         s.push_str("    this._computeH = 0;\n");
+    }
+    if has_textures {
+        s.push_str("    this._texCount = textureCount;\n");
+        s.push_str("    this._userTextures = [];\n");
+        s.push_str("    this._userSamplers = [];\n");
     }
     s.push_str("    this.device = null;\n");
     s.push_str("    this.pipeline = null;\n");
@@ -155,14 +165,34 @@ pub fn webgpu_renderer(
     s.push_str("    });\n");
     s.push_str("    this.floatCount = floatCount;\n\n");
 
-    // Bind group layout (Group 0 = uniforms)
-    s.push_str("    const bindGroupLayout = this.device.createBindGroupLayout({\n");
-    s.push_str("      entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }]\n");
-    s.push_str("    });\n");
-    s.push_str("    this.bindGroup = this.device.createBindGroup({\n");
-    s.push_str("      layout: bindGroupLayout,\n");
-    s.push_str("      entries: [{ binding: 0, resource: { buffer: this.uniformBuffer } }]\n");
-    s.push_str("    });\n\n");
+    // Bind group layout (Group 0 = uniforms + user textures at bindings 5+)
+    if has_textures {
+        // Create placeholder 1x1 white textures (bind group needs valid textures at creation)
+        s.push_str("    this._texSampler = this.device.createSampler({ magFilter: 'linear', minFilter: 'linear', addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge' });\n");
+        s.push_str("    for (let t = 0; t < this._texCount; t++) {\n");
+        s.push_str("      const ph = this.device.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });\n");
+        s.push_str("      this.device.queue.writeTexture({ texture: ph }, new Uint8Array([255,255,255,255]), { bytesPerRow: 4 }, [1, 1]);\n");
+        s.push_str("      this._userTextures.push(ph);\n");
+        s.push_str("      this._userSamplers.push(this._texSampler);\n");
+        s.push_str("    }\n");
+        // Build layout entries dynamically: binding 0 (uniforms) + binding 5,6,7,8... (textures+samplers)
+        s.push_str("    const bglEntries = [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }];\n");
+        s.push_str("    for (let t = 0; t < this._texCount; t++) {\n");
+        s.push_str("      bglEntries.push({ binding: t * 2 + 5, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } });\n");
+        s.push_str("      bglEntries.push({ binding: t * 2 + 6, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } });\n");
+        s.push_str("    }\n");
+        s.push_str("    const bindGroupLayout = this.device.createBindGroupLayout({ entries: bglEntries });\n");
+        s.push_str("    this._mainBGL = bindGroupLayout;\n");
+        s.push_str("    this._rebuildBindGroup();\n\n");
+    } else {
+        s.push_str("    const bindGroupLayout = this.device.createBindGroupLayout({\n");
+        s.push_str("      entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }]\n");
+        s.push_str("    });\n");
+        s.push_str("    this.bindGroup = this.device.createBindGroup({\n");
+        s.push_str("      layout: bindGroupLayout,\n");
+        s.push_str("      entries: [{ binding: 0, resource: { buffer: this.uniformBuffer } }]\n");
+        s.push_str("    });\n\n");
+    }
 
     // Compute bind group layout (storage buffer for compute output)
     if compute_type.is_some() {
@@ -497,6 +527,26 @@ pub fn webgpu_renderer(
         s.push_str("  }\n\n");
     }
 
+    // ── User texture methods ────────────────────────────────────────
+    if has_textures {
+        s.push_str("  _rebuildBindGroup() {\n");
+        s.push_str("    const entries = [{ binding: 0, resource: { buffer: this.uniformBuffer } }];\n");
+        s.push_str("    for (let t = 0; t < this._texCount; t++) {\n");
+        s.push_str("      entries.push({ binding: t * 2 + 5, resource: this._userTextures[t].createView() });\n");
+        s.push_str("      entries.push({ binding: t * 2 + 6, resource: this._userSamplers[t] });\n");
+        s.push_str("    }\n");
+        s.push_str("    this.bindGroup = this.device.createBindGroup({ layout: this._mainBGL, entries });\n");
+        s.push_str("  }\n\n");
+
+        s.push_str("  setUserTexture(index, gpuTexture) {\n");
+        s.push_str("    if (index < 0 || index >= this._texCount) return;\n");
+        s.push_str("    const old = this._userTextures[index];\n");
+        s.push_str("    if (old && old.width === 1 && old.height === 1) old.destroy();\n");
+        s.push_str("    this._userTextures[index] = gpuTexture;\n");
+        s.push_str("    this._rebuildBindGroup();\n");
+        s.push_str("  }\n\n");
+    }
+
     // ── Utility methods ──────────────────────────────────────────────
     s.push_str("  setParam(name, value) { this.userParams[name] = value; }\n");
     s.push_str("  setAudioData(d) { Object.assign(this.audioData, d); }\n");
@@ -521,7 +571,8 @@ pub fn webgpu_renderer(
 /// WebGL2 fallback renderer class with optional memory support.
 ///
 /// Passes are WebGPU-only (they need separate render targets).
-pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
+pub fn webgl2_renderer(needs_prev_frame: bool, texture_names: &[String]) -> String {
+    let has_textures = !texture_names.is_empty();
     let mut s = String::with_capacity(4096);
 
     s.push_str("class GameRendererGL {\n");
@@ -623,6 +674,17 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
         s.push_str("    this._initMemoryGL();\n");
     }
 
+    // User texture uniform locations
+    if has_textures {
+        s.push_str("    this._texLocs = {};\n");
+        s.push_str("    this._texImages = {};\n");
+        for name in texture_names {
+            s.push_str(&format!(
+                "    this._texLocs['{name}'] = gl.getUniformLocation(this.program, 'u_tex_{name}');\n"
+            ));
+        }
+    }
+
     s.push_str("    return true;\n");
     s.push_str("  }\n\n");
 
@@ -702,6 +764,16 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
         s.push_str("    gl.uniform1i(this._memLoc, 1);\n\n");
     }
 
+    // Bind user textures (starting at texture unit 2+)
+    if has_textures {
+        for (i, name) in texture_names.iter().enumerate() {
+            let unit = i + 2; // Unit 0 reserved, unit 1 = memory
+            s.push_str(&format!("    gl.activeTexture(gl.TEXTURE0 + {unit});\n"));
+            s.push_str(&format!("    if (this._texImages['{name}']) gl.bindTexture(gl.TEXTURE_2D, this._texImages['{name}']);\n"));
+            s.push_str(&format!("    gl.uniform1i(this._texLocs['{name}'], {unit});\n"));
+        }
+    }
+
     s.push_str("    gl.uniform1f(this.locs.time, t);\n");
     s.push_str("    gl.uniform1f(this.locs.bass, this.audioData.bass);\n");
     s.push_str("    gl.uniform1f(this.locs.mid, this.audioData.mid);\n");
@@ -775,6 +847,13 @@ pub fn webgl2_renderer(needs_prev_frame: bool) -> String {
         s.push_str("      }\n");
         s.push_str("      gl.bindTexture(gl.TEXTURE_2D, null);\n");
         s.push_str("    }\n");
+        s.push_str("  }\n\n");
+    }
+
+    // ── User texture methods (WebGL2) ──────────────────────────────
+    if has_textures {
+        s.push_str("  setUserTextureGL(name, glTexture) {\n");
+        s.push_str("    this._texImages[name] = glTexture;\n");
         s.push_str("  }\n\n");
     }
 

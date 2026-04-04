@@ -1,0 +1,84 @@
+// Ocean Alive — living-field formula, ocean color palette.
+// 3 core layers: flowing texture + organisms + trails.
+// Mouse-reactive via warp/distort args.
+
+cinematic "ocean-alive" {
+  layer config {
+    life: 0.0
+    warmth: 0.0
+  }
+
+  // THE texture. This is 90% of the visual. Strong warp, high-contrast palette.
+  layer sea memory: 0.93 {
+    warp(scale: 1.0, octaves: 5, persistence: 0.5, strength: 0.3 + mouse_down * 0.08)
+    | fbm(scale: 2.0, octaves: 4)
+    | palette(
+        a_r: 0.3, a_g: 0.45, a_b: 0.5,
+        b_r: 0.25, b_g: 0.3, b_b: 0.3,
+        c_r: 0.8, c_g: 0.6, c_b: 0.3,
+        d_r: 0.1, d_g: 0.15, d_b: 0.2
+      )
+  }
+
+  // Organisms — tiled flowing dots
+  layer plankton memory: 0.87 {
+    distort(scale: 4.0, speed: 0.4, strength: 0.2)
+    | repeat(0.15, 0.15)
+    | circle(0.03)
+    | glow(3.0 + life * 0.5)
+    | tint(0.3, 0.8, 1.0)
+  }
+
+  // Trails — high memory flowing vapor
+  layer currents memory: 0.96 {
+    distort(scale: 3.0, speed: 0.3, strength: 0.15)
+    | warp(scale: 2.0, octaves: 4, strength: 0.25)
+    | simplex(6.0)
+    | glow(1.5 + life * 0.3)
+    | tint(0.2, 0.5, 0.7)
+  }
+
+  // Pollen equivalent — fine floating particles
+  layer foam memory: 0.80 {
+    warp(scale: 5.0, octaves: 3, strength: 0.3)
+    | fbm(scale: 12.0, octaves: 3)
+    | glow(2.5 + life * 0.5)
+    | tint(0.5, 0.8, 1.0)
+  }
+
+  // Ambient wash
+  layer depth {
+    radial_fade(0.0, 0.7)
+    | palette(
+        a_r: 0.25, a_g: 0.35, a_b: 0.45,
+        b_r: 0.2, b_g: 0.25, b_b: 0.3,
+        c_r: 0.8, c_g: 0.5, c_b: 0.2,
+        d_r: 0.0, d_g: 0.1, d_b: 0.15
+      )
+  }
+
+  // Firefly equivalent — rare bright flashes
+  layer biolum memory: 0.72 {
+    distort(scale: 7.0, speed: 0.8, strength: 0.25)
+    | warp(scale: 3.0, octaves: 3, strength: 0.35)
+    | fbm(scale: 18.0, octaves: 2)
+    | glow(4.0 + life * 1.0)
+    | tint(0.3, 0.9, 1.0)
+  }
+
+  arc {
+    life: 0.0 -> 1.0 over 8s ease-in-out
+    warmth: 0.0 -> 0.8 over 6s ease-out
+  }
+
+  resonate {
+    life -> plankton.brightness * 0.6
+    life -> currents.intensity * 0.4
+    life -> biolum.brightness * 0.5
+    warmth -> sea.brightness * 0.3
+    warmth -> depth.brightness * 0.5
+  }
+
+  pass bloom { blur(1.5) }
+  pass atmosphere { vignette(0.3) }
+}

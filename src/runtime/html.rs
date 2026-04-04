@@ -54,9 +54,10 @@ pub fn generate_html(shader: &ShaderOutput) -> String {
         needs_prev_frame,
         pass_count,
         None,
+        0,
     ));
     s.push_str("\n\n");
-    s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame));
+    s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame, &[]));
     s.push_str("\n\n");
 
     // Inject feature JS modules (listen, voice, score, temporal, gravity, breed)
@@ -166,9 +167,10 @@ pub fn generate_artblocks_html(shader: &ShaderOutput, seed: Option<u64>) -> Stri
         needs_prev_frame_ab,
         pass_count_ab,
         None,
+        0,
     ));
     s.push_str("\n\n");
-    s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame_ab));
+    s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame_ab, &[]));
     s.push_str("\n\n");
 
     for module_js in &shader.js_modules {
@@ -272,9 +274,10 @@ pub fn generate_wallpaper_html(shader: &ShaderOutput) -> String {
         needs_prev_frame,
         pass_count,
         None,
+        0,
     ));
     s.push_str("\n\n");
-    s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame));
+    s.push_str(&super::helpers::webgl2_renderer(needs_prev_frame, &[]));
     s.push_str("\n\n");
 
     // Inject feature JS modules

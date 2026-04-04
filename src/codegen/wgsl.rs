@@ -406,6 +406,20 @@ fn generate_fragment_inner(
     s.push_str("};\n\n");
     s.push_str("@group(0) @binding(0) var<uniform> u: Uniforms;\n\n");
 
+    // User texture bindings (Group 0, bindings 5+)
+    for (i, tex) in cinematic.textures.iter().enumerate() {
+        let tex_binding = (i as u32) * 2 + 5;
+        let samp_binding = tex_binding + 1;
+        s.push_str(&format!(
+            "@group(0) @binding({tex_binding}) var {}_tex: texture_2d<f32>;\n",
+            tex.name
+        ));
+        s.push_str(&format!(
+            "@group(0) @binding({samp_binding}) var {}_samp: sampler;\n\n",
+            tex.name
+        ));
+    }
+
     // Memory bindings (Group 1) — only when any layer uses memory
     let has_memory = memory::any_layer_uses_memory(&cinematic.layers);
     if has_memory {
@@ -1426,6 +1440,39 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             s.push_str(&format!("{indent}let gx = abs(game_mod(p.x + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
             s.push_str(&format!("{indent}let gy = abs(game_mod(p.y + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
             s.push_str(&format!("{indent}var sdf_result = min(gx, gy);\n"));
+        }
+        "sample" => {
+            // Texture sampling: Position -> Color
+            // Maps GAME's -1..1 position to 0..1 texture UV, then samples the named texture.
+            // The `p` variable has been warped/distorted by prior stages, creating animation.
+            // Extract texture name from the string literal argument directly.
+            let name = if let Some(arg) = args.first() {
+                match &arg.value {
+                    crate::ast::Expr::String(s) => s.clone(),
+                    crate::ast::Expr::Ident(s) => s.clone(),
+                    _ => {
+                        // Named arg: sample(name: "photo")
+                        if let Some(named) = args.iter().find(|a| a.name.as_deref() == Some("name")) {
+                            match &named.value {
+                                crate::ast::Expr::String(s) => s.clone(),
+                                crate::ast::Expr::Ident(s) => s.clone(),
+                                _ => "unknown".to_string(),
+                            }
+                        } else {
+                            "unknown".to_string()
+                        }
+                    }
+                }
+            } else {
+                "unknown".to_string()
+            };
+            // Map -1..1 position space -> 0..1 UV space, flip Y for correct orientation
+            s.push_str(&format!(
+                "{indent}let _tex_uv = vec2<f32>(p.x * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}var color_result = textureSample({name}_tex, {name}_samp, _tex_uv);\n"
+            ));
         }
         _ => {
             s.push_str(&format!("{indent}// Unknown stage: {}\n", stage.name));

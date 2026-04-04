@@ -240,6 +240,11 @@ fn generate_fragment_inner(
         s.push_str(&format!("uniform float u_p_{};\n", u.name));
     }
 
+    // User texture uniforms
+    for tex in &cinematic.textures {
+        s.push_str(&format!("uniform sampler2D u_tex_{};\n", tex.name));
+    }
+
     // Memory texture uniform (before varyings)
     if memory::any_layer_uses_memory(&cinematic.layers) {
         memory::emit_glsl_memory_bindings(&mut s);
@@ -1294,6 +1299,33 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             s.push_str(&format!("{indent}float gx = abs(mod(p.x + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
             s.push_str(&format!("{indent}float gy = abs(mod(p.y + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
             s.push_str(&format!("{indent}float sdf_result = min(gx, gy);\n"));
+        }
+        "sample" => {
+            let name = if let Some(arg) = args.first() {
+                match &arg.value {
+                    crate::ast::Expr::String(s) => s.clone(),
+                    crate::ast::Expr::Ident(s) => s.clone(),
+                    _ => {
+                        if let Some(named) = args.iter().find(|a| a.name.as_deref() == Some("name")) {
+                            match &named.value {
+                                crate::ast::Expr::String(s) => s.clone(),
+                                crate::ast::Expr::Ident(s) => s.clone(),
+                                _ => "unknown".to_string(),
+                            }
+                        } else {
+                            "unknown".to_string()
+                        }
+                    }
+                }
+            } else {
+                "unknown".to_string()
+            };
+            s.push_str(&format!(
+                "{indent}vec2 _tex_uv = vec2(p.x * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5));\n"
+            ));
+            s.push_str(&format!(
+                "{indent}vec4 color_result = texture(u_tex_{name}, _tex_uv);\n"
+            ));
         }
         _ => {
             s.push_str(&format!("{indent}// Unknown stage: {}\n", stage.name));
