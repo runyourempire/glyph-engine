@@ -1,0 +1,102 @@
+// CAMPFIRE — Hand-crafted living wallpaper
+// Dancing flame cores, floating embers, rising smoke plume,
+// warm light flickering on surroundings, heat shimmer in the air.
+// This is not a wallpaper. This is a window into the night camp.
+
+cinematic "living-campfire" {
+  texture "photo" from "campfire.jpg"
+  texture "depth" from "campfire-depth.png"
+  texture "mask_fire" from "campfire-mask_fire.png"
+  texture "mask_smoke" from "campfire-mask_smoke.png"
+  texture "mask_sky" from "campfire-mask_sky.png"
+
+  // ══════ THE CAMP — ground, trees, night ══════
+  layer world {
+    parallax("photo", depth: "depth", strength: 0.012, orbit_speed: 0.04)
+  }
+
+  // ══════ FLAME CORE — fast, turbulent fire heart ══════
+  layer flame_core opacity: 0.30 blend: add {
+    translate(sin(time * 0.8) * 0.006, time * -0.045)
+    | distort(scale: 4.0, speed: 5.0, strength: 0.14)
+    | warp(scale: 1.5, octaves: 4, persistence: 0.65, strength: 0.40)
+    | voronoi(5.0)
+    | glow(2.0)
+    | tint(1.0, 0.75, 0.15)
+    | mask("mask_fire")
+  }
+
+  // ══════ FLAME OUTER — cooler, slower outer flame ���═════
+  layer flame_outer opacity: 0.20 blend: add {
+    translate(sin(time * 0.5) * 0.008, time * -0.030)
+    | distort(scale: 2.5, speed: 3.5, strength: 0.10)
+    | warp(scale: 1.0, octaves: 5, persistence: 0.60, strength: 0.32)
+    | fbm(scale: 0.8, octaves: 4, persistence: 0.55)
+    | glow(3.0)
+    | tint(1.0, 0.45, 0.08)
+    | mask("mask_fire")
+  }
+
+  // ══════ FLAME TIP — fast yellow-white peaks ══════
+  layer flame_tip opacity: 0.15 blend: add {
+    translate(sin(time * 1.2) * 0.004, time * -0.060)
+    | distort(scale: 6.0, speed: 7.0, strength: 0.18)
+    | voronoi(8.0)
+    | glow(4.0)
+    | tint(1.0, 0.92, 0.55)
+    | mask("mask_fire")
+  }
+
+  // ══════ EMBERS — glowing particles floating upward ══════
+  layer embers opacity: 0.10 blend: add {
+    translate(sin(time * 0.3) * 0.012, time * -0.015)
+    | distort(scale: 18.0, speed: 2.0, strength: 0.10)
+    | voronoi(30.0)
+    | glow(10.0)
+    | tint(1.0, 0.65, 0.15)
+    | mask("mask_smoke")
+  }
+
+  // ══════ SMOKE PLUME — slow rising smoke ══════
+  layer smoke opacity: 0.11 blend: screen {
+    translate(sin(time * 0.06) * 0.008, time * -0.012)
+    | warp(scale: 0.6, octaves: 5, persistence: 0.65, strength: 0.22)
+    | fbm(scale: 0.9, octaves: 5, persistence: 0.55)
+    | glow(0.8)
+    | tint(0.55, 0.50, 0.48)
+    | mask("mask_smoke")
+  }
+
+  // ══════ HEAT SHIMMER — air distortion above fire ══════
+  layer heat_shimmer opacity: 0.80 {
+    distort(scale: 1.5, speed: 2.5, strength: 0.015)
+    | sample("photo")
+    | mask("mask_smoke")
+  }
+
+  // ══════ WARM LIGHT FLICKER — firelight on surroundings ══════
+  layer firelight opacity: 0.14 blend: screen {
+    translate(time * 0.002, time * 0.001)
+    | distort(scale: 0.8, speed: 3.5, strength: 0.04)
+    | warp(scale: 0.4, octaves: 3, persistence: 0.5, strength: 0.08)
+    | fbm(scale: 0.3, octaves: 3, persistence: 0.50)
+    | glow(2.0)
+    | tint(1.0, 0.70, 0.30)
+    | mask("depth")
+  }
+
+  // ══════ NIGHT SKY — stars twinkling ══════
+  layer stars opacity: 0.12 blend: add {
+    translate(time * 0.0005, time * 0.0002)
+    | distort(scale: 20.0, speed: 2.5, strength: 0.10)
+    | voronoi(38.0)
+    | glow(11.0)
+    | tint(0.90, 0.92, 1.0)
+    | mask("mask_sky")
+  }
+
+  // ══════ CINEMATIC POST ══════
+  pass soften { blur(0.4) }
+  pass frame { vignette(0.35) }
+  pass film { film_grain(0.018) }
+}

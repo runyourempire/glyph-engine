@@ -1,0 +1,109 @@
+// CITY NIGHT — Hand-crafted living wallpaper
+// Neon reflections on wet streets, window lights flickering,
+// steam rising from grates, distant traffic glow, urban rain.
+// This is not a wallpaper. This is a window into the city.
+
+cinematic "living-city-night" {
+  texture "photo" from "city-night.jpg"
+  texture "depth" from "city-night-depth.png"
+  texture "mask_water" from "city-night-mask_water.png"
+  texture "mask_sky" from "city-night-mask_sky.png"
+
+  // ══════ THE CITY — buildings, streets, infrastructure ══════
+  layer world {
+    parallax("photo", depth: "depth", strength: 0.015, orbit_speed: 0.04)
+  }
+
+  // ══════ WET STREET REFLECTIONS — neon light on wet pavement ══════
+  layer reflections opacity: 0.88 {
+    distort(scale: 1.2, speed: 0.8, strength: 0.020)
+    | sample("photo")
+    | mask("mask_water")
+  }
+
+  // ══════ NEON SHIMMER — colored light dancing on wet surfaces ══════
+  layer neon_shimmer opacity: 0.15 blend: screen {
+    translate(time * 0.008, time * 0.004)
+    | distort(scale: 3.0, speed: 1.2, strength: 0.06)
+    | warp(scale: 2.5, octaves: 3, strength: 0.18)
+    | voronoi(8.0)
+    | glow(2.5)
+    | tint(0.85, 0.40, 0.95)
+    | mask("mask_water")
+  }
+
+  // ══════ NEON WARM — secondary reflection color ══════
+  layer neon_warm opacity: 0.10 blend: screen {
+    translate(time * 0.006, time * 0.003)
+    | distort(scale: 2.5, speed: 0.9, strength: 0.05)
+    | warp(scale: 2.0, octaves: 3, strength: 0.15)
+    | voronoi(7.0)
+    | glow(3.0)
+    | tint(1.0, 0.55, 0.20)
+    | mask("mask_water")
+  }
+
+  // ══════ WINDOW FLICKER — random light changes in buildings ══════
+  layer windows opacity: 0.06 blend: add {
+    translate(time * 0.001, time * 0.001)
+    | distort(scale: 15.0, speed: 2.0, strength: 0.08)
+    | voronoi(20.0)
+    | glow(8.0)
+    | tint(1.0, 0.90, 0.65)
+    | mask("depth", invert: 1)
+  }
+
+  // ══════ STEAM RISE — subway grate steam ══════
+  layer steam opacity: 0.08 blend: screen {
+    translate(sin(time * 0.10) * 0.006, time * -0.015)
+    | warp(scale: 0.9, octaves: 5, persistence: 0.60, strength: 0.22)
+    | fbm(scale: 1.2, octaves: 5, persistence: 0.50)
+    | glow(1.0)
+    | tint(0.60, 0.58, 0.65)
+    | mask("depth")
+  }
+
+  // ══════ RAIN DRIZZLE — light urban rain ══════
+  layer drizzle opacity: 0.05 blend: add {
+    translate(time * 0.03, time * 0.50)
+    | distort(scale: 30.0, speed: 4.0, strength: 0.06)
+    | voronoi(50.0)
+    | glow(9.0)
+    | tint(0.60, 0.65, 0.80)
+  }
+
+  // ══════ TRAFFIC GLOW — distant car lights ══════
+  layer traffic opacity: 0.07 blend: add {
+    translate(time * 0.020, sin(time * 0.15) * 0.002)
+    | warp(scale: 1.5, octaves: 2, strength: 0.08)
+    | fbm(scale: 0.5, octaves: 2, persistence: 0.5)
+    | glow(4.0)
+    | tint(1.0, 0.80, 0.40)
+    | mask("depth")
+  }
+
+  // ══════ URBAN HAZE — city atmosphere, pollution glow ══════
+  layer haze opacity: 0.08 blend: screen {
+    translate(time * 0.006, time * 0.002)
+    | warp(scale: 0.4, octaves: 3, persistence: 0.5, strength: 0.10)
+    | fbm(scale: 0.35, octaves: 3, persistence: 0.50)
+    | glow(1.5)
+    | tint(0.55, 0.45, 0.65)
+    | mask("depth", invert: 1)
+  }
+
+  // ══════ SKY GLOW — light pollution in clouds ══════
+  layer sky_glow opacity: 0.10 blend: screen {
+    translate(time * 0.008, time * 0.003)
+    | warp(scale: 0.3, octaves: 3, persistence: 0.55, strength: 0.12)
+    | fbm(scale: 0.4, octaves: 3, persistence: 0.50)
+    | glow(2.0)
+    | tint(0.65, 0.45, 0.70)
+    | mask("mask_sky")
+  }
+
+  // ══════ CINEMATIC POST ══════
+  pass soften { blur(0.5) }
+  pass frame { vignette(0.38) }
+  pass film { film_grain(0.020) }
+}

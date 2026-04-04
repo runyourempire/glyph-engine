@@ -1,0 +1,105 @@
+// THUNDERSTORM — Hand-crafted living wallpaper
+// Churning storm clouds, lightning flash illumination, driving rain,
+// puddle ripples, wind-bent vegetation, raw atmospheric power.
+// This is not a wallpaper. This is a window into the storm.
+
+cinematic "living-thunderstorm" {
+  texture "photo" from "thunderstorm.jpg"
+  texture "depth" from "thunderstorm-depth.png"
+  texture "mask_sky" from "thunderstorm-mask_sky.png"
+  texture "mask_water" from "thunderstorm-mask_water.png"
+  texture "mask_vegetation" from "thunderstorm-mask_vegetation.png"
+
+  // ══════ THE LANDSCAPE — ground, trees, buildings ���═════
+  layer world {
+    parallax("photo", depth: "depth", strength: 0.018, orbit_speed: 0.06)
+  }
+
+  // ══════ CLOUD CHURN — heavy, turbulent sky ══════
+  layer cloud_churn opacity: 0.88 {
+    distort(scale: 0.35, speed: 0.15, strength: 0.025)
+    | sample("photo")
+    | mask("mask_sky")
+  }
+
+  // ══════ STORM ROLL — dark cloud mass movement ══════
+  layer storm_roll opacity: 0.18 blend: screen {
+    translate(time * 0.035, time * 0.008)
+    | warp(scale: 0.5, octaves: 5, persistence: 0.70, strength: 0.35)
+    | fbm(scale: 0.6, octaves: 5, persistence: 0.60)
+    | glow(1.0)
+    | tint(0.30, 0.32, 0.45)
+    | mask("mask_sky")
+  }
+
+  // ══════ LIGHTNING FLASH — periodic white-blue illumination ══════
+  layer lightning opacity: 0.25 blend: add {
+    translate(time * 0.001, time * 0.001)
+    | distort(scale: 0.15, speed: 8.0, strength: 0.02)
+    | warp(scale: 0.3, octaves: 2, persistence: 0.5, strength: 0.05)
+    | fbm(scale: 0.2, octaves: 2, persistence: 0.5)
+    | glow(8.0)
+    | tint(0.70, 0.75, 1.0)
+    | mask("mask_sky")
+  }
+
+  // ══════ RAIN STREAKS — angled rainfall ══════
+  layer rain opacity: 0.09 blend: add {
+    translate(time * 0.15, time * 0.80)
+    | distort(scale: 25.0, speed: 6.0, strength: 0.08)
+    | voronoi(45.0)
+    | glow(8.0)
+    | tint(0.65, 0.70, 0.85)
+  }
+
+  // ══════ RAIN SECONDARY — finer rain layer for depth ══════
+  layer rain_fine opacity: 0.06 blend: add {
+    translate(time * 0.12, time * 0.65)
+    | distort(scale: 35.0, speed: 5.0, strength: 0.06)
+    | voronoi(55.0)
+    | glow(10.0)
+    | tint(0.55, 0.60, 0.78)
+  }
+
+  // ══════ PUDDLE RIPPLES — rain hitting water surfaces ══════
+  layer puddle_ripple opacity: 0.12 blend: screen {
+    translate(time * 0.004, time * 0.003)
+    | distort(scale: 8.0, speed: 4.0, strength: 0.10)
+    | voronoi(12.0)
+    | glow(2.5)
+    | tint(0.50, 0.55, 0.75)
+    | mask("mask_water")
+  }
+
+  // ══════ WIND VEGETATION — trees and plants bending ══════
+  layer wind_sway opacity: 0.82 {
+    distort(scale: 0.6, speed: 0.25, strength: 0.018)
+    | sample("photo")
+    | mask("mask_vegetation")
+  }
+
+  // ══════ STORM ATMOSPHERE — dense, dark air ══════
+  layer storm_air opacity: 0.10 blend: screen {
+    translate(time * 0.025, sin(time * 0.08) * 0.005)
+    | warp(scale: 0.7, octaves: 4, persistence: 0.60, strength: 0.18)
+    | fbm(scale: 1.0, octaves: 4, persistence: 0.50)
+    | glow(0.8)
+    | tint(0.35, 0.38, 0.55)
+    | mask("depth", invert: 1)
+  }
+
+  // ══════ LIGHTNING GROUND FLASH — reflected lightning on ground ══════
+  layer ground_flash opacity: 0.08 blend: add {
+    translate(time * 0.001, time * 0.001)
+    | distort(scale: 0.2, speed: 8.0, strength: 0.03)
+    | fbm(scale: 0.15, octaves: 2, persistence: 0.5)
+    | glow(6.0)
+    | tint(0.55, 0.58, 0.80)
+    | mask("depth")
+  }
+
+  // ══════ CINEMATIC POST ══════
+  pass soften { blur(0.5) }
+  pass frame { vignette(0.35) }
+  pass film { film_grain(0.022) }
+}
