@@ -413,9 +413,13 @@ fn generate_fragment_inner(
         let tex_binding = (i as u32) * 2 + 5;
         let samp_binding = tex_binding + 1;
         if tex.texture_type == TextureType::Video {
-            // Video textures use texture_external — no sampler needed
+            // Video textures use texture_external + sampler
             s.push_str(&format!(
-                "@group(0) @binding({tex_binding}) var {}_tex: texture_external;\n\n",
+                "@group(0) @binding({tex_binding}) var {}_tex: texture_external;\n",
+                tex.name
+            ));
+            s.push_str(&format!(
+                "@group(0) @binding({samp_binding}) var {}_samp: sampler;\n\n",
                 tex.name
             ));
         } else {
@@ -559,7 +563,7 @@ fn generate_fragment_inner(
         if compute_kind.is_some() {
             s.push_str("    // Compute field visualization\n");
             s.push_str("    let cv = sample_compute(input.uv);\n");
-            s.push_str("    let compute_color = vec4<f32>(cv * 1.5, cv * 0.8, cv * 0.3, cv);\n");
+            s.push_str("    let compute_color = vec4<f32>(cv * color_r, cv * color_g, cv * color_b, cv);\n");
             s.push_str(
                 "    final_color = final_color + compute_color * (1.0 - final_color.a);\n\n",
             );
@@ -938,7 +942,7 @@ fn emit_wgsl_layer(
             s.push_str(&format!("{indent}// Compute field visualization\n"));
             s.push_str(&format!("{indent}let cv = sample_compute(input.uv);\n"));
             s.push_str(&format!(
-                "{indent}let compute_color = vec4<f32>(cv * 1.5, cv * 0.8, cv * 0.3, cv);\n"
+                "{indent}let compute_color = vec4<f32>(cv * color_r, cv * color_g, cv * color_b, cv);\n"
             ));
             s.push_str(&format!(
                 "{indent}color_result = color_result + compute_color * (1.0 - color_result.a);\n\n"
@@ -1476,7 +1480,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str, textures: &[Text
             ));
             if is_video {
                 s.push_str(&format!(
-                    "{indent}var color_result = textureSampleBaseClampToEdge({name}_tex, _tex_uv);\n"
+                    "{indent}var color_result = textureSampleBaseClampToEdge({name}_tex, {name}_samp, _tex_uv);\n"
                 ));
             } else {
                 s.push_str(&format!(
@@ -1520,10 +1524,10 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str, textures: &[Text
             let src_is_video = textures.iter().any(|t| t.name == source && t.texture_type == TextureType::Video);
             if src_is_video {
                 s.push_str(&format!(
-                    "{indent}let _fm_c0 = textureSampleBaseClampToEdge({source}_tex, _fm_uv0);\n"
+                    "{indent}let _fm_c0 = textureSampleBaseClampToEdge({source}_tex, {source}_samp, _fm_uv0);\n"
                 ));
                 s.push_str(&format!(
-                    "{indent}let _fm_c1 = textureSampleBaseClampToEdge({source}_tex, _fm_uv1);\n"
+                    "{indent}let _fm_c1 = textureSampleBaseClampToEdge({source}_tex, {source}_samp, _fm_uv1);\n"
                 ));
             } else {
                 s.push_str(&format!(
@@ -1586,7 +1590,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str, textures: &[Text
             let src_is_video = textures.iter().any(|t| t.name == source && t.texture_type == TextureType::Video);
             if src_is_video {
                 s.push_str(&format!(
-                    "{indent}var color_result = textureSampleBaseClampToEdge({source}_tex, _px_displaced);\n"
+                    "{indent}var color_result = textureSampleBaseClampToEdge({source}_tex, {source}_samp, _px_displaced);\n"
                 ));
             } else {
                 s.push_str(&format!(

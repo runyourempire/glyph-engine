@@ -174,8 +174,8 @@ pub fn webgpu_renderer(
         s.push_str("    this._texSampler = this.device.createSampler({ magFilter: 'linear', minFilter: 'linear', addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge' });\n");
         s.push_str("    for (let t = 0; t < this._texCount; t++) {\n");
         s.push_str("      if (this._textureTypes[t] === 'video') {\n");
-        s.push_str("        this._userTextures.push(null); // Video textures created per-frame\n");
-        s.push_str("        this._userSamplers.push(null);\n");
+        s.push_str("        this._userTextures.push(null); // Video textures created per-frame via importExternalTexture\n");
+        s.push_str("        this._userSamplers.push(this._texSampler); // External textures still need a sampler\n");
         s.push_str("      } else {\n");
         s.push_str("        const ph = this.device.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });\n");
         s.push_str("        this.device.queue.writeTexture({ texture: ph }, new Uint8Array([255,255,255,255]), { bytesPerRow: 4 }, [1, 1]);\n");
@@ -188,6 +188,7 @@ pub fn webgpu_renderer(
         s.push_str("    for (let t = 0; t < this._texCount; t++) {\n");
         s.push_str("      if (this._textureTypes[t] === 'video') {\n");
         s.push_str("        bglEntries.push({ binding: t * 2 + 5, visibility: GPUShaderStage.FRAGMENT, externalTexture: {} });\n");
+        s.push_str("        bglEntries.push({ binding: t * 2 + 6, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } });\n");
         s.push_str("      } else {\n");
         s.push_str("        bglEntries.push({ binding: t * 2 + 5, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } });\n");
         s.push_str("        bglEntries.push({ binding: t * 2 + 6, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } });\n");
@@ -555,6 +556,7 @@ pub fn webgpu_renderer(
         s.push_str("          try {\n");
         s.push_str("            const extTex = this.device.importExternalTexture({ source: this._videoSources[t] });\n");
         s.push_str("            entries.push({ binding: t * 2 + 5, resource: extTex });\n");
+        s.push_str("            entries.push({ binding: t * 2 + 6, resource: this._userSamplers[t] });\n");
         s.push_str("          } catch(e) { return; } // Video not ready yet\n");
         s.push_str("        } else { return; } // No video source set yet\n");
         s.push_str("      } else {\n");
