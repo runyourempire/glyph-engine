@@ -1,35 +1,35 @@
-// Sacred Geometry — single dominant mandala texture with subtle depth.
-// ONE rich palette layer (like amethyst-flow). ONE faint overlay for depth.
-// Memory smooths. Distort flows. Warp breathes. No stacking saturation.
+// Sacred Geometry — golden fire mandala on darkness.
+// Ultra-low base (a≈0.01) + high amplitude (b≈0.06) = bright patterns
+// on pure black. Same contrast principle as the compute showcases.
 
 cinematic "sacred-geometry" {
   layer config {
     breath: 0.0
   }
 
-  // THE mandala — one dominant layer, rich warm gold
+  // THE mandala — dark base, bright gold peaks
   layer mandala memory: 0.91 {
     radial(12)
     | distort(scale: 2.0, speed: 0.3, strength: 0.1)
     | warp(scale: 1.5, octaves: 5, persistence: 0.5, strength: 0.3 + breath * 0.08)
     | fbm(scale: 2.5, octaves: 5)
     | palette(
-        a_r: 0.25, a_g: 0.18, a_b: 0.08,
-        b_r: 0.22, b_g: 0.16, b_b: 0.06,
+        a_r: 0.012, a_g: 0.008, a_b: 0.003,
+        b_r: 0.065, b_g: 0.045, b_b: 0.018,
         c_r: 0.8, c_g: 0.6, c_b: 0.3,
         d_r: 0.0, d_g: 0.1, d_b: 0.2
       )
   }
 
-  // Faint 6-fold overlay — just adds subtle depth, doesn't compete
+  // Faint 6-fold depth
   layer depth memory: 0.88 {
     radial(6)
     | distort(scale: 3.0, speed: 0.4, strength: 0.06)
     | warp(scale: 3.0, octaves: 3, strength: 0.15)
     | fbm(scale: 5.0, octaves: 3)
     | palette(
-        a_r: 0.02, a_g: 0.015, a_b: 0.005,
-        b_r: 0.03, b_g: 0.02, b_b: 0.008,
+        a_r: 0.005, a_g: 0.003, a_b: 0.001,
+        b_r: 0.025, b_g: 0.018, b_b: 0.007,
         c_r: 0.6, c_g: 0.8, c_b: 0.4,
         d_r: 0.05, d_g: 0.15, d_b: 0.1
       )
