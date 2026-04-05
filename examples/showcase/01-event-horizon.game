@@ -1,48 +1,42 @@
-// Event Horizon — warped spacetime swirling into gravitational darkness.
-// Boosted blue/violet values (blue needs 2-3x red for equal perceived brightness).
-// Faster distort and shorter arc cycle for dynamic motion.
+// Event Horizon — deep space nebula with gravitational flow.
+// Single dominant layer, high memory for smooth temporal blending,
+// lower warp octaves and gentler distort to eliminate hash artifacts.
 
 cinematic "event-horizon" {
   layer config {
-    mass: 0.5
-    surge: 0.0
+    drift: 0.0
   }
 
-  // Warped spacetime — polar spiral, bright enough to see
-  layer spacetime memory: 0.87 {
+  // Cosmic nebula — smooth, gentle, natural
+  layer nebula memory: 0.93 {
     polar
-    | distort(scale: 2.5, speed: 0.5, strength: 0.15)
-    | warp(scale: 2.0, octaves: 5, persistence: 0.5, strength: 0.25 + mass * 0.08)
-    | fbm(scale: 3.0, octaves: 5)
+    | distort(scale: 1.5, speed: 0.25, strength: 0.08)
+    | warp(scale: 1.0, octaves: 3, persistence: 0.45, strength: 0.25 + drift * 0.06)
+    | fbm(scale: 1.5, octaves: 3)
     | palette(
-        a_r: 0.008, a_g: 0.005, a_b: 0.018,
-        b_r: 0.05, b_g: 0.04, b_b: 0.10,
+        a_r: 0.015, a_g: 0.008, a_b: 0.04,
+        b_r: 0.06, b_g: 0.04, b_b: 0.10,
         c_r: 0.5, c_g: 0.3, c_b: 0.8,
         d_r: 0.0, d_g: 0.15, d_b: 0.4
       )
   }
 
-  // Accretion haze — non-polar, faster flowing
-  layer accretion memory: 0.85 {
-    distort(scale: 3.0, speed: 0.6, strength: 0.1)
-    | warp(scale: 3.0, octaves: 4, strength: 0.2 + surge * 0.06)
-    | fbm(scale: 4.0, octaves: 4)
+  // Subtle warm undercurrent
+  layer warmth memory: 0.91 {
+    distort(scale: 2.0, speed: 0.2, strength: 0.06)
+    | warp(scale: 1.5, octaves: 3, persistence: 0.5, strength: 0.18)
+    | fbm(scale: 2.0, octaves: 3)
     | palette(
-        a_r: 0.005, a_g: 0.003, a_b: 0.010,
-        b_r: 0.03, b_g: 0.025, b_b: 0.06,
-        c_r: 0.8, c_g: 0.5, c_b: 0.6,
-        d_r: 0.15, d_g: 0.1, d_b: 0.25
+        a_r: 0.008, a_g: 0.004, a_b: 0.012,
+        b_r: 0.03, b_g: 0.015, b_b: 0.04,
+        c_r: 0.7, c_g: 0.4, c_b: 0.6,
+        d_r: 0.1, d_g: 0.05, d_b: 0.2
       )
   }
 
   arc {
-    mass: 0.5 -> 0.85 over 12s ease-in-out
-    surge: 0.0 -> 1.0 over 8s ease-in-out
+    drift: 0.0 -> 1.0 over 15s ease-in-out
   }
 
-  resonate {
-    surge -> accretion.brightness * 0.15
-  }
-
-  pass frame { vignette(0.35) }
+  pass frame { vignette(0.3) }
 }
