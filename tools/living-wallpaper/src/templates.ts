@@ -71,14 +71,14 @@ cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
+  texture "flow_sky" from "${baseName}-flow_sky.png"
 
   layer world {
     parallax("photo", depth: "depth", strength: ${(0.025 * s).toFixed(3)}, orbit_speed: 0.08)
   }
 
   layer sky_base opacity: 0.88 {
-    distort(scale: 0.35, speed: ${(0.06 * s).toFixed(2)}, strength: 0.018)
-    | sample("photo")
+    flowmap("photo", "flow_sky", speed: ${(0.04 * s).toFixed(2)}, scale: ${(0.008 * s).toFixed(3)})
     | mask("mask_sky")
   }
 
@@ -165,7 +165,8 @@ const oceanCoastTemplate: TemplateGenerator = (ctx) => {
 cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
-  texture "flow" from "${baseName}-flow.png"
+  texture "flow_water" from "${baseName}-flow_water.png"
+  texture "flow_sky" from "${baseName}-flow_sky.png"
   texture "mask_water" from "${baseName}-mask_water.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
 
@@ -174,13 +175,12 @@ cinematic "${componentName}" {
   }
 
   layer wave_flow opacity: 0.92 {
-    flowmap("photo", "flow", speed: ${(0.18 * s).toFixed(2)}, scale: ${(0.06 * s).toFixed(3)})
+    flowmap("photo", "flow_water", speed: ${(0.18 * s).toFixed(2)}, scale: ${(0.06 * s).toFixed(3)})
     | mask("mask_water")
   }
 
   layer sky_drift opacity: 0.85 {
-    distort(scale: 0.25, speed: ${(0.04 * s).toFixed(2)}, strength: 0.012)
-    | sample("photo")
+    flowmap("photo", "flow_sky", speed: ${(0.06 * s).toFixed(2)}, scale: ${(0.012 * s).toFixed(3)})
     | mask("mask_sky")
   }
 
@@ -256,7 +256,8 @@ const waterfallTemplate: TemplateGenerator = (ctx) => {
 cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
-  texture "flow" from "${baseName}-flow.png"
+  texture "flow_water" from "${baseName}-flow_water.png"
+  texture "flow_sky" from "${baseName}-flow_sky.png"
   texture "mask_water" from "${baseName}-mask_water.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
 
@@ -265,7 +266,7 @@ cinematic "${componentName}" {
   }
 
   layer cascade opacity: 0.94 {
-    flowmap("photo", "flow", speed: ${(0.35 * s).toFixed(2)}, scale: ${(0.10 * s).toFixed(3)})
+    flowmap("photo", "flow_water", speed: ${(0.35 * s).toFixed(2)}, scale: ${(0.10 * s).toFixed(3)})
     | mask("mask_water")
   }
 
@@ -316,8 +317,7 @@ cinematic "${componentName}" {
   }
 
   layer sky opacity: 0.82 {
-    distort(scale: 0.20, speed: 0.03, strength: 0.010)
-    | sample("photo")
+    flowmap("photo", "flow_sky", speed: ${(0.04 * s).toFixed(2)}, scale: ${(0.008 * s).toFixed(3)})
     | mask("mask_sky")
   }
 
@@ -340,7 +340,9 @@ const forestStreamTemplate: TemplateGenerator = (ctx) => {
 cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
-  texture "flow" from "${baseName}-flow.png"
+  texture "flow_water" from "${baseName}-flow_water.png"
+  texture "flow_sky" from "${baseName}-flow_sky.png"
+  texture "flow_vegetation" from "${baseName}-flow_vegetation.png"
   texture "mask_water" from "${baseName}-mask_water.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
   texture "mask_vegetation" from "${baseName}-mask_vegetation.png"
@@ -350,7 +352,7 @@ cinematic "${componentName}" {
   }
 
   layer stream opacity: 0.90 {
-    flowmap("photo", "flow", speed: ${(0.12 * s).toFixed(2)}, scale: ${(0.04 * s).toFixed(3)})
+    flowmap("photo", "flow_water", speed: ${(0.12 * s).toFixed(2)}, scale: ${(0.04 * s).toFixed(3)})
     | mask("mask_water")
   }
 
@@ -383,8 +385,7 @@ cinematic "${componentName}" {
   }
 
   layer canopy_sway opacity: 0.85 {
-    distort(scale: 0.4, speed: ${(0.08 * s).toFixed(2)}, strength: 0.008)
-    | sample("photo")
+    flowmap("photo", "flow_vegetation", speed: ${(0.03 * s).toFixed(2)}, scale: ${(0.003 * s).toFixed(3)})
     | mask("mask_vegetation")
   }
 
@@ -415,8 +416,7 @@ cinematic "${componentName}" {
   }
 
   layer sky_peek opacity: 0.80 {
-    distort(scale: 0.30, speed: 0.04, strength: 0.008)
-    | sample("photo")
+    flowmap("photo", "flow_sky", speed: ${(0.04 * s).toFixed(2)}, scale: ${(0.008 * s).toFixed(3)})
     | mask("mask_sky")
   }
 
@@ -439,6 +439,7 @@ const campfireTemplate: TemplateGenerator = (ctx) => {
 cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
+  texture "flow_fire" from "${baseName}-flow_fire.png"
   texture "mask_fire" from "${baseName}-mask_fire.png"
   texture "mask_smoke" from "${baseName}-mask_smoke.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
@@ -495,8 +496,7 @@ cinematic "${componentName}" {
   }
 
   layer heat_shimmer opacity: 0.80 {
-    distort(scale: 1.5, speed: 2.5, strength: ${(0.015 * s).toFixed(4)})
-    | sample("photo")
+    flowmap("photo", "flow_fire", speed: ${(0.50 * s).toFixed(2)}, scale: ${(0.06 * s).toFixed(3)})
     | mask("mask_smoke")
   }
 
@@ -538,6 +538,8 @@ const thunderstormTemplate: TemplateGenerator = (ctx) => {
 cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
+  texture "flow_sky" from "${baseName}-flow_sky.png"
+  texture "flow_vegetation" from "${baseName}-flow_vegetation.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
   texture "mask_water" from "${baseName}-mask_water.png"
   texture "mask_vegetation" from "${baseName}-mask_vegetation.png"
@@ -547,8 +549,7 @@ cinematic "${componentName}" {
   }
 
   layer cloud_churn opacity: 0.88 {
-    distort(scale: 0.35, speed: ${(0.15 * s).toFixed(2)}, strength: ${(0.025 * s).toFixed(4)})
-    | sample("photo")
+    flowmap("photo", "flow_sky", speed: ${(0.12 * s).toFixed(2)}, scale: ${(0.02 * s).toFixed(3)})
     | mask("mask_sky")
   }
 
@@ -597,8 +598,7 @@ cinematic "${componentName}" {
   }
 
   layer wind_sway opacity: 0.82 {
-    distort(scale: 0.6, speed: ${(0.25 * s).toFixed(2)}, strength: ${(0.018 * s).toFixed(4)})
-    | sample("photo")
+    flowmap("photo", "flow_vegetation", speed: ${(0.05 * s).toFixed(2)}, scale: ${(0.005 * s).toFixed(3)})
     | mask("mask_vegetation")
   }
 
@@ -639,6 +639,7 @@ const cityNightTemplate: TemplateGenerator = (ctx) => {
 cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
+  texture "flow_water" from "${baseName}-flow_water.png"
   texture "mask_water" from "${baseName}-mask_water.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
 
@@ -647,8 +648,7 @@ cinematic "${componentName}" {
   }
 
   layer reflections opacity: 0.88 {
-    distort(scale: 1.2, speed: ${(0.8 * s).toFixed(1)}, strength: ${(0.020 * s).toFixed(4)})
-    | sample("photo")
+    flowmap("photo", "flow_water", speed: ${(0.06 * s).toFixed(2)}, scale: ${(0.01 * s).toFixed(3)})
     | mask("mask_water")
   }
 
@@ -744,6 +744,8 @@ const desertDunesTemplate: TemplateGenerator = (ctx) => {
 cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
+  texture "flow_water" from "${baseName}-flow_water.png"
+  texture "flow_sky" from "${baseName}-flow_sky.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
 
   layer world {
@@ -769,8 +771,7 @@ cinematic "${componentName}" {
   }
 
   layer heat_shimmer opacity: 0.75 {
-    distort(scale: 0.8, speed: ${(0.35 * s).toFixed(2)}, strength: ${(0.008 * s).toFixed(4)})
-    | sample("photo")
+    flowmap("photo", "flow_water", speed: ${(0.02 * s).toFixed(2)}, scale: ${(0.005 * s).toFixed(3)})
     | mask("depth")
   }
 
@@ -802,8 +803,7 @@ cinematic "${componentName}" {
   }
 
   layer sky_drift opacity: 0.82 {
-    distort(scale: 0.20, speed: ${(0.025 * s).toFixed(3)}, strength: 0.008)
-    | sample("photo")
+    flowmap("photo", "flow_sky", speed: ${(0.04 * s).toFixed(2)}, scale: ${(0.008 * s).toFixed(3)})
     | mask("mask_sky")
   }
 
@@ -843,6 +843,8 @@ const sunsetLandscapeTemplate: TemplateGenerator = (ctx) => {
 cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
+  texture "flow_sky" from "${baseName}-flow_sky.png"
+  texture "flow_vegetation" from "${baseName}-flow_vegetation.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
   texture "mask_vegetation" from "${baseName}-mask_vegetation.png"
 
@@ -851,8 +853,7 @@ cinematic "${componentName}" {
   }
 
   layer cloud_drift opacity: 0.85 {
-    distort(scale: 0.25, speed: ${(0.04 * s).toFixed(2)}, strength: 0.012)
-    | sample("photo")
+    flowmap("photo", "flow_sky", speed: ${(0.06 * s).toFixed(2)}, scale: ${(0.010 * s).toFixed(3)})
     | mask("mask_sky")
   }
 
@@ -893,8 +894,7 @@ cinematic "${componentName}" {
   }
 
   layer grass_sway opacity: 0.80 {
-    distort(scale: 0.5, speed: ${(0.10 * s).toFixed(2)}, strength: 0.006)
-    | sample("photo")
+    flowmap("photo", "flow_vegetation", speed: ${(0.03 * s).toFixed(2)}, scale: ${(0.003 * s).toFixed(3)})
     | mask("mask_vegetation")
   }
 
@@ -951,6 +951,9 @@ const mountainLakeTemplate: TemplateGenerator = (ctx) => {
 cinematic "${componentName}" {
   texture "photo" from "${imageName}"
   texture "depth" from "${baseName}-depth.png"
+  texture "flow_water" from "${baseName}-flow_water.png"
+  texture "flow_sky" from "${baseName}-flow_sky.png"
+  texture "flow_vegetation" from "${baseName}-flow_vegetation.png"
   texture "mask_sky" from "${baseName}-mask_sky.png"
   texture "mask_water" from "${baseName}-mask_water.png"
   texture "mask_vegetation" from "${baseName}-mask_vegetation.png"
@@ -960,14 +963,12 @@ cinematic "${componentName}" {
   }
 
   layer lake_ripple opacity: 0.82 {
-    distort(scale: 0.6, speed: ${(0.12 * s).toFixed(2)}, strength: ${(0.010 * s).toFixed(4)})
-    | sample("photo")
+    flowmap("photo", "flow_water", speed: ${(0.06 * s).toFixed(2)}, scale: ${(0.008 * s).toFixed(3)})
     | mask("mask_water")
   }
 
   layer sky_drift opacity: 0.86 {
-    distort(scale: 0.22, speed: ${(0.03 * s).toFixed(2)}, strength: 0.010)
-    | sample("photo")
+    flowmap("photo", "flow_sky", speed: ${(0.05 * s).toFixed(2)}, scale: ${(0.010 * s).toFixed(3)})
     | mask("mask_sky")
   }
 
@@ -1009,8 +1010,7 @@ cinematic "${componentName}" {
   }
 
   layer tree_sway opacity: 0.83 {
-    distort(scale: 0.45, speed: ${(0.08 * s).toFixed(2)}, strength: 0.006)
-    | sample("photo")
+    flowmap("photo", "flow_vegetation", speed: ${(0.03 * s).toFixed(2)}, scale: ${(0.003 * s).toFixed(3)})
     | mask("mask_vegetation")
   }
 
@@ -1062,10 +1062,11 @@ const genericLandscapeTemplate: TemplateGenerator = (ctx) => {
   lines.push(`  texture "photo" from "${imageName}"`);
   lines.push(`  texture "depth" from "${baseName}-depth.png"`);
   if (hasWater) {
-    lines.push(`  texture "flow" from "${baseName}-flow.png"`);
+    lines.push(`  texture "flow_water" from "${baseName}-flow_water.png"`);
     lines.push(`  texture "mask_water" from "${baseName}-mask_water.png"`);
   }
   if (hasSky) {
+    lines.push(`  texture "flow_sky" from "${baseName}-flow_sky.png"`);
     lines.push(`  texture "mask_sky" from "${baseName}-mask_sky.png"`);
   }
   lines.push('');
@@ -1076,7 +1077,7 @@ const genericLandscapeTemplate: TemplateGenerator = (ctx) => {
   if (hasWater) {
     lines.push('');
     lines.push(`  layer water_flow opacity: 0.92 {`);
-    lines.push(`    flowmap("photo", "flow", speed: ${(0.18 * s).toFixed(2)}, scale: ${(0.05 * s).toFixed(3)})`);
+    lines.push(`    flowmap("photo", "flow_water", speed: ${(0.18 * s).toFixed(2)}, scale: ${(0.05 * s).toFixed(3)})`);
     lines.push(`    | mask("mask_water")`);
     lines.push('  }');
     lines.push('');
@@ -1093,8 +1094,7 @@ const genericLandscapeTemplate: TemplateGenerator = (ctx) => {
   if (hasSky) {
     lines.push('');
     lines.push(`  layer sky_drift opacity: 0.85 {`);
-    lines.push(`    distort(scale: 0.30, speed: ${(0.06 * s).toFixed(2)}, strength: ${(0.015 * s).toFixed(4)})`);
-    lines.push(`    | sample("photo")`);
+    lines.push(`    flowmap("photo", "flow_sky", speed: ${(0.06 * s).toFixed(2)}, scale: ${(0.010 * s).toFixed(3)})`);
     lines.push(`    | mask("mask_sky")`);
     lines.push('  }');
   }

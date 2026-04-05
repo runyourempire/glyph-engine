@@ -8,7 +8,7 @@ import * as path from 'path';
 import sharp from 'sharp';
 import { estimateDepth } from './depth.js';
 import { analyzeImage } from './analyze.js';
-import { generateFlowMap } from './flowmap.js';
+import { generateFlowMap, generateRegionFlows } from './flowmap.js';
 import { generateMasks } from './masks.js';
 import { generateGameSource } from './generate-game.js';
 import type { PipelineOutput } from './types.js';
@@ -67,7 +67,7 @@ export async function runPipeline(
       depthValues[i] = depthRaw[i] / 255.0;
     }
   } else {
-    console.log('\n=== Step 1/4: Depth Estimation ===');
+    console.log('\n=== Step 1/5: Depth Estimation ===');
     const depthResult = await estimateDepth(absoluteImagePath, width, height);
     depthPng = depthResult.png;
     depthValues = depthResult.values;
@@ -78,7 +78,7 @@ export async function runPipeline(
   console.log(`[pipeline] Saved: ${depthPath}`);
 
   // Step 2: Image analysis (Claude Vision or fallback)
-  console.log('\n=== Step 2/4: Image Analysis ===');
+  console.log('\n=== Step 2/5: Image Analysis ===');
   let resolvedRecipe;
   if (options.skipAnalysis) {
     // Use fallback recipe without API call
@@ -88,16 +88,8 @@ export async function runPipeline(
     resolvedRecipe = await analyzeImage(absoluteImagePath);
   }
 
-  // Step 3: Generate flow map
-  console.log('\n=== Step 3/4: Flow Map Generation ===');
-  const flowPng = await generateFlowMap(depthValues, width, height, resolvedRecipe);
-
-  const flowPath = path.join(outputDir, `${baseName}-flow.png`);
-  fs.writeFileSync(flowPath, flowPng);
-  console.log(`[pipeline] Saved: ${flowPath}`);
-
-  // Step 4: Generate masks
-  console.log('\n=== Step 4/4: Mask Generation ===');
+  // Step 3: Generate masks (needed by flow synthesis)
+  console.log('\n=== Step 3/5: Mask Generation ===');
   const masks = await generateMasks(depthValues, width, height, resolvedRecipe);
 
   for (const [maskName, maskPng] of masks) {
@@ -106,8 +98,26 @@ export async function runPipeline(
     console.log(`[pipeline] Saved: ${maskPath}`);
   }
 
+  // Step 4: Generate per-region flow textures (physics-motivated)
+  console.log('\n=== Step 4/5: Per-Region Flow Synthesis ===');
+  const regionFlows = await generateRegionFlows(depthValues, masks, width, height, resolvedRecipe);
+
+  for (const [flowName, flowPng] of regionFlows) {
+    const flowPath = path.join(outputDir, `${baseName}-${flowName}.png`);
+    fs.writeFileSync(flowPath, flowPng);
+    console.log(`[pipeline] Saved: ${flowPath}`);
+  }
+
+  // Step 4b: Combined flow map (backwards compatibility for existing .game templates)
+  console.log('\n=== Step 4b: Combined Flow Map ===');
+  const flowPng = await generateFlowMap(depthValues, width, height, resolvedRecipe, masks);
+
+  const flowPath = path.join(outputDir, `${baseName}-flow.png`);
+  fs.writeFileSync(flowPath, flowPng);
+  console.log(`[pipeline] Saved: ${flowPath}`);
+
   // Step 5: Generate .game source
-  console.log('\n=== Generating .game Source ===');
+  console.log('\n=== Step 5/5: Generating .game Source ===');
   const maskNames = Array.from(masks.keys());
   const hasWater = resolvedRecipe.has_water ?? resolvedRecipe.regions.some(r => r.animation_class === 'water');
   const hasSky = resolvedRecipe.has_sky ?? resolvedRecipe.regions.some(r => r.animation_class === 'sky');

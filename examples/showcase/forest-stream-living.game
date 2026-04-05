@@ -1,113 +1,83 @@
-// FOREST STREAM — Hand-crafted living wallpaper
-// Gentle creek flow, dappled sunlight through canopy, leaf sway,
-// moss shimmer, firefly-like light specks, deep forest calm.
-// This is not a wallpaper. This is a window into the wood.
+// Living World — Ocean Coast
+// Wave approach, foam dissolution, spray mist, deep shimmer
+// Template: ocean_coast | Intensity: 1.00
 
 cinematic "living-forest-stream" {
   texture "photo" from "forest-stream.jpg"
   texture "depth" from "forest-stream-depth.png"
-  texture "flow" from "forest-stream-flow.png"
+  texture "flow_water" from "forest-stream-flow_water.png"
+  texture "flow_sky" from "forest-stream-flow_sky.png"
   texture "mask_water" from "forest-stream-mask_water.png"
   texture "mask_sky" from "forest-stream-mask_sky.png"
-  texture "mask_vegetation" from "forest-stream-mask_vegetation.png"
 
-  // ══════ THE WOOD — ancient, still, breathing ══���═══
   layer world {
-    parallax("photo", depth: "depth", strength: 0.018, orbit_speed: 0.06)
+    parallax("photo", depth: "depth", strength: 0.020, orbit_speed: 0.06)
   }
 
-  // ══════ STREAM FLOW — gentle water movement ══════
-  layer stream opacity: 0.90 {
-    flowmap("photo", "flow", speed: 0.12, scale: 0.04)
+  layer wave_flow opacity: 0.92 {
+    flowmap("photo", "flow_water", speed: 0.18, scale: 0.060)
     | mask("mask_water")
   }
 
-  // ══════ STREAM SPARKLE — sunlight catching the water ══════
-  layer sparkle opacity: 0.14 blend: add {
-    translate(time * 0.02, time * 0.015)
-    | distort(scale: 6.0, speed: 1.8, strength: 0.08)
-    | voronoi(18.0)
-    | glow(5.0)
-    | tint(1.0, 0.95, 0.75)
-    | mask("mask_water")
-  }
-
-  // ══════ STREAM CAUSTICS — light patterns on the riverbed ══════
-  layer caustics opacity: 0.10 blend: screen {
-    translate(time * 0.015, time * 0.008)
-    | warp(scale: 3.0, octaves: 3, strength: 0.18)
-    | voronoi(10.0)
-    | glow(2.0)
-    | tint(0.45, 0.70, 0.55)
-    | mask("mask_water")
-  }
-
-  // ══════ DAPPLED LIGHT — sun filtering through canopy ══════
-  layer dappled opacity: 0.11 blend: screen {
-    translate(time * 0.003, sin(time * 0.04) * 0.004)
-    | distort(scale: 2.0, speed: 0.4, strength: 0.03)
-    | warp(scale: 2.5, octaves: 3, strength: 0.20)
-    | voronoi(5.0)
-    | glow(3.5)
-    | tint(0.95, 0.92, 0.65)
-    | mask("mask_vegetation")
-  }
-
-  // ══════ LEAF SWAY — canopy movement from breeze ══════
-  layer canopy_sway opacity: 0.85 {
-    distort(scale: 0.4, speed: 0.08, strength: 0.008)
-    | sample("photo")
-    | mask("mask_vegetation")
-  }
-
-  // ══════ FIREFLY SPECKS — tiny light points drifting ══════
-  layer fireflies opacity: 0.07 blend: add {
-    translate(sin(time * 0.12) * 0.008, time * -0.003)
-    | distort(scale: 20.0, speed: 3.0, strength: 0.15)
-    | voronoi(40.0)
-    | glow(12.0)
-    | tint(0.90, 0.95, 0.60)
-    | mask("depth")
-  }
-
-  // ══════ MOSS SHIMMER — moisture glistening on forest floor ══════
-  layer moss opacity: 0.05 blend: screen {
-    translate(time * 0.002, time * 0.004)
-    | distort(scale: 14.0, speed: 1.2, strength: 0.06)
-    | voronoi(25.0)
-    | glow(7.0)
-    | tint(0.35, 0.65, 0.30)
-    | mask("depth")
-  }
-
-  // ══════ FOREST MIST — ground-level moisture ══════
-  layer ground_mist opacity: 0.09 blend: screen {
-    translate(time * 0.005, sin(time * 0.03) * 0.003)
-    | warp(scale: 0.8, octaves: 5, persistence: 0.60, strength: 0.18)
-    | fbm(scale: 1.4, octaves: 5, persistence: 0.50)
-    | glow(0.8)
-    | tint(0.78, 0.85, 0.72)
-    | mask("depth")
-  }
-
-  // ══════ CANOPY LIGHT VARIATION — cloud shadows through trees ══════
-  layer light_shift opacity: 0.08 blend: screen {
-    translate(time * 0.008, time * 0.003)
-    | warp(scale: 0.35, octaves: 3, persistence: 0.5, strength: 0.10)
-    | fbm(scale: 0.30, octaves: 3, persistence: 0.5)
-    | glow(1.5)
-    | tint(0.90, 0.88, 0.65)
-  }
-
-  // ══════ SKY GLIMPSE — tiny sky patches through canopy ══════
-  layer sky_peek opacity: 0.80 {
-    distort(scale: 0.30, speed: 0.04, strength: 0.008)
-    | sample("photo")
+  layer sky_drift opacity: 0.85 {
+    flowmap("photo", "flow_sky", speed: 0.06, scale: 0.012)
     | mask("mask_sky")
   }
 
-  // ══════ CINEMATIC POST ══════
-  pass soften { blur(0.4) }
-  pass frame { vignette(0.32) }
-  pass film { film_grain(0.010) }
+  layer foam opacity: 0.18 blend: add {
+    translate(time * 0.015, time * 0.035)
+    | warp(scale: 1.8, octaves: 4, persistence: 0.55, strength: 0.30)
+    | voronoi(6.0)
+    | glow(3.0)
+    | tint(0.95, 0.97, 1.0)
+    | mask("mask_water")
+  }
+
+  layer foam_dissolve opacity: 0.12 blend: screen {
+    translate(time * 0.008, time * 0.020)
+    | warp(scale: 0.9, octaves: 3, persistence: 0.50, strength: 0.18)
+    | voronoi(4.0)
+    | glow(4.5)
+    | tint(0.88, 0.92, 1.0)
+    | mask("mask_water")
+  }
+
+  layer deep_shimmer opacity: 0.10 blend: screen {
+    translate(time * 0.025, time * 0.012)
+    | warp(scale: 3.5, octaves: 3, strength: 0.20)
+    | voronoi(14.0)
+    | glow(2.0)
+    | tint(0.3, 0.65, 0.85)
+    | mask("mask_water")
+  }
+
+  layer spray opacity: 0.08 blend: screen {
+    translate(time * 0.006, sin(time * 0.15) * 0.008)
+    | warp(scale: 1.2, octaves: 5, persistence: 0.60, strength: 0.25)
+    | fbm(scale: 1.8, octaves: 5, persistence: 0.50)
+    | glow(1.0)
+    | tint(0.90, 0.93, 1.0)
+    | mask("depth")
+  }
+
+  layer salt_air opacity: 0.07 blend: screen {
+    translate(time * 0.010, sin(time * 0.06) * 0.004)
+    | warp(scale: 0.6, octaves: 4, persistence: 0.55, strength: 0.14)
+    | fbm(scale: 0.8, octaves: 4, persistence: 0.50)
+    | glow(1.2)
+    | tint(0.75, 0.82, 0.95)
+    | mask("depth", invert: 1)
+  }
+
+  layer tide_pulse opacity: 0.06 blend: screen {
+    translate(sin(time * 0.08) * 0.003, time * 0.002)
+    | warp(scale: 0.3, octaves: 2, persistence: 0.5, strength: 0.06)
+    | fbm(scale: 0.25, octaves: 3, persistence: 0.5)
+    | glow(1.5)
+    | tint(0.6, 0.78, 0.95)
+  }
+
+  pass soften { blur(0.6) }
+  pass frame { vignette(0.25) }
+  pass film { film_grain(0.016) }
 }

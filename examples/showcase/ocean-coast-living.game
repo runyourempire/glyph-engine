@@ -1,34 +1,29 @@
-// OCEAN COAST — Hand-crafted living wallpaper
-// Rhythmic wave approach, foam dissolution, spray mist, deep water shimmer,
-// salt-air haze, and the endless breathing of the tide.
-// This is not a wallpaper. This is a window onto the shore.
+// Living World — Ocean Coast
+// Wave approach, foam dissolution, spray mist, deep shimmer
+// Template: ocean_coast | Intensity: 1.00
 
 cinematic "living-ocean-coast" {
   texture "photo" from "ocean-coast.jpg"
   texture "depth" from "ocean-coast-depth.png"
-  texture "flow" from "ocean-coast-flow.png"
+  texture "flow_water" from "ocean-coast-flow_water.png"
+  texture "flow_sky" from "ocean-coast-flow_sky.png"
   texture "mask_water" from "ocean-coast-mask_water.png"
   texture "mask_sky" from "ocean-coast-mask_sky.png"
 
-  // ══════ THE SHORE — solid earth, gentle parallax ══════
   layer world {
     parallax("photo", depth: "depth", strength: 0.020, orbit_speed: 0.06)
   }
 
-  // ══════ WAVE APPROACH — directional flow of actual ocean pixels ══════
   layer wave_flow opacity: 0.92 {
-    flowmap("photo", "flow", speed: 0.18, scale: 0.06)
+    flowmap("photo", "flow_water", speed: 0.18, scale: 0.060)
     | mask("mask_water")
   }
 
-  // ══════ SKY DRIFT — slow cloud movement ══════
   layer sky_drift opacity: 0.85 {
-    distort(scale: 0.25, speed: 0.04, strength: 0.012)
-    | sample("photo")
+    flowmap("photo", "flow_sky", speed: 0.06, scale: 0.012)
     | mask("mask_sky")
   }
 
-  // ══════ FOAM CRESTS — white foam appearing at wave peaks ══════
   layer foam opacity: 0.18 blend: add {
     translate(time * 0.015, time * 0.035)
     | warp(scale: 1.8, octaves: 4, persistence: 0.55, strength: 0.30)
@@ -38,9 +33,8 @@ cinematic "living-ocean-coast" {
     | mask("mask_water")
   }
 
-  // ══════ FOAM DISSOLVE — secondary foam layer, slower, softer ══════
   layer foam_dissolve opacity: 0.12 blend: screen {
-    translate(time * 0.008, time * 0.02)
+    translate(time * 0.008, time * 0.020)
     | warp(scale: 0.9, octaves: 3, persistence: 0.50, strength: 0.18)
     | voronoi(4.0)
     | glow(4.5)
@@ -48,7 +42,6 @@ cinematic "living-ocean-coast" {
     | mask("mask_water")
   }
 
-  // ══���═══ DEEP WATER SHIMMER — caustic light in deeper areas ═��════
   layer deep_shimmer opacity: 0.10 blend: screen {
     translate(time * 0.025, time * 0.012)
     | warp(scale: 3.5, octaves: 3, strength: 0.20)
@@ -58,7 +51,6 @@ cinematic "living-ocean-coast" {
     | mask("mask_water")
   }
 
-  // ══════ SPRAY MIST — fine mist rising from where waves meet shore ══���═══
   layer spray opacity: 0.08 blend: screen {
     translate(time * 0.006, sin(time * 0.15) * 0.008)
     | warp(scale: 1.2, octaves: 5, persistence: 0.60, strength: 0.25)
@@ -68,7 +60,6 @@ cinematic "living-ocean-coast" {
     | mask("depth")
   }
 
-  // ══════ SALT AIR — coastal atmospheric haze ══════
   layer salt_air opacity: 0.07 blend: screen {
     translate(time * 0.010, sin(time * 0.06) * 0.004)
     | warp(scale: 0.6, octaves: 4, persistence: 0.55, strength: 0.14)
@@ -78,7 +69,6 @@ cinematic "living-ocean-coast" {
     | mask("depth", invert: 1)
   }
 
-  // ═���════ TIDE BREATH — whole-scene intensity modulation ══════
   layer tide_pulse opacity: 0.06 blend: screen {
     translate(sin(time * 0.08) * 0.003, time * 0.002)
     | warp(scale: 0.3, octaves: 2, persistence: 0.5, strength: 0.06)
@@ -87,17 +77,6 @@ cinematic "living-ocean-coast" {
     | tint(0.6, 0.78, 0.95)
   }
 
-  // ══════ HORIZON GLOW — light at the horizon line ══════
-  layer horizon opacity: 0.09 blend: screen {
-    translate(time * 0.003, time * 0.001)
-    | warp(scale: 0.2, octaves: 2, persistence: 0.5, strength: 0.04)
-    | fbm(scale: 0.15, octaves: 2, persistence: 0.5)
-    | glow(2.0)
-    | tint(0.85, 0.80, 0.72)
-    | mask("mask_sky")
-  }
-
-  // ══════ CINEMATIC POST ══════
   pass soften { blur(0.6) }
   pass frame { vignette(0.25) }
   pass film { film_grain(0.016) }
