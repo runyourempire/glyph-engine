@@ -1,93 +1,71 @@
-// Sacred Geometry — living golden mandala with depth and radiance.
-// Soft glowing shapes on rich palette texture. Warped organic edges.
-// Mouse shifts the jewel. Everything breathes.
+// Sacred Geometry — Turing morphogenesis constrained by geometric structure.
+// React patterns fill the space between dark sacred channels.
+// Living gold emerges from mathematical order. Mouse shifts void.
 
 cinematic "sacred-geometry" {
-  layer config {
-    breath: 0.0
-  }
-
-  // Golden mandala texture — fills viewport with warm sacred pattern
-  layer field memory: 0.88 {
+  // Mandala texture — warm background, 12-fold symmetry
+  layer field memory: 0.85 {
     radial(12)
-    | warp(scale: 2.0, octaves: 4, strength: 0.15 + breath * 0.05)
-    | fbm(scale: 4.0, octaves: 5)
-    | palette(gold)
+    | warp(scale: 2.0, octaves: 3, strength: 0.1)
+    | fbm(scale: 4.0, octaves: 4)
+    | palette(
+        a_r: 0.01, a_g: 0.008, a_b: 0.003,
+        b_r: 0.02, b_g: 0.015, b_b: 0.005,
+        c_r: 0.8, c_g: 0.6, c_b: 0.3,
+        d_r: 0.0, d_g: 0.1, d_b: 0.2
+      )
   }
 
-  // Outer halo — warped soft ring, slow rotation
-  layer outer memory: 0.85 {
-    rotate(time * 0.02)
-    | warp(scale: 2.5, octaves: 3, strength: 0.08)
-    | ring(0.40, 0.012)
-    | glow(2.5)
-    | tint(0.7, 0.55, 0.2)
+  // Outer ring channel — dark structural element
+  layer ring_outer {
+    ring(0.40, 0.006)
+    | shade(0.12, 0.09, 0.04)
   }
 
-  // 6-fold star — warped, glowing, counter-rotating
-  layer star memory: 0.84 {
-    rotate(time * -0.03)
-    | warp(scale: 2.0, octaves: 3, strength: 0.06)
-    | star(6, 0.32 + breath * 0.03, 0.18)
-    | glow(2.0)
-    | tint(0.6, 0.45, 0.12)
+  // Star channel — 6-fold dark structure
+  layer star_channel {
+    radial(6)
+    | star(6, 0.32, 0.20)
+    | shade(0.08, 0.06, 0.03)
   }
 
-  // Mid ring — warped organic circle
-  layer mid memory: 0.87 {
-    rotate(time * 0.04)
-    | warp(scale: 3.0, octaves: 3, strength: 0.07)
-    | distort(scale: 2.5, speed: 0.4, strength: 0.02)
-    | ring(0.26, 0.010)
-    | glow(3.0)
-    | tint(0.9, 0.7, 0.25)
+  // Inner ring
+  layer ring_inner {
+    ring(0.24, 0.005)
+    | shade(0.15, 0.11, 0.05)
   }
 
-  // 8-fold capsule petals — rotating
-  layer petals memory: 0.83 {
-    rotate(time * -0.045)
-    | radial(8)
-    | warp(scale: 2.0, octaves: 2, strength: 0.04)
-    | capsule(0.14, 0.008)
-    | glow(2.0)
-    | tint(0.5, 0.38, 0.12)
+  // Hex channel
+  layer hex_channel {
+    radial(6)
+    | ring(0.16, 0.004)
+    | shade(0.10, 0.08, 0.04)
   }
 
-  // Hex shape — 6-fold, pulsing
-  layer hex memory: 0.86 {
-    rotate(time * 0.055)
-    | warp(scale: 1.5, octaves: 2, strength: 0.03)
-    | hex(0.16 + breath * 0.02)
-    | glow(2.5)
-    | tint(0.8, 0.6, 0.18)
+  // Void jewel — mouse reactive, blocks compute
+  layer jewel {
+    translate(mouse_x * 0.03 - 0.015, mouse_y * 0.03 - 0.015)
+    | smooth_subtract(circle(0.08), star(6, 0.06, 0.03), 0.015)
+    | shade(0.02, 0.015, 0.008)
   }
 
-  // Jewel — boolean gem, follows mouse
-  layer jewel memory: 0.90 {
-    translate(mouse_x * 0.04 - 0.02, mouse_y * 0.04 - 0.02)
-    | distort(scale: 1.5, speed: 0.3, strength: 0.015)
-    | smooth_subtract(circle(0.10 + breath * 0.025), star(6, 0.08, 0.04), 0.02)
-    | glow(4.0)
-    | tint(1.0, 0.85, 0.35)
+  // React field — Turing patterns emerge as golden organic texture
+  react {
+    feed: 0.037
+    kill: 0.06
+    diffuse_a: 1.0
+    diffuse_b: 0.5
+    seed: center(0.25)
   }
 
-  // Core radiance
-  layer core memory: 0.92 {
-    circle(0.025)
-    | glow(5.0)
-    | tint(1.0, 0.95, 0.6)
+  // Shift compute orange → warm gold
+  matrix color {
+    [
+      1.0, 0.15, 0.0,
+      0.0, 0.65, 0.1,
+      0.0, 0.0, 0.12
+    ]
   }
 
-  arc {
-    breath: 0.0 -> 1.0 over 6s ease-in-out
-  }
-
-  resonate {
-    breath -> jewel.brightness * 0.3
-    breath -> star.brightness * 0.15
-    breath -> field.intensity * 0.1
-  }
-
-  pass bloom { blur(1.5) }
-  pass frame { vignette(0.3) }
+  pass frame { vignette(0.35) }
 }
