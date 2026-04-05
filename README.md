@@ -1,17 +1,49 @@
 # GAME — Generative Animation Matrix Engine
 
-A shader DSL that compiles to zero-dependency Web Components.
+**GPU compute simulations from declarative code.** Write 15 lines, get a zero-dependency Web Component with reaction-diffusion, swarm intelligence, or flow dynamics — running at 60fps on any GPU.
 
-Write this:
+<p align="center">
+  <img src="docs/showcase/deep-coral.gif" width="240" alt="Deep Coral — Turing patterns">
+  <img src="docs/showcase/labyrinth.gif" width="240" alt="Labyrinth — maze corridors">
+  <img src="docs/showcase/dendrite.gif" width="240" alt="Dendrite — neural branching">
+</p>
+
+<p align="center">
+  <img src="docs/showcase/morphogenesis.gif" width="240" alt="Morphogenesis — soliton waves">
+  <img src="docs/showcase/mitosis.gif" width="240" alt="Mitosis — cell division">
+  <img src="docs/showcase/root-system.gif" width="240" alt="Root System — underground network">
+</p>
+
+<p align="center">
+  <img src="docs/showcase/discharge.gif" width="240" alt="Discharge — lightning">
+  <img src="docs/showcase/sacred-geometry.gif" width="240" alt="Sacred Geometry — mandala">
+</p>
+
+Each animation above is a single `.game` file compiled to a self-contained Web Component. No runtime. No dependencies. No framework.
+
 ```game
-cinematic "golden-orb" {
-  layer main {
-    circle(0.3) | glow(2.0) | tint(0.83, 0.69, 0.22)
+cinematic "deep-coral" {
+  layer bg {
+    circle(0.5) | glow(0.6) | tint(0.003, 0.008, 0.02)
   }
+
+  layer config {
+    color_r: 0.3
+    color_g: 0.6
+    color_b: 1.5
+  }
+
+  react {
+    feed: 0.037
+    kill: 0.06
+    seed: center(0.2)
+  }
+
+  pass frame { vignette(0.35) }
 }
 ```
 
-Get a self-contained `<game-golden-orb>` Web Component. No npm install. No build step. No framework. Drop the `.js` file into any web page and it works.
+**That's it.** 15 lines → Gray-Scott reaction-diffusion on a 256x256 GPU compute grid, color-customizable at runtime, compiled to `<game-deep-coral>`. Drop the `.js` file into any web page and it works.
 
 ## Install
 
