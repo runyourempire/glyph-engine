@@ -10,10 +10,13 @@ pub fn html_escape(s: &str) -> String {
 }
 
 /// Escape a string for safe embedding inside a JSON string literal.
+/// Also escapes `<` and `>` to prevent `</script>` injection when embedded in HTML.
 pub fn json_escape(s: &str) -> String {
     s.replace('\\', "\\\\")
         .replace('"', "\\\"")
         .replace('\n', "\\n")
         .replace('\r', "\\r")
         .replace('\t', "\\t")
+        .replace('<', "\\u003c")
+        .replace('>', "\\u003e")
 }

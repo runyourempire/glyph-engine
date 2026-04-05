@@ -14,7 +14,7 @@ pub fn generate_html(shader: &ShaderOutput) -> String {
     let uniform_defs_json = shader
         .uniforms
         .iter()
-        .map(|u| format!("{{name:'{}',default:{}}}", u.name, u.default))
+        .map(|u| format!("{{name:'{}',default:{}}}", escape_js_string(&u.name), u.default))
         .collect::<Vec<_>>()
         .join(",");
 
@@ -62,12 +62,38 @@ pub fn generate_html(shader: &ShaderOutput) -> String {
     s.push_str("  }\n");
     s.push_str("  if (!renderer) { document.body.textContent = 'No WebGPU or WebGL2 support.'; return; }\n");
     s.push_str("  if (typeof _gameReactSetup === 'function') _gameReactSetup(canvas, renderer);\n");
+
+    // Wire arc, resonance, and temporal into the render loop
+    s.push_str("  {\n");
+    s.push_str("    const _startTime = performance.now() / 1000;\n");
+    s.push_str("    let _prevTime = 0;\n");
+    s.push_str("    const _origOnRender = renderer._onRender;\n");
+    s.push_str("    renderer._onRender = function() {\n");
+    s.push_str("      const t = performance.now() / 1000 - _startTime;\n");
+    s.push_str("      const dt = Math.min(t - _prevTime, 0.1);\n");
+    s.push_str("      _prevTime = t;\n");
+    s.push_str("      if (typeof arcUpdate === 'function') {\n");
+    s.push_str("        const p = UNIFORMS.map(u => renderer.userParams[u.name] ?? u.default);\n");
+    s.push_str("        arcUpdate(t, p);\n");
+    s.push_str("        for (let i = 0; i < UNIFORMS.length; i++) renderer.userParams[UNIFORMS[i].name] = p[i];\n");
+    s.push_str("      }\n");
+    s.push_str("      if (typeof resonanceUpdate === 'function') resonanceUpdate(renderer.userParams, renderer.audioData, dt);\n");
+    s.push_str("      if (typeof temporalUpdate === 'function') temporalUpdate(renderer.userParams, dt);\n");
+    s.push_str("      if (_origOnRender) _origOnRender();\n");
+    s.push_str("    };\n");
+    s.push_str("  }\n");
+
     s.push_str("  renderer.start();\n");
     s.push_str("})();\n");
 
     s.push_str("</script>\n</body>\n</html>\n");
 
     s
+}
+
+/// Escape a string for safe embedding in a JS single-quoted string literal.
+fn escape_js_string(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('\'', "\\'")
 }
 
 fn escape_html_js(s: &str) -> String {

@@ -138,10 +138,11 @@ fn build_param_sliders(js: &str) -> String {
                     let min = 0.0_f64;
                     let max = if val.abs() > 1.0 { val.abs() * 2.0 } else { 1.0 };
                     let step = max / 100.0;
+                    let name_escaped = html_escape(name);
                     sliders.push_str(&format!(
                         "      <div class=\"param-row\">\
-                        <label>{name}</label>\
-                        <input type=\"range\" min=\"{min}\" max=\"{max}\" step=\"{step}\" value=\"{val}\" data-param=\"{name}\">\
+                        <label>{name_escaped}</label>\
+                        <input type=\"range\" min=\"{min}\" max=\"{max}\" step=\"{step}\" value=\"{val}\" data-param=\"{name_escaped}\">\
                         <span class=\"param-value\">{val}</span>\
                         </div>\n"
                     ));
@@ -203,8 +204,11 @@ fn build_inline_js(tag_name: &str, _source_json: &str, html_preview_json: &str) 
   }});
 
   // ── WGSL syntax highlighting ─────────────────────
+  function escapeHTMLText(s) {{
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }}
   function highlightWGSL(code) {{
-    return code
+    return escapeHTMLText(code)
       .replace(/\b(fn|var|let|return|if|else|for|struct|override|const)\b/g, '<span class="kw">$1</span>')
       .replace(/\b(vec[234]f?|mat[234]x[234]f?|f32|u32|i32|bool)\b/g, '<span class="ty">$1</span>')
       .replace(/\b(\d+\.?\d*(?:e[+-]?\d+)?)\b/g, '<span class="num">$1</span>')

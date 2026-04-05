@@ -32,17 +32,17 @@ const _register = (() => {{
 }})();
 
 export default function {pascal}({{ style, className, ...params }}) {{
-  const ref = useRef(null);
+  const elRef = useRef(null);
 
   useEffect(() => {{
-    const el = ref.current;
+    const el = elRef.current;
     if (!el) return;
     for (const [k, v] of Object.entries(params)) {{
       el.setAttribute(k, String(v));
     }}
   }}, [params]);
 
-  return <{tag_name} ref={{ref}} style={{style}} className={{className}} />;
+  return <{tag_name} ref={{elRef}} style={{style}} className={{className}} />;
 }}
 "#
     )

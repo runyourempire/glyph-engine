@@ -58,6 +58,7 @@ pub struct CompileOutput {
     pub glsl: Option<String>,
     pub js: String,
     pub html: Option<String>,
+    pub compute_wgsl: Option<String>,
 }
 
 // ── Public API ───────────────────────────────────────────
@@ -119,7 +120,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
 
     // Expand defines before codegen
     for cinematic in &mut program.cinematics {
-        let _ = codegen::analysis::expand_defines(cinematic);
+        codegen::analysis::expand_defines(cinematic)?;
     }
 
     // Optimize each cinematic (constant folding, strength reduction, no-op elimination,
@@ -180,6 +181,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             glsl: Some(shader.glsl_fragment),
             js,
             html,
+            compute_wgsl: shader.compute_wgsl.clone(),
         });
     }
 
@@ -200,6 +202,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             glsl: None,
             js,
             html: None,
+            compute_wgsl: None,
         });
     }
 

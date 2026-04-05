@@ -5,6 +5,11 @@
 
 use crate::ast::{Duration, Expr, Motif, Phrase, ScoreBlock, Section};
 
+/// Escape a string for safe embedding in a JS single-quoted string literal.
+fn escape_js_string(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('\'', "\\'")
+}
+
 /// A resolved timeline entry with absolute start time in seconds.
 #[derive(Debug, Clone)]
 pub struct TimelineEntry {
@@ -167,12 +172,12 @@ pub fn generate_score_js(score: &ScoreBlock) -> String {
     for entry in &timeline {
         s.push_str(&format!(
             "      {{target:'{}',from:{},to:{},start:{},dur:{},easing:'{}'}},\n",
-            entry.target,
+            escape_js_string(&entry.target),
             entry.from,
             entry.to,
             entry.start_seconds,
             entry.duration_seconds,
-            entry.easing.as_deref().unwrap_or("linear"),
+            escape_js_string(entry.easing.as_deref().unwrap_or("linear")),
         ));
     }
 

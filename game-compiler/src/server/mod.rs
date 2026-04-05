@@ -169,7 +169,7 @@ pub async fn run_dev_server(path: PathBuf, port: u16) -> Result<(), Box<dyn std:
 // ── Route handlers ──────────────────────────────────
 
 async fn serve_preview(State(state): State<Arc<Mutex<DevState>>>) -> Html<String> {
-    let st = state.lock().unwrap();
+    let st = state.lock().unwrap_or_else(|e| e.into_inner());
     let (source, result) = compile_source(&st);
     match result {
         Ok(outputs) => Html(page::build_preview_page(&outputs, &st.tag_name, &source)),
@@ -178,7 +178,7 @@ async fn serve_preview(State(state): State<Arc<Mutex<DevState>>>) -> Html<String
 }
 
 async fn serve_component(State(state): State<Arc<Mutex<DevState>>>) -> impl IntoResponse {
-    let st = state.lock().unwrap();
+    let st = state.lock().unwrap_or_else(|e| e.into_inner());
     let (_, result) = compile_source(&st);
     match result {
         Ok(outputs) => {
@@ -194,7 +194,7 @@ async fn serve_component(State(state): State<Arc<Mutex<DevState>>>) -> impl Into
 }
 
 async fn serve_fullscreen(State(state): State<Arc<Mutex<DevState>>>) -> Html<String> {
-    let st = state.lock().unwrap();
+    let st = state.lock().unwrap_or_else(|e| e.into_inner());
     let (_, result) = compile_source(&st);
     match result {
         Ok(outputs) => {
@@ -271,7 +271,7 @@ async fn serve_save(
     State(state): State<Arc<Mutex<DevState>>>,
     Json(req): Json<SaveRequest>,
 ) -> Json<SaveResponse> {
-    let st = state.lock().unwrap();
+    let st = state.lock().unwrap_or_else(|e| e.into_inner());
     match std::fs::write(&st.source_path, &req.source) {
         Ok(()) => Json(SaveResponse {
             ok: true,

@@ -315,7 +315,7 @@ fn emit_glsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let width = get_arg(args, "width", 1, "concentric_waves");
             let freq = get_arg(args, "frequency", 2, "concentric_waves");
             s.push_str(&format!("{indent}float cw_dist = length(p);\n"));
-            s.push_str(&format!("{indent}float sdf_result = {amplitude} * sin(cw_dist * {freq} * 6.28318530718 - time * {width});\n"));
+            s.push_str(&format!("{indent}float sdf_result = {amplitude} * sin(cw_dist * {freq} * 6.28318530718 - time * 2.0) * exp(-cw_dist * {width});\n"));
         }
         "fbm" => {
             let sc = get_arg(args, "scale", 0, "fbm");

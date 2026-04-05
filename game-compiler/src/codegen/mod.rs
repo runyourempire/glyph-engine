@@ -152,7 +152,26 @@ pub fn generate(cinematic: &Cinematic) -> Result<ShaderOutput, CompileError> {
     let all_params: Vec<Param> = collect_all_params(cinematic).into_iter().cloned().collect();
     if temporal::any_param_uses_temporal(&all_params) {
         let (init, update) = temporal::generate_temporal_js(&all_params);
-        js_modules.push(format!("{init}\n{update}"));
+        // Wrap temporal processing in a callable function for the render loop
+        let param_reads: Vec<String> = all_params.iter()
+            .filter(|p| !p.temporal_ops.is_empty())
+            .map(|p| {
+                let pname = p.name.replace('.', "_");
+                format!("let _val_{pname} = params['{pname}'] ?? 0;")
+            })
+            .collect();
+        let param_writes: Vec<String> = all_params.iter()
+            .filter(|p| !p.temporal_ops.is_empty())
+            .map(|p| {
+                let pname = p.name.replace('.', "_");
+                format!("params['{pname}'] = _val_{pname};")
+            })
+            .collect();
+        js_modules.push(format!(
+            "{init}\nfunction temporalUpdate(params, dt) {{\n{}\n{update}\n{}\n}}",
+            param_reads.join("\n"),
+            param_writes.join("\n"),
+        ));
     }
 
     // Listen → GameListenPipeline class

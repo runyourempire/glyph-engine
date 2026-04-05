@@ -3,6 +3,13 @@
 
 use crate::ast::{Duration, Expr, Param, TemporalOp};
 
+/// Sanitize a name so it's safe as part of a JS identifier (only [a-zA-Z0-9_]).
+fn sanitize_js_ident(s: &str) -> String {
+    s.chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
+        .collect()
+}
+
 /// Check whether any params in a cinematic use temporal operators.
 pub fn any_param_uses_temporal(params: &[Param]) -> bool {
     params.iter().any(|p| !p.temporal_ops.is_empty())
@@ -125,7 +132,7 @@ pub fn generate_temporal_js(params: &[Param]) -> (String, String) {
             continue;
         }
 
-        let pname = &param.name;
+        let pname = sanitize_js_ident(&param.name);
 
         for (i, op) in param.temporal_ops.iter().enumerate() {
             let suffix = if param.temporal_ops.len() > 1 {

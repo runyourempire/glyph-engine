@@ -262,7 +262,9 @@ fn convert(lt: LexToken, slice: &str) -> Result<Token, CompileError> {
             Token::Millis(v)
         }
         LexToken::IntBars => {
-            let v: i64 = slice[..slice.len() - 4].parse().unwrap_or(0);
+            let v: i64 = if slice.len() > 4 {
+                slice[..slice.len() - 4].parse().unwrap_or(0)
+            } else { 0 };
             Token::Bars(v)
         }
         LexToken::FloatDeg => {

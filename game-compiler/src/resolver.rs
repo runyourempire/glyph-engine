@@ -27,12 +27,19 @@ pub fn resolve_imports(
     resolve_recursive(program, base_dir, lib_dirs, &mut visited)
 }
 
+const MAX_IMPORT_DEPTH: usize = 32;
+
 fn resolve_recursive(
     program: &mut Program,
     base_dir: &Path,
     lib_dirs: &[PathBuf],
     visited: &mut HashSet<PathBuf>,
 ) -> Result<(), CompileError> {
+    if visited.len() > MAX_IMPORT_DEPTH {
+        return Err(CompileError::validation(format!(
+            "import chain exceeds maximum depth of {MAX_IMPORT_DEPTH}"
+        )));
+    }
     let imports = std::mem::take(&mut program.imports);
 
     for import in imports {

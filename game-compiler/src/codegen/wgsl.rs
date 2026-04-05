@@ -329,8 +329,8 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             let amp = get_arg(args, "amplitude", 0, "concentric_waves");
             let width = get_arg(args, "width", 1, "concentric_waves");
             let freq = get_arg(args, "frequency", 2, "concentric_waves");
-            s.push_str(&format!("{indent}let cw_r = length(p) * {freq};\n"));
-            s.push_str(&format!("{indent}var sdf_result = sin(cw_r - time * 2.0) * {amp} * exp(-length(p) * {width});\n"));
+            s.push_str(&format!("{indent}let cw_dist = length(p);\n"));
+            s.push_str(&format!("{indent}var sdf_result = {amp} * sin(cw_dist * {freq} * 6.28318530718 - time * 2.0) * exp(-cw_dist * {width});\n"));
         }
 
         // ── Sdf -> Color bridges ────────────────────────────
@@ -500,7 +500,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         }
         "threshold" => {
             let cutoff = get_arg(args, "cutoff", 0, "threshold");
-            s.push_str(&format!("{indent}sdf_result = step({cutoff}, sdf_result);\n"));
+            s.push_str(&format!("{indent}sdf_result = select(-1.0, 1.0, sdf_result >= {cutoff});\n"));
         }
         "onion" => {
             let thickness = get_arg(args, "thickness", 0, "onion");

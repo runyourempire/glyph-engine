@@ -11,14 +11,33 @@ use crate::token::Token;
 // Parser core
 // ---------------------------------------------------------------------------
 
+const MAX_RECURSION_DEPTH: usize = 200;
+
 pub struct Parser {
     tokens: Vec<(Token, usize, usize)>,
     pos: usize,
+    depth: usize,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<(Token, usize, usize)>) -> Self {
-        Self { tokens, pos: 0 }
+        Self { tokens, pos: 0, depth: 0 }
+    }
+
+    fn enter_recursion(&mut self) -> Result<(), CompileError> {
+        self.depth += 1;
+        if self.depth > MAX_RECURSION_DEPTH {
+            let (line, col) = self.current_pos();
+            return Err(CompileError::parse(
+                line, col,
+                format!("expression nesting exceeds maximum depth of {MAX_RECURSION_DEPTH}"),
+            ));
+        }
+        Ok(())
+    }
+
+    fn exit_recursion(&mut self) {
+        self.depth = self.depth.saturating_sub(1);
     }
 
     // -- navigation helpers ------------------------------------------------
@@ -1288,6 +1307,13 @@ impl Parser {
     // ======================================================================
 
     pub fn parse_expr(&mut self) -> Result<Expr, CompileError> {
+        self.enter_recursion()?;
+        let result = self.parse_expr_inner();
+        self.exit_recursion();
+        result
+    }
+
+    fn parse_expr_inner(&mut self) -> Result<Expr, CompileError> {
         let expr = self.parse_comparison()?;
         // Ternary: expr ? if_true : if_false
         if matches!(self.peek(), Some(Token::Question)) {

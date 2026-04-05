@@ -9,6 +9,11 @@ use crate::ast::ResonateBlock;
 use crate::codegen::expr;
 use crate::codegen::UniformInfo;
 
+/// Escape a string for safe embedding in a JS single-quoted string literal.
+fn escape_js_string(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('\'', "\\'")
+}
+
 /// Compile a ResonateBlock into a JS resonance update function.
 ///
 /// The generated function signature: `function resonanceUpdate(params, signals, dt)`
@@ -50,7 +55,7 @@ pub fn generate_resonance_js(block: &ResonateBlock, uniforms: &[UniformInfo]) ->
         if let Some(idx) = idx {
             s.push_str(&format!(
                 "  params[{idx}] += (signals['{}'] || 0) * ({weight_js}) * dt;\n",
-                entry.source
+                escape_js_string(&entry.source)
             ));
         } else {
             s.push_str(&format!(

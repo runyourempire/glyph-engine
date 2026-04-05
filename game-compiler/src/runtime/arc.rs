@@ -8,6 +8,11 @@ use crate::ast::{ArcBlock, Duration};
 use crate::codegen::expr as expr_compile;
 use crate::codegen::UniformInfo;
 
+/// Escape a string for safe embedding in a JS single-quoted string literal.
+fn escape_js_string(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('\'', "\\'")
+}
+
 /// Convert Duration to seconds using default 120 BPM (2s per bar).
 fn duration_to_secs(d: &Duration) -> f64 {
     match d {
@@ -101,7 +106,7 @@ pub fn generate_arc_js(arcs: &[ArcBlock], uniforms: &[UniformInfo]) -> String {
         };
         s.push_str(&format!(
             "  {{idx:{},name:'{}',from:{},to:{},start:{},dur:{},ease:'{}'}},\n",
-            idx_str, e.target_name, e.from_js, e.to_js, e.start_secs, e.duration_secs, e.easing,
+            idx_str, escape_js_string(&e.target_name), e.from_js, e.to_js, e.start_secs, e.duration_secs, escape_js_string(&e.easing),
         ));
     }
     s.push_str("];\n\n");

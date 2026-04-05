@@ -158,6 +158,11 @@ fn main() -> Result<()> {
                         std::fs::write(&glsl_path, glsl)
                             .with_context(|| format!("write: {}", glsl_path.display()))?;
                     }
+                    if let Some(compute) = &output.compute_wgsl {
+                        let compute_path = output_dir.join(format!("{stem}.compute.wgsl"));
+                        std::fs::write(&compute_path, compute)
+                            .with_context(|| format!("write: {}", compute_path.display()))?;
+                    }
                 }
             }
         }
@@ -264,9 +269,9 @@ fn main() -> Result<()> {
         }
     }
 
-    // Note: opt_level is available for future optimization-level-dependent behavior.
-    // Currently the optimizer always runs at level 1 inside compile().
-    let _ = opt_level;
+    if opt_level > 2 {
+        eprintln!("[game] warning: optimization levels above 2 are not yet implemented, using level 2");
+    }
 
     Ok(())
 }
