@@ -1,24 +1,30 @@
-// Event Horizon — GPU vortex fluid simulation.
-// Based on the proven working vortex example, with blue color matrix.
+// Event Horizon — plasma filaments around a gravitational void.
+// Swarm agents form organic network patterns. Black void blocks compute.
+// Cyan/blue matrix = cosmic plasma. Unique: void center + swarm.
 
 cinematic "event-horizon" {
-  layer bg {
-    circle(0.5) | glow(1.5) | tint(0.01, 0.005, 0.025)
+  layer void {
+    circle(0.12)
+    | shade(0.0, 0.0, 0.0)
   }
 
-  flow {
-    type: vortex
-    scale: 2.0
-    speed: 0.3
-    octaves: 3
-    strength: 1.5
+  swarm {
+    agents: 100000
+    sensor_angle: 30
+    sensor_dist: 10.0
+    turn_angle: 35
+    step: 1.0
+    deposit: 5.0
+    decay: 0.95
+    diffuse: 1
+    bounds: wrap
   }
 
   matrix color {
     [
-      0.15, 0.05, 0.0,
-      0.05, 0.15, 0.1,
-      0.5, 0.3, 0.9
+      0.1, 0.05, 0.0,
+      0.2, 0.5, 0.2,
+      0.4, 0.3, 0.9
     ]
   }
 
