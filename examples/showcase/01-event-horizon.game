@@ -1,5 +1,6 @@
-// Event Horizon — a black hole.
-// Sharp rings on darkness. No glows. Only shade().
+// Event Horizon — supermassive black hole with gravitational lensing.
+// Rotating accretion rings at multiple radii fill the viewport.
+// Warped spacetime background. Mouse pulls the void.
 
 cinematic "event-horizon" {
   layer config {
@@ -7,43 +8,86 @@ cinematic "event-horizon" {
     accretion: 0.0
   }
 
-  // Gravitational lensing — ultra-subtle warped purple-blue field
-  layer lensing memory: 0.83 {
+  // Gravitational lensing — fills viewport with warped purple-blue field
+  layer lensing memory: 0.85 {
     polar
-    | warp(scale: 3.0, octaves: 3, persistence: 0.5, strength: 0.12 + mass * 0.06)
+    | warp(scale: 3.0, octaves: 3, persistence: 0.5, strength: 0.15 + mass * 0.08)
     | fbm(scale: 3.0, octaves: 3)
     | palette(
-        a_r: 0.001, a_g: 0.0005, a_b: 0.003,
-        b_r: 0.003, b_g: 0.002, b_b: 0.006,
+        a_r: 0.002, a_g: 0.001, a_b: 0.005,
+        b_r: 0.006, b_g: 0.004, b_b: 0.012,
         c_r: 0.5, c_g: 0.3, c_b: 0.8,
         d_r: 0.0, d_g: 0.15, d_b: 0.4
       )
   }
 
-  // Accretion disk — thin bright ring, shade only
+  // Outer accretion — wide dim ring, slow rotation
+  layer outer memory: 0.88 {
+    rotate(time * 0.02)
+    | distort(scale: 5.0, speed: 0.3, strength: 0.025)
+    | ring(0.42, 0.018)
+    | shade(0.35, 0.18, 0.03)
+  }
+
+  // Secondary outer — counter-rotation
+  layer outer2 memory: 0.86 {
+    rotate(time * -0.03)
+    | distort(scale: 4.0, speed: 0.4, strength: 0.02)
+    | ring(0.36, 0.010)
+    | shade(0.5, 0.25, 0.04)
+  }
+
+  // Main accretion disk — brightest, most prominent
   layer disk memory: 0.92 {
-    distort(scale: 4.0, speed: 0.5, strength: 0.04)
-    | ring(0.30 + accretion * 0.04, 0.010)
+    rotate(time * 0.04)
+    | distort(scale: 4.0, speed: 0.5, strength: 0.04)
+    | ring(0.28 + accretion * 0.03, 0.015)
     | shade(1.0, 0.5, 0.08)
   }
 
-  // Inner ring — hotter, thinner
-  layer inner memory: 0.85 {
-    distort(scale: 3.0, speed: 0.7, strength: 0.02)
-    | ring(0.19, 0.004)
+  // Inner disk — hotter, faster rotation
+  layer inner memory: 0.88 {
+    rotate(time * -0.07)
+    | distort(scale: 3.0, speed: 0.7, strength: 0.025)
+    | ring(0.21, 0.008)
     | shade(1.0, 0.8, 0.45)
   }
 
-  // Photon ring — razor-thin
-  layer photon memory: 0.78 {
-    ring(0.12, 0.002)
+  // Photon sphere A — counter-rotating thin ring
+  layer photon_a memory: 0.80 {
+    rotate(time * 0.1)
+    | ring(0.165, 0.003)
     | shade(0.8, 0.7, 1.0)
   }
 
-  // The void — absolute black
+  // Photon sphere B — fastest rotation
+  layer photon_b memory: 0.78 {
+    rotate(time * -0.14)
+    | ring(0.155, 0.002)
+    | shade(0.6, 0.5, 0.9)
+  }
+
+  // ISCO ring — innermost stable orbit
+  layer isco memory: 0.82 {
+    rotate(time * 0.18)
+    | distort(scale: 3.0, speed: 1.0, strength: 0.015)
+    | ring(0.14, 0.004)
+    | shade(1.0, 0.95, 0.8)
+  }
+
+  // The void — absolute black, responds to mouse
   layer void {
-    circle(0.095)
+    translate(mouse_x * 0.04 - 0.02, mouse_y * 0.04 - 0.02)
+    | circle(0.11)
     | shade(0.0, 0.0, 0.0)
+  }
+
+  // Polar jet hint — faint emission above black hole
+  layer jet memory: 0.70 {
+    distort(scale: 2.0, speed: 1.2, strength: 0.02)
+    | translate(0.0, 0.32)
+    | capsule(0.03, 0.002)
+    | shade(0.4, 0.3, 0.7)
   }
 
   arc {
@@ -56,5 +100,5 @@ cinematic "event-horizon" {
     accretion -> inner.brightness * 0.12
   }
 
-  pass frame { vignette(0.45) }
+  pass frame { vignette(0.3) }
 }
