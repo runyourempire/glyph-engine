@@ -1,7 +1,6 @@
-// Solar Flare — coronal mass ejection erupting from a stellar surface.
-// Radial symmetry and polar coordinates create the star body while
-// layered warped noise forms the erupting plasma tendrils. Memory
-// leaves streaking fire trails as matter is flung outward.
+// Solar Flare — coronal mass ejection from a stellar surface.
+// Polar-space corona, palette-driven plasma, shade() for precision.
+// No blend:add. Fire palette with ultra-low a values.
 
 cinematic "solar-flare" {
   layer config {
@@ -10,58 +9,61 @@ cinematic "solar-flare" {
   }
 
   // Stellar surface — boiling granular texture
-  layer surface memory: 0.90 {
-    warp(scale: 4.0, octaves: 6, persistence: 0.55, lacunarity: 2.1, strength: 0.25)
-    | fbm(scale: 5.0, octaves: 6, persistence: 0.5)
-    | palette(fire)
+  layer surface memory: 0.88 {
+    warp(scale: 4.0, octaves: 6, persistence: 0.55, strength: 0.2)
+    | fbm(scale: 5.0, octaves: 5)
+    | palette(
+        a_r: 0.003, a_g: 0.001, a_b: 0.0,
+        b_r: 0.015, b_g: 0.005, b_b: 0.001,
+        c_r: 1.0, c_g: 0.5, c_b: 0.2,
+        d_r: 0.0, d_g: 0.15, d_b: 0.3
+      )
   }
 
-  // Coronal loop — magnetic field lines arching outward
-  layer corona_loop memory: 0.93 blend: add {
+  // Corona — magnetic field lines in polar coordinates
+  layer field memory: 0.90 {
     polar
-    | warp(scale: 2.0, octaves: 5, persistence: 0.6, strength: 0.35 + corona * 0.15)
+    | warp(scale: 2.0, octaves: 5, persistence: 0.6, strength: 0.3 + corona * 0.12)
     | fbm(scale: 3.0, octaves: 5)
-    | palette(ember)
+    | palette(
+        a_r: 0.003, a_g: 0.001, a_b: 0.0,
+        b_r: 0.01, b_g: 0.004, b_b: 0.001,
+        c_r: 0.8, c_g: 0.4, c_b: 0.15,
+        d_r: 0.0, d_g: 0.1, d_b: 0.2
+      )
   }
 
-  // Primary flare — the eruption itself
-  layer flare memory: 0.88 blend: add {
-    translate(0.0, 0.15 + eruption * 0.1)
-    | warp(scale: 3.0, octaves: 4, strength: 0.3 + eruption * 0.2)
+  // Eruption — the flare, displaced upward
+  layer flare memory: 0.85 {
+    translate(0.0, 0.15 + eruption * 0.08)
+    | warp(scale: 3.0, octaves: 4, strength: 0.25 + eruption * 0.15)
     | simplex(6.0)
-    | palette(inferno)
+    | palette(
+        a_r: 0.004, a_g: 0.001, a_b: 0.0,
+        b_r: 0.02, b_g: 0.008, b_b: 0.002,
+        c_r: 1.0, c_g: 0.6, c_b: 0.2,
+        d_r: 0.0, d_g: 0.1, d_b: 0.15
+      )
   }
 
-  // Solar core — intense white-hot center
-  layer core memory: 0.95 {
-    distort(scale: 2.0, speed: 0.5, strength: 0.02)
-    | circle(0.12 + eruption * 0.02)
-    | glow(5.0 + corona * 2.0)
-    | tint(1.0, 0.95, 0.7)
+  // Chromosphere ring — visible limb of the star
+  layer chromo memory: 0.89 {
+    distort(scale: 3.0, speed: 0.6, strength: 0.03)
+    | ring(0.14, 0.012)
+    | shade(0.9, 0.4, 0.08)
   }
 
-  // Prominence — side eruption arc
-  layer prominence memory: 0.86 blend: add {
-    rotate(0.4)
-    | translate(0.18, 0.0)
-    | warp(scale: 5.0, octaves: 3, strength: 0.2 + eruption * 0.1)
-    | simplex(8.0)
-    | palette(lava)
+  // Core — white-hot stellar center
+  layer core memory: 0.93 {
+    distort(scale: 2.0, speed: 0.5, strength: 0.015)
+    | circle(0.10 + eruption * 0.015)
+    | shade(1.0, 0.9, 0.65)
   }
 
-  // Chromosphere ring
-  layer chromo memory: 0.91 blend: add {
-    distort(scale: 3.0, speed: 0.6, strength: 0.04)
-    | ring(0.16, 0.02)
-    | glow(2.5 + eruption * 1.0)
-    | tint(1.0, 0.6, 0.2)
-  }
-
-  // Outer corona haze
-  layer haze memory: 0.80 blend: add {
-    warp(scale: 1.5, octaves: 4, strength: 0.15)
-    | fbm(scale: 2.0, octaves: 4)
-    | palette(sunset)
+  // Photon ring — razor-thin inner edge
+  layer photon memory: 0.80 {
+    ring(0.065, 0.002)
+    | shade(1.0, 0.95, 0.8)
   }
 
   arc {
@@ -70,20 +72,11 @@ cinematic "solar-flare" {
   }
 
   resonate {
-    eruption -> flare.brightness * 0.6
-    eruption -> prominence.intensity * 0.4
-    corona -> corona_loop.brightness * 0.5
-    corona -> chromo.intensity * 0.3
+    eruption -> flare.brightness * 0.4
+    eruption -> chromo.brightness * 0.3
+    corona -> surface.brightness * 0.3
+    corona -> core.brightness * 0.2
   }
 
-  matrix color {
-    [
-      1.2, 0.05, -0.03,
-      0.03, 0.95, -0.02,
-      -0.05, 0.0, 0.85
-    ]
-  }
-
-  pass heat { blur(1.5) }
   pass frame { vignette(0.4) }
 }

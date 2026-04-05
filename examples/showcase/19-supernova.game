@@ -1,7 +1,6 @@
-// Supernova — a massive star detonating in its final moment.
-// The explosion expands outward in a shockwave while the collapsing
-// core forms a nascent neutron star. Multiple shells of ejected matter
-// create the layered remnant structure. Memory preserves the blast wave.
+// Supernova — a star detonates in its final moment.
+// Expanding shockwave rings via shade(). Palette nebula for ejecta.
+// No blend:add. Chromatic aberration for high-energy radiation.
 
 cinematic "supernova" {
   layer config {
@@ -11,73 +10,68 @@ cinematic "supernova" {
 
   // Pre-existing starfield
   layer stars {
-    voronoi(25.0)
+    voronoi(28.0)
     | palette(
-        a_r: 0.0, a_g: 0.0, a_b: 0.01,
-        b_r: 0.06, b_g: 0.06, b_b: 0.1,
+        a_r: 0.0, a_g: 0.0, a_b: 0.001,
+        b_r: 0.04, b_g: 0.04, b_b: 0.06,
         c_r: 0.9, c_g: 0.9, c_b: 1.0,
         d_r: 0.0, d_g: 0.0, d_b: 0.0
       )
   }
 
-  // Outer ejecta — expanding gas shell
-  layer ejecta memory: 0.88 blend: add {
-    warp(scale: 2.0, octaves: 5, persistence: 0.55, strength: 0.25 + shockwave * 0.15)
-    | fbm(scale: 3.0, octaves: 6)
+  // Ejecta nebula — expanding gas cloud
+  layer ejecta memory: 0.86 {
+    warp(scale: 2.0, octaves: 5, persistence: 0.55, strength: 0.2 + shockwave * 0.12)
+    | fbm(scale: 3.0, octaves: 5)
     | palette(
-        a_r: 0.05, a_g: 0.02, a_b: 0.01,
-        b_r: 0.3, b_g: 0.1, b_b: 0.05,
+        a_r: 0.003, a_g: 0.001, a_b: 0.0,
+        b_r: 0.01, b_g: 0.004, b_b: 0.002,
         c_r: 0.9, c_g: 0.4, c_b: 0.2,
         d_r: 0.0, d_g: 0.15, d_b: 0.3
       )
   }
 
-  // Shockwave ring — the expanding blast front
-  layer blast_ring memory: 0.85 blend: add {
-    distort(scale: 2.0, speed: 1.0, strength: 0.05 + detonation * 0.03)
-    | ring(0.15 + shockwave * 0.25, 0.015 + shockwave * 0.01)
-    | glow(3.0 + detonation * 2.0)
-    | tint(1.0, 0.7, 0.3)
-  }
-
-  // Inner remnant — hot expelled material
-  layer remnant memory: 0.92 blend: add {
+  // Inner remnant — polar-distorted hot material
+  layer remnant memory: 0.89 {
     polar
-    | warp(scale: 3.0, octaves: 5, strength: 0.3 + detonation * 0.15)
+    | warp(scale: 3.0, octaves: 5, strength: 0.25 + detonation * 0.12)
     | fbm(scale: 4.0, octaves: 5)
-    | palette(inferno)
-  }
-
-  // Core collapse — the forming neutron star
-  layer neutron memory: 0.96 {
-    distort(scale: 3.0, speed: 1.5, strength: 0.02)
-    | circle(0.03 + detonation * 0.01)
-    | glow(6.0 + detonation * 4.0)
-    | tint(0.8, 0.85, 1.0)
-  }
-
-  // Secondary shockwave — inner blast shell
-  layer inner_shock memory: 0.87 blend: add {
-    distort(scale: 2.5, speed: 0.8, strength: 0.04)
-    | ring(0.08 + shockwave * 0.12, 0.01)
-    | glow(2.0 + detonation * 1.5)
-    | tint(1.0, 0.9, 0.6)
-  }
-
-  // Synchrotron radiation — high-energy glow
-  layer synchrotron memory: 0.84 blend: add {
-    warp(scale: 4.0, octaves: 4, strength: 0.2 + detonation * 0.1)
-    | simplex(7.0)
-    | palette(plasma)
-  }
-
-  // Dust formation — cooling ejecta condensing
-  layer dust memory: 0.82 blend: add {
-    warp(scale: 5.0, octaves: 3, strength: 0.15)
-    | voronoi(12.0)
     | palette(
-        a_r: 0.02, a_g: 0.01, a_b: 0.03,
-        b_r: 0.1, b_g: 0.06, b_b: 0.15,
+        a_r: 0.002, a_g: 0.001, a_b: 0.003,
+        b_r: 0.008, b_g: 0.003, b_b: 0.01,
+        c_r: 0.8, c_g: 0.3, c_b: 0.6,
+        d_r: 0.0, d_g: 0.15, d_b: 0.25
+      )
+  }
+
+  // Outer shockwave — the expanding blast front
+  layer blast memory: 0.84 {
+    distort(scale: 2.0, speed: 1.0, strength: 0.04 + detonation * 0.02)
+    | ring(0.15 + shockwave * 0.2, 0.012)
+    | shade(0.9, 0.6, 0.2)
+  }
+
+  // Inner shock — secondary blast shell
+  layer inner memory: 0.86 {
+    distort(scale: 2.5, speed: 0.8, strength: 0.03)
+    | ring(0.08 + shockwave * 0.1, 0.008)
+    | shade(1.0, 0.85, 0.5)
+  }
+
+  // Neutron star core — collapsed remnant
+  layer core memory: 0.94 {
+    distort(scale: 3.0, speed: 1.5, strength: 0.015)
+    | circle(0.025 + detonation * 0.008)
+    | shade(0.7, 0.75, 1.0)
+  }
+
+  // Synchrotron radiation — high-energy haze
+  layer synchrotron memory: 0.82 {
+    warp(scale: 4.0, octaves: 4, strength: 0.15 + detonation * 0.08)
+    | simplex(7.0)
+    | palette(
+        a_r: 0.001, a_g: 0.0, a_b: 0.002,
+        b_r: 0.004, b_g: 0.002, b_b: 0.008,
         c_r: 0.4, c_g: 0.25, c_b: 0.5,
         d_r: 0.0, d_g: 0.1, d_b: 0.2
       )
@@ -89,21 +83,12 @@ cinematic "supernova" {
   }
 
   resonate {
-    detonation -> neutron.brightness * 0.6
-    detonation -> remnant.intensity * 0.5
-    shockwave -> blast_ring.brightness * 0.5
-    shockwave -> ejecta.intensity * 0.4
+    detonation -> core.brightness * 0.5
+    detonation -> remnant.intensity * 0.4
+    shockwave -> blast.brightness * 0.4
+    shockwave -> ejecta.intensity * 0.3
   }
 
-  matrix color {
-    [
-      1.2, 0.03, 0.05,
-      0.0, 0.9, 0.05,
-      0.05, 0.0, 1.1
-    ]
-  }
-
-  pass blast { blur(2.0) }
-  pass split { chromatic(0.006) }
+  pass split { chromatic(0.005) }
   pass frame { vignette(0.35) }
 }

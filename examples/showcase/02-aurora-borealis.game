@@ -1,6 +1,6 @@
-// Aurora Borealis — northern lights rippling across a dark sky.
-// Vertical curtains of light that wave and shift through green,
-// blue, and violet. Memory creates the characteristic streaking.
+// Aurora Borealis — northern lights shimmer across polar sky.
+// Flowing curtains of green, blue, violet. Only palette(). No blend:add.
+// Ultra-low a values keep the sky black between ribbons.
 
 cinematic "aurora-borealis" {
   layer config {
@@ -8,83 +8,78 @@ cinematic "aurora-borealis" {
     curtain: 0.0
   }
 
-  // Night sky — very subtle stars
+  // Night sky — sparse dim stars
   layer stars {
-    warp(scale: 1.5, octaves: 3, strength: 0.1)
-    | voronoi(25.0)
+    voronoi(30.0)
     | palette(
-        a_r: 0.0, a_g: 0.0, a_b: 0.02,
-        b_r: 0.08, b_g: 0.08, b_b: 0.12,
+        a_r: 0.0, a_g: 0.0, a_b: 0.001,
+        b_r: 0.03, b_g: 0.03, b_b: 0.05,
         c_r: 1.0, c_g: 1.0, c_b: 1.0,
         d_r: 0.0, d_g: 0.0, d_b: 0.0
       )
   }
 
-  // Primary aurora curtain — green dominant
-  layer curtain_green memory: 0.93 blend: add {
-    translate(0.0, 0.15)
-    | warp(scale: 1.5, octaves: 5, persistence: 0.6, strength: 0.35 + activity * 0.15)
-    | fbm(scale: 2.0, octaves: 6)
-    | palette(aurora)
-  }
-
-  // Secondary curtain — blue-violet, offset
-  layer curtain_blue memory: 0.91 blend: add {
-    translate(0.1, -0.1)
-    | warp(scale: 2.0, octaves: 4, persistence: 0.55, strength: 0.3 + curtain * 0.1)
-    | fbm(scale: 2.5, octaves: 5)
+  // Green curtain — oxygen emission at 100-300km
+  layer green memory: 0.91 {
+    translate(0.0, 0.12)
+    | warp(scale: 1.5, octaves: 5, persistence: 0.6, strength: 0.3 + activity * 0.12)
+    | fbm(scale: 2.0, octaves: 5)
     | palette(
-        a_r: 0.0, a_g: 0.1, a_b: 0.2,
-        b_r: 0.1, b_g: 0.3, b_b: 0.5,
-        c_r: 0.5, c_g: 0.8, c_b: 1.0,
-        d_r: 0.15, d_g: 0.25, d_b: 0.6
+        a_r: 0.001, a_g: 0.004, a_b: 0.001,
+        b_r: 0.008, b_g: 0.06, b_b: 0.015,
+        c_r: 0.5, c_g: 1.0, c_b: 0.3,
+        d_r: 0.0, d_g: 0.33, d_b: 0.1
       )
   }
 
-  // Bright peak — concentrated glow at curtain peaks
-  layer peak memory: 0.89 blend: add {
+  // Blue-violet curtain — nitrogen emission below 100km
+  layer violet memory: 0.88 {
+    translate(0.08, -0.05)
+    | warp(scale: 2.0, octaves: 4, persistence: 0.55, strength: 0.25 + curtain * 0.1)
+    | fbm(scale: 2.5, octaves: 5)
+    | palette(
+        a_r: 0.001, a_g: 0.001, a_b: 0.003,
+        b_r: 0.015, b_g: 0.03, b_b: 0.06,
+        c_r: 0.3, c_g: 0.5, c_b: 1.0,
+        d_r: 0.15, d_g: 0.25, d_b: 0.5
+      )
+  }
+
+  // Curtain peak — bright apex where particles concentrate
+  layer peak memory: 0.84 {
     translate(0.0, 0.2)
-    | warp(scale: 2.5, octaves: 4, strength: 0.2)
+    | warp(scale: 2.5, octaves: 4, strength: 0.2 + activity * 0.08)
     | simplex(3.0)
     | palette(
-        a_r: 0.1, a_g: 0.4, a_b: 0.1,
-        b_r: 0.2, b_g: 0.5, b_b: 0.2,
+        a_r: 0.002, a_g: 0.006, a_b: 0.001,
+        b_r: 0.02, b_g: 0.08, b_b: 0.02,
         c_r: 0.8, c_g: 1.0, c_b: 0.6,
         d_r: 0.0, d_g: 0.33, d_b: 0.0
       )
   }
 
-  // Horizon glow — warm reflected light on snow
-  layer horizon memory: 0.95 {
+  // Horizon glow — faint reflection on snowline
+  layer horizon memory: 0.80 {
     translate(0.0, -0.35)
-    | radial_fade(0.0, 0.3)
-    | glow(1.5)
-    | tint(0.15, 0.2, 0.3)
-  }
-
-  // Subtle edge frame
-  layer edge {
-    ring(0.47, 0.002) | glow(0.4) | tint(0.1, 0.15, 0.2)
+    | fbm(scale: 1.5, octaves: 3)
+    | palette(
+        a_r: 0.002, a_g: 0.003, a_b: 0.005,
+        b_r: 0.003, b_g: 0.005, b_b: 0.008,
+        c_r: 0.5, c_g: 0.5, c_b: 0.5,
+        d_r: 0.0, d_g: 0.0, d_b: 0.0
+      )
   }
 
   arc {
     curtain: 0.0 -> 1.0 over 20s ease-in-out
+    activity: 0.5 -> 0.9 over 15s ease-in-out
   }
 
   resonate {
-    activity -> curtain_green.brightness * 0.4
-    activity -> curtain_blue.intensity * 0.3
-    curtain -> peak.brightness * 0.5
+    activity -> green.brightness * 0.3
+    activity -> violet.intensity * 0.2
+    curtain -> peak.brightness * 0.4
   }
 
-  matrix color {
-    [
-      0.9, 0.0, 0.05,
-      0.0, 1.1, 0.0,
-      0.0, 0.05, 1.15
-    ]
-  }
-
-  pass soft_glow { blur(3.0) }
-  pass frame { vignette(0.5) }
+  pass frame { vignette(0.45) }
 }

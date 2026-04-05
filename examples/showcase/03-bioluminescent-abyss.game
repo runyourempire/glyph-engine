@@ -1,6 +1,6 @@
-// Bioluminescent Abyss — deep ocean creatures pulsing with cold light.
-// Voronoi creates the cellular jellyfish texture, memory leaves ghostly trails
-// as organisms drift through the darkness. Click to disturb the water.
+// Bioluminescent Abyss — deep ocean creatures pulse in total darkness.
+// Voronoi cells for organism structure. shade() for the central creature.
+// No glow(). No blend:add. Abyssal cold light on absolute black.
 
 cinematic "bioluminescent-abyss" {
   layer config {
@@ -8,84 +8,87 @@ cinematic "bioluminescent-abyss" {
     pulse: 0.0
   }
 
-  // Deep water — dark with subtle current
-  layer deep memory: 0.94 {
-    warp(scale: 1.5, octaves: 5, persistence: 0.5, strength: 0.15)
-    | fbm(scale: 2.0, octaves: 6)
-    | palette(deep_sea)
-  }
-
-  // Jellyfish bloom — voronoi cell structure
-  layer bloom_a memory: 0.90 blend: add {
-    translate(sin(time * 0.3) * 0.15, cos(time * 0.2) * 0.2)
-    | warp(scale: 3.0, octaves: 3, strength: 0.12)
-    | voronoi(8.0) | palette(ocean)
-  }
-
-  // Second organism cluster — offset movement
-  layer bloom_b memory: 0.87 blend: add {
-    translate(cos(time * 0.25) * 0.2, sin(time * 0.35) * 0.15)
-    | warp(scale: 4.0, octaves: 3, strength: 0.1)
-    | voronoi(6.0)
+  // Abyssal water — near-black with subtle blue current
+  layer deep memory: 0.92 {
+    warp(scale: 1.5, octaves: 5, persistence: 0.5, strength: 0.12)
+    | fbm(scale: 2.0, octaves: 5)
     | palette(
-        a_r: 0.0, a_g: 0.05, a_b: 0.1,
-        b_r: 0.1, b_g: 0.2, b_b: 0.4,
-        c_r: 0.3, c_g: 0.8, c_b: 1.0,
-        d_r: 0.5, d_g: 0.1, d_b: 0.3
+        a_r: 0.0, a_g: 0.001, a_b: 0.003,
+        b_r: 0.002, b_g: 0.004, b_b: 0.008,
+        c_r: 0.3, c_g: 0.5, c_b: 0.8,
+        d_r: 0.0, d_g: 0.15, d_b: 0.3
       )
   }
 
-  // Central luminous organism — the main creature
-  layer creature memory: 0.92 {
-    distort(scale: 2.0, speed: 0.4, strength: 0.03 + pulse * 0.02)
-    | circle(0.1 + pulse * 0.04 + mouse_down * 0.06)
-    | glow(3.5 + depth * 1.5) | tint(0.2, 0.8, 1.0)
-  }
-
-  // Tentacle rings — concentric pulsing halos
-  layer tentacles memory: 0.86 blend: add {
-    distort(scale: 3.0, speed: 0.3, strength: 0.04)
-    | circle(0.18 + pulse * 0.03)
-    | onion(3, 0.015)
-    | glow(2.0) | tint(0.1, 0.5, 0.9)
-  }
-
-  // Particle dust — tiny floating specks
-  layer particles memory: 0.82 blend: add {
-    warp(scale: 8.0, octaves: 3, strength: 0.2)
-    | voronoi(20.0)
+  // Jellyfish colony — voronoi cellular structure, drifting
+  layer colony memory: 0.88 {
+    translate(sin(time * 0.2) * 0.1, cos(time * 0.15) * 0.12)
+    | warp(scale: 3.0, octaves: 3, strength: 0.1)
+    | voronoi(7.0)
     | palette(
-        a_r: 0.0, a_g: 0.02, a_b: 0.05,
-        b_r: 0.05, b_g: 0.15, b_b: 0.3,
-        c_r: 0.5, c_g: 1.0, c_b: 0.8,
+        a_r: 0.0, a_g: 0.002, a_b: 0.004,
+        b_r: 0.005, b_g: 0.02, b_b: 0.04,
+        c_r: 0.3, c_g: 0.7, c_b: 1.0,
+        d_r: 0.5, d_g: 0.15, d_b: 0.25
+      )
+  }
+
+  // Second organism cluster — different drift pattern
+  layer cluster memory: 0.85 {
+    translate(cos(time * 0.25) * 0.15, sin(time * 0.3) * 0.1)
+    | warp(scale: 4.0, octaves: 3, strength: 0.08)
+    | voronoi(5.0)
+    | palette(
+        a_r: 0.001, a_g: 0.003, a_b: 0.005,
+        b_r: 0.003, b_g: 0.01, b_b: 0.025,
+        c_r: 0.2, c_g: 0.6, c_b: 0.9,
+        d_r: 0.4, d_g: 0.1, d_b: 0.2
+      )
+  }
+
+  // Central creature — the main luminous organism
+  layer creature memory: 0.90 {
+    distort(scale: 2.0, speed: 0.4, strength: 0.025 + pulse * 0.015)
+    | circle(0.08 + pulse * 0.03)
+    | shade(0.1, 0.6, 0.9)
+  }
+
+  // Tentacle rings — concentric halos
+  layer tentacles memory: 0.86 {
+    distort(scale: 3.0, speed: 0.3, strength: 0.03)
+    | ring(0.16 + pulse * 0.02, 0.006)
+    | shade(0.05, 0.3, 0.7)
+  }
+
+  // Photon ring — razor-thin bioluminescent edge
+  layer photon memory: 0.78 {
+    ring(0.22, 0.002)
+    | shade(0.08, 0.4, 0.8)
+  }
+
+  // Particle drift — fine organic debris
+  layer particles memory: 0.80 {
+    warp(scale: 8.0, octaves: 3, strength: 0.15)
+    | voronoi(22.0)
+    | palette(
+        a_r: 0.0, a_g: 0.001, a_b: 0.002,
+        b_r: 0.002, b_g: 0.008, b_b: 0.015,
+        c_r: 0.5, c_g: 0.8, c_b: 1.0,
         d_r: 0.0, d_g: 0.3, d_b: 0.5
       )
   }
 
-  // Edge darkness
-  layer edge {
-    ring(0.46, 0.002) | glow(0.5) | tint(0.05, 0.1, 0.2)
-  }
-
   arc {
     pulse: 0.0 -> 1.0 over 5s ease-in-out
+    depth: 0.5 -> 0.9 over 12s ease-in-out
   }
 
   resonate {
-    depth -> creature.brightness * 0.4
-    depth -> bloom_a.intensity * 0.3
-    pulse -> tentacles.brightness * 0.5
+    depth -> colony.brightness * 0.3
+    depth -> cluster.intensity * 0.2
+    pulse -> creature.brightness * 0.4
+    pulse -> tentacles.brightness * 0.3
   }
 
-  matrix color {
-    [
-      0.85, 0.0, 0.08,
-      0.0, 1.0, 0.05,
-      0.05, 0.1, 1.2
-    ]
-  }
-
-  pass glow_pass { blur(2.0) }
-  pass depth_effect { chromatic(0.003) }
   pass frame { vignette(0.5) }
 }

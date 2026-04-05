@@ -1,7 +1,6 @@
-// Mycelium Network — underground fungal intelligence connecting trees.
-// The wood-wide-web rendered as bioluminescent threads spreading through
-// dark soil. Voronoi nodes are nutrient exchange points while warped
-// FBM creates the branching hyphal networks. Memory grows the network.
+// Mycelium Network — underground fungal intelligence.
+// Branching hyphae in dark soil, voronoi nutrient nodes.
+// shade() for the fruiting body. No blend:add. Bioluminescent green.
 
 cinematic "mycelium-network" {
   layer config {
@@ -9,72 +8,73 @@ cinematic "mycelium-network" {
     nutrient: 0.3
   }
 
-  // Dark soil — the underground substrate
-  layer soil memory: 0.92 {
-    warp(scale: 2.0, octaves: 5, persistence: 0.5, strength: 0.15)
-    | fbm(scale: 3.0, octaves: 6, persistence: 0.5)
-    | palette(earth)
+  // Dark soil substrate
+  layer soil memory: 0.90 {
+    warp(scale: 2.0, octaves: 5, persistence: 0.5, strength: 0.12)
+    | fbm(scale: 3.0, octaves: 5)
+    | palette(
+        a_r: 0.002, a_g: 0.0015, a_b: 0.001,
+        b_r: 0.004, b_g: 0.003, b_b: 0.002,
+        c_r: 0.6, c_g: 0.4, c_b: 0.25,
+        d_r: 0.0, d_g: 0.1, d_b: 0.15
+      )
   }
 
-  // Primary hyphal network — main threads
-  layer hyphae_a memory: 0.94 blend: add {
-    warp(scale: 3.0, octaves: 6, persistence: 0.65, lacunarity: 2.3, strength: 0.3 + growth * 0.12)
-    | fbm(scale: 6.0, octaves: 7, persistence: 0.55)
+  // Primary hyphae — main thread network
+  layer hyphae memory: 0.92 {
+    warp(scale: 3.0, octaves: 6, persistence: 0.65, strength: 0.25 + growth * 0.1)
+    | fbm(scale: 6.0, octaves: 6)
     | palette(
-        a_r: 0.01, a_g: 0.02, a_b: 0.0,
-        b_r: 0.05, b_g: 0.15, b_b: 0.03,
+        a_r: 0.001, a_g: 0.003, a_b: 0.0,
+        b_r: 0.004, b_g: 0.012, b_b: 0.002,
         c_r: 0.3, c_g: 0.8, c_b: 0.2,
         d_r: 0.0, d_g: 0.33, d_b: 0.05
       )
   }
 
-  // Secondary network — finer branching
-  layer hyphae_b memory: 0.91 blend: add {
+  // Secondary network — finer branching, rotated
+  layer fine memory: 0.89 {
     rotate(0.3)
-    | warp(scale: 4.0, octaves: 5, persistence: 0.6, strength: 0.25 + growth * 0.08)
-    | fbm(scale: 8.0, octaves: 6)
-    | palette(moss)
-  }
-
-  // Nutrient nodes — exchange points (tree root connections)
-  layer nodes memory: 0.89 blend: add {
-    warp(scale: 3.0, octaves: 3, strength: 0.1)
-    | voronoi(8.0)
+    | warp(scale: 4.0, octaves: 5, persistence: 0.6, strength: 0.2 + growth * 0.06)
+    | fbm(scale: 8.0, octaves: 5)
     | palette(
-        a_r: 0.02, a_g: 0.04, a_b: 0.01,
-        b_r: 0.08, b_g: 0.2, b_b: 0.05,
+        a_r: 0.0, a_g: 0.002, a_b: 0.001,
+        b_r: 0.002, b_g: 0.008, b_b: 0.003,
         c_r: 0.2, c_g: 0.6, c_b: 0.15,
         d_r: 0.0, d_g: 0.25, d_b: 0.05
       )
   }
 
-  // Fruiting body — mushroom emergence point
-  layer fruit memory: 0.93 {
-    distort(scale: 1.5, speed: 0.3, strength: 0.02 + growth * 0.015)
-    | circle(0.06 + growth * 0.03)
-    | glow(3.5 + nutrient * 2.0)
-    | tint(0.4, 0.9, 0.3)
-  }
-
-  // Spore ring — spreading from fruiting body
-  layer spores memory: 0.86 blend: add {
-    distort(scale: 2.5, speed: 0.4, strength: 0.04)
-    | circle(0.15 + growth * 0.04)
-    | onion(3, 0.01)
-    | glow(1.5 + growth * 0.6)
-    | tint(0.3, 0.7, 0.2)
-  }
-
-  // Decomposition particles — recycling matter
-  layer particles memory: 0.82 blend: add {
-    warp(scale: 7.0, octaves: 3, strength: 0.15)
-    | voronoi(20.0)
+  // Nutrient nodes — voronoi exchange points
+  layer nodes memory: 0.86 {
+    warp(scale: 3.0, octaves: 3, strength: 0.08)
+    | voronoi(8.0)
     | palette(
-        a_r: 0.02, a_g: 0.03, a_b: 0.01,
-        b_r: 0.06, b_g: 0.1, b_b: 0.03,
-        c_r: 0.3, c_g: 0.5, c_b: 0.15,
-        d_r: 0.0, d_g: 0.2, d_b: 0.0
+        a_r: 0.001, a_g: 0.003, a_b: 0.0,
+        b_r: 0.005, b_g: 0.015, b_b: 0.003,
+        c_r: 0.2, c_g: 0.5, c_b: 0.12,
+        d_r: 0.0, d_g: 0.25, d_b: 0.05
       )
+  }
+
+  // Fruiting body — mushroom emergence point
+  layer fruit memory: 0.91 {
+    distort(scale: 1.5, speed: 0.3, strength: 0.015 + growth * 0.01)
+    | circle(0.05 + growth * 0.02)
+    | shade(0.3, 0.8, 0.2)
+  }
+
+  // Spore rings — spreading from fruiting body
+  layer spores memory: 0.84 {
+    distort(scale: 2.5, speed: 0.4, strength: 0.03)
+    | ring(0.12 + growth * 0.03, 0.005)
+    | shade(0.15, 0.5, 0.1)
+  }
+
+  // Outer spore ring — fading propagation front
+  layer outer memory: 0.80 {
+    ring(0.20 + growth * 0.04, 0.003)
+    | shade(0.1, 0.35, 0.08)
   }
 
   arc {
@@ -83,20 +83,11 @@ cinematic "mycelium-network" {
   }
 
   resonate {
-    growth -> hyphae_a.intensity * 0.4
-    growth -> fruit.brightness * 0.5
-    nutrient -> nodes.brightness * 0.4
-    nutrient -> spores.brightness * 0.3
+    growth -> hyphae.intensity * 0.3
+    growth -> fruit.brightness * 0.4
+    nutrient -> nodes.brightness * 0.3
+    nutrient -> spores.brightness * 0.2
   }
 
-  matrix color {
-    [
-      0.85, 0.05, -0.02,
-      0.02, 1.1, -0.03,
-      -0.03, 0.08, 0.9
-    ]
-  }
-
-  pass soft { blur(1.5) }
   pass frame { vignette(0.45) }
 }

@@ -1,83 +1,79 @@
-// Sacred Geometry — radially symmetric mandala that breathes and evolves.
-// Multiple layers of geometric precision softened by organic distortion.
-// The interplay between sharp SDF booleans and soft glow creates depth.
+// Sacred Geometry — golden mandala breathes in perfect symmetry.
+// Concentric rings, stars, capsule petals. Only shade(). No glow().
+// Golden proportions on absolute darkness.
 
 cinematic "sacred-geometry" {
   layer config {
     breath: 0.0
-    bloom_power: 0.5
     rotation: 0.3
   }
 
-  // Ambient field — subtle sacred pattern background
-  layer field memory: 0.91 {
+  // Sacred field — faint mandala texture
+  layer field memory: 0.88 {
     radial(12)
-    | warp(scale: 3.0, octaves: 4, strength: 0.15)
-    | fbm(scale: 5.0, octaves: 5) | palette(gold)
+    | warp(scale: 3.0, octaves: 4, strength: 0.12)
+    | fbm(scale: 5.0, octaves: 5)
+    | palette(
+        a_r: 0.002, a_g: 0.0015, a_b: 0.001,
+        b_r: 0.006, b_g: 0.005, b_b: 0.003,
+        c_r: 0.8, c_g: 0.6, c_b: 0.3,
+        d_r: 0.0, d_g: 0.1, d_b: 0.2
+      )
   }
 
   // Central jewel — boolean-sculpted gem
-  layer jewel memory: 0.93 {
-    distort(scale: 1.5, speed: 0.3, strength: 0.01)
-    | smooth_subtract(circle(0.1 + breath * 0.03), star(6, 0.08, 0.04), 0.02)
-    | glow(4.0 + bloom_power * 1.5) | tint(1.0, 0.85, 0.4)
+  layer jewel memory: 0.90 {
+    distort(scale: 1.5, speed: 0.3, strength: 0.01 + breath * 0.005)
+    | smooth_subtract(circle(0.08 + breath * 0.02), star(6, 0.06, 0.03), 0.015)
+    | shade(0.9, 0.75, 0.3)
   }
 
   // First ring — hexagonal symmetry
-  layer hex_ring memory: 0.88 blend: add {
-    radial(6)
-    | distort(scale: 2.0, speed: 0.4, strength: 0.02)
-    | ring(0.18 + breath * 0.02, 0.012)
-    | glow(2.5) | tint(0.9, 0.7, 0.3)
+  layer hex memory: 0.87 {
+    distort(scale: 2.0, speed: 0.4, strength: 0.015)
+    | ring(0.16 + breath * 0.015, 0.008)
+    | shade(0.7, 0.55, 0.2)
   }
 
-  // Second ring — twelve-fold with stars
-  layer star_ring memory: 0.86 {
+  // Star ring — twelve-fold
+  layer twelve memory: 0.85 {
     radial(12)
-    | smooth_union(ring(0.28, 0.008), star(12, 0.30, 0.26), 0.03)
-    | glow(2.0 + bloom_power * 0.8) | tint(0.7, 0.5, 0.2)
+    | ring(0.26, 0.005)
+    | shade(0.5, 0.4, 0.15)
   }
 
-  // Outer petals — rotating organic forms
-  layer petals memory: 0.84 blend: add {
+  // Petals — rotating organic forms
+  layer petals memory: 0.83 {
     rotate(rotation * 0.5)
     | radial(8)
-    | distort(scale: 2.5, speed: 0.5, strength: 0.03)
-    | capsule(0.15, 0.01)
-    | glow(1.8) | tint(0.8, 0.6, 0.25)
+    | distort(scale: 2.5, speed: 0.5, strength: 0.02)
+    | capsule(0.13, 0.008)
+    | shade(0.6, 0.45, 0.18)
   }
 
-  // Fine detail ring
+  // Fine onion detail
   layer detail {
-    circle(0.38) | onion(2, 0.003) | glow(0.8) | tint(0.5, 0.4, 0.25)
+    circle(0.35)
+    | onion(2, 0.002)
+    | shade(0.3, 0.25, 0.12)
   }
 
-  // Boundary
+  // Outer boundary
   layer boundary {
-    ring(0.45, 0.002) | glow(0.6) | tint(0.4, 0.3, 0.2)
+    ring(0.42, 0.002)
+    | shade(0.25, 0.2, 0.1)
   }
 
   arc {
     breath: 0.0 -> 1.0 over 6s ease-in-out
-    bloom_power: 0.5 -> 1.0 over 10s ease-in-out
     rotation: 0.3 -> 0.8 over 15s ease-in-out
   }
 
   resonate {
-    breath -> jewel.scale * 0.15
-    breath -> hex_ring.brightness * 0.3
-    bloom_power -> star_ring.brightness * 0.4
-    rotation -> petals.intensity * 0.2
+    breath -> jewel.brightness * 0.2
+    breath -> hex.brightness * 0.15
+    rotation -> petals.intensity * 0.15
   }
 
-  matrix color {
-    [
-      1.1, 0.02, -0.03,
-      0.03, 1.05, -0.02,
-      -0.02, 0.0, 0.9
-    ]
-  }
-
-  pass glow_pass { blur(2.0) }
   pass frame { vignette(0.35) }
 }

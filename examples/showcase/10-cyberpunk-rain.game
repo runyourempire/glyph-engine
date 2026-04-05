@@ -1,94 +1,85 @@
-// Cyberpunk Rain — neon-soaked urban digital rain falling through
-// a dark cityscape. Grid patterns create the structural backdrop
-// while vertical warp and high-frequency noise simulate rain streaks.
-// Memory creates persistent light trails on wet surfaces.
+// Cyberpunk Rain — neon-soaked digital rain on wet streets.
+// Grid structure, vertical noise, shade() neon signs.
+// No blend:add. Chromatic aberration for lens distortion.
 
 cinematic "cyberpunk-rain" {
   layer config {
     downpour: 0.0
-    neon_power: 0.5
+    neon: 0.5
   }
 
-  // Digital grid — underlying city structure
-  layer grid_base memory: 0.89 {
-    warp(scale: 1.5, octaves: 3, strength: 0.08)
+  // City grid — underlying structural lines
+  layer city memory: 0.87 {
+    warp(scale: 1.5, octaves: 3, strength: 0.06)
     | grid(0.08, 0.002)
-    | glow(1.0 + neon_power * 0.5)
-    | tint(0.1, 0.15, 0.2)
+    | shade(0.06, 0.08, 0.12)
   }
 
-  // Rain field — vertical streaking noise
-  layer rain memory: 0.80 blend: add {
-    scale(0.3)
-    | warp(scale: 1.0, octaves: 4, persistence: 0.7, strength: 0.4 + downpour * 0.2)
+  // Rain field — vertical noise streaks
+  layer rain memory: 0.78 {
+    warp(scale: 1.0, octaves: 4, persistence: 0.7, strength: 0.35 + downpour * 0.15)
     | simplex(15.0)
     | palette(
-        a_r: 0.0, a_g: 0.02, a_b: 0.05,
-        b_r: 0.05, b_g: 0.1, b_b: 0.2,
+        a_r: 0.001, a_g: 0.002, a_b: 0.004,
+        b_r: 0.005, b_g: 0.01, b_b: 0.02,
         c_r: 0.3, c_g: 0.5, c_b: 0.8,
         d_r: 0.0, d_g: 0.2, d_b: 0.4
       )
   }
 
-  // Neon sign A — pink/magenta glow source
-  layer neon_a memory: 0.92 blend: add {
+  // Neon A — pink/magenta light source
+  layer pink memory: 0.90 {
     translate(-0.15, 0.1)
-    | distort(scale: 2.0, speed: 0.8, strength: 0.02 + downpour * 0.01)
-    | circle(0.06 + neon_power * 0.02)
-    | glow(4.0 + neon_power * 2.0)
-    | tint(1.0, 0.2, 0.5)
+    | distort(scale: 2.0, speed: 0.8, strength: 0.015 + downpour * 0.008)
+    | circle(0.05 + neon * 0.015)
+    | shade(0.9, 0.15, 0.4)
   }
 
-  // Neon sign B — cyan glow source
-  layer neon_b memory: 0.91 blend: add {
+  // Neon B — cyan light source
+  layer cyan memory: 0.89 {
     translate(0.18, -0.08)
-    | distort(scale: 2.0, speed: 0.6, strength: 0.02)
-    | circle(0.05 + neon_power * 0.015)
-    | glow(3.5 + neon_power * 1.5)
-    | tint(0.1, 0.8, 1.0)
+    | distort(scale: 2.0, speed: 0.6, strength: 0.012)
+    | circle(0.04 + neon * 0.01)
+    | shade(0.08, 0.7, 0.9)
   }
 
-  // Wet surface reflections — distorted light on ground
-  layer reflections memory: 0.87 blend: add {
+  // Wet reflections — warped neon light on ground plane
+  layer reflections memory: 0.85 {
     translate(0.0, -0.2)
-    | warp(scale: 4.0, octaves: 4, strength: 0.15 + downpour * 0.1)
+    | warp(scale: 4.0, octaves: 4, strength: 0.12 + downpour * 0.08)
     | fbm(scale: 5.0, octaves: 5)
-    | palette(neon)
+    | palette(
+        a_r: 0.002, a_g: 0.001, a_b: 0.003,
+        b_r: 0.008, b_g: 0.005, b_b: 0.012,
+        c_r: 0.8, c_g: 0.3, c_b: 0.6,
+        d_r: 0.15, d_g: 0.3, d_b: 0.5
+      )
   }
 
-  // Atmospheric haze — neon light scattering in rain
-  layer haze memory: 0.85 blend: add {
-    warp(scale: 2.0, octaves: 4, strength: 0.1)
+  // Atmospheric haze — light scattering in rain
+  layer haze memory: 0.82 {
+    warp(scale: 2.0, octaves: 4, strength: 0.08)
     | fbm(scale: 2.5, octaves: 4)
-    | palette(vapor)
-  }
-
-  // Edge darkness
-  layer edge {
-    ring(0.46, 0.003) | glow(0.5) | tint(0.05, 0.08, 0.12)
+    | palette(
+        a_r: 0.001, a_g: 0.001, a_b: 0.002,
+        b_r: 0.003, b_g: 0.003, b_b: 0.005,
+        c_r: 0.6, c_g: 0.4, c_b: 0.8,
+        d_r: 0.2, d_g: 0.1, d_b: 0.3
+      )
   }
 
   arc {
     downpour: 0.0 -> 1.0 over 6s ease-out
-    neon_power: 0.5 -> 1.0 over 10s ease-in-out
+    neon: 0.5 -> 1.0 over 10s ease-in-out
   }
 
   resonate {
-    downpour -> rain.intensity * 0.5
-    downpour -> reflections.brightness * 0.4
-    neon_power -> neon_a.brightness * 0.5
-    neon_power -> neon_b.brightness * 0.4
+    downpour -> rain.intensity * 0.4
+    downpour -> reflections.brightness * 0.3
+    neon -> pink.brightness * 0.3
+    neon -> cyan.brightness * 0.25
   }
 
-  matrix color {
-    [
-      1.1, -0.05, 0.1,
-      -0.03, 0.9, 0.08,
-      0.08, 0.05, 1.15
-    ]
-  }
-
-  pass wet { blur(1.0) }
-  pass split { chromatic(0.006) }
+  pass split { chromatic(0.005) }
   pass frame { vignette(0.5) }
 }
