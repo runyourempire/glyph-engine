@@ -176,19 +176,20 @@ pub fn generate_compute_runtime_js(react: &ReactBlock, width: u32, height: u32) 
     s.push_str("  dispatch(steps = 8) {\n");
     s.push_str("    const t = performance.now() * 0.001;\n");
     s.push_str("    const elapsed = t - this._resetTime;\n");
-    s.push_str("    // Boomerang: re-seed every 10s for fast grow→snap→grow loops\n");
-    s.push_str("    if (elapsed > 10) this._seed();\n");
-    s.push_str("    // Phase wave: 0→1→0 over 10s cycle — drives grow/dissolve\n");
-    s.push_str("    const wave = Math.sin(elapsed * 0.314);\n");
+    s.push_str("    // Boomerang: 12s cycle — grow 9s, dissolve 3s, then re-seed\n");
+    s.push_str("    if (elapsed > 12) this._seed();\n");
+    s.push_str("    // Dissolve phase: spike kill in final 3s to melt patterns\n");
+    s.push_str("    const dissolve = elapsed > 9 ? (elapsed - 9) / 3 : 0;\n");
     s.push_str("    const device = this._device;\n");
     s.push_str("    const params = new ArrayBuffer(24);\n");
     s.push_str("    const f = new Float32Array(params);\n");
     s.push_str("    const u = new Uint32Array(params);\n");
+    // Subtle breathing (±0.001) preserves pattern type, dissolve phase melts them
     s.push_str(&format!(
-        "    f[0] = {} + wave * 0.008;\n", feed
+        "    f[0] = {} + Math.sin(t * 0.7) * 0.001 - dissolve * 0.03;\n", feed
     ));
     s.push_str(&format!(
-        "    f[1] = {} - wave * 0.005;\n", kill
+        "    f[1] = {} + Math.cos(t * 0.5) * 0.0005 + dissolve * 0.02;\n", kill
     ));
     s.push_str(&format!("    f[2] = {}; f[3] = {};\n", da, db));
     s.push_str("    u[4] = this._w; u[5] = this._h;\n");
