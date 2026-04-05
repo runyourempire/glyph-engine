@@ -1,6 +1,6 @@
 // Sacred Geometry — living kaleidoscopic mandala filling the viewport.
 // Multiple radial symmetries layered with warp+fbm+palette.
-// No geometric shapes. No bright center. Just deep organic texture.
+// Ultra-low palette values — dark and rich, never washed out.
 
 cinematic "sacred-geometry" {
   layer config {
@@ -14,60 +14,60 @@ cinematic "sacred-geometry" {
     | warp(scale: 2.0, octaves: 5, persistence: 0.5, strength: 0.2 + breath * 0.06)
     | fbm(scale: 3.0, octaves: 5)
     | palette(
-        a_r: 0.10, a_g: 0.07, a_b: 0.03,
-        b_r: 0.12, b_g: 0.09, b_b: 0.04,
+        a_r: 0.010, a_g: 0.007, a_b: 0.003,
+        b_r: 0.015, b_g: 0.012, b_b: 0.005,
         c_r: 0.8, c_g: 0.6, c_b: 0.3,
         d_r: 0.0, d_g: 0.1, d_b: 0.2
       )
   }
 
-  // 6-fold overlay — deeper amber, different warp phase
+  // 6-fold overlay — amber undertone
   layer six memory: 0.86 {
     radial(6)
     | warp(scale: 3.0, octaves: 4, persistence: 0.55, strength: 0.18 + flow * 0.04)
     | fbm(scale: 4.0, octaves: 4)
     | palette(
-        a_r: 0.06, a_g: 0.04, a_b: 0.015,
-        b_r: 0.08, b_g: 0.06, b_b: 0.025,
+        a_r: 0.006, a_g: 0.004, a_b: 0.002,
+        b_r: 0.010, b_g: 0.007, b_b: 0.003,
         c_r: 0.6, c_g: 0.8, c_b: 0.4,
         d_r: 0.1, d_g: 0.2, d_b: 0.15
       )
   }
 
-  // 8-fold detail — finer texture, higher frequency
+  // 8-fold detail — finer, higher frequency
   layer eight memory: 0.84 {
     radial(8)
     | warp(scale: 4.0, octaves: 3, strength: 0.12 + breath * 0.03)
     | fbm(scale: 6.0, octaves: 4)
     | palette(
-        a_r: 0.04, a_g: 0.03, a_b: 0.012,
-        b_r: 0.06, b_g: 0.045, b_b: 0.02,
+        a_r: 0.004, a_g: 0.003, a_b: 0.001,
+        b_r: 0.007, b_g: 0.005, b_b: 0.002,
         c_r: 0.7, c_g: 0.5, c_b: 0.3,
         d_r: 0.15, d_g: 0.1, d_b: 0.2
       )
   }
 
-  // Energy flow — organic distortion, non-radial
+  // Energy flow — organic distortion
   layer energy memory: 0.90 {
     distort(scale: 3.0, speed: 0.4, strength: 0.12)
     | warp(scale: 2.5, octaves: 4, strength: 0.18 + flow * 0.05)
     | simplex(5.0)
     | palette(
-        a_r: 0.08, a_g: 0.05, a_b: 0.02,
-        b_r: 0.10, b_g: 0.07, b_b: 0.03,
+        a_r: 0.005, a_g: 0.003, a_b: 0.001,
+        b_r: 0.008, b_g: 0.006, b_b: 0.003,
         c_r: 0.5, c_g: 0.7, c_b: 0.3,
         d_r: 0.0, d_g: 0.15, d_b: 0.25
       )
   }
 
-  // Deep current — slow-moving undertone
+  // Deep current — slow undertone
   layer current memory: 0.92 {
     distort(scale: 2.0, speed: 0.25, strength: 0.08)
     | warp(scale: 1.5, octaves: 5, persistence: 0.6, strength: 0.22)
     | fbm(scale: 2.0, octaves: 5)
     | palette(
-        a_r: 0.05, a_g: 0.035, a_b: 0.015,
-        b_r: 0.07, b_g: 0.05, b_b: 0.02,
+        a_r: 0.003, a_g: 0.002, a_b: 0.001,
+        b_r: 0.005, b_g: 0.004, b_b: 0.002,
         c_r: 0.9, c_g: 0.7, c_b: 0.4,
         d_r: 0.05, d_g: 0.1, d_b: 0.15
       )
@@ -81,7 +81,6 @@ cinematic "sacred-geometry" {
   resonate {
     breath -> twelve.brightness * 0.15
     flow -> six.intensity * 0.1
-    flow -> energy.brightness * 0.1
   }
 
   pass frame { vignette(0.3) }
