@@ -691,12 +691,22 @@ pub struct EventHandler {
 
 // ── Texture inputs ───────────────────────────────────────
 
-/// `texture "name" [from "url"]` — external image/texture input.
+/// Whether a texture source is a static image or a video stream.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TextureType {
+    #[default]
+    Image,
+    Video,
+}
+
+/// `texture [video] "name" [from "url"]` — external image/video texture input.
 #[derive(Debug, Clone)]
 pub struct TextureDecl {
     pub name: String,
     /// Optional URL or path — can also be set from JavaScript at runtime.
     pub source: Option<String>,
+    /// Whether this texture is a static image or a looping video.
+    pub texture_type: TextureType,
 }
 
 // ── Phase v0.5: Scene sequencing ─────────────────────────

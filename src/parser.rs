@@ -2883,6 +2883,15 @@ impl Parser {
     fn parse_texture_decl(&mut self) -> Result<TextureDecl, CompileError> {
         // Consume the "texture" identifier
         self.advance();
+
+        // Check for optional "video" modifier: `texture video "name" from "url"`
+        let texture_type = if matches!(self.peek(), Some(Token::Ident(s)) if s == "video") {
+            self.advance(); // consume "video"
+            TextureType::Video
+        } else {
+            TextureType::Image
+        };
+
         let name = self.expect_string()?;
 
         // Optional `from "url"` clause
@@ -2893,7 +2902,7 @@ impl Parser {
             None
         };
 
-        Ok(TextureDecl { name, source })
+        Ok(TextureDecl { name, source, texture_type })
     }
 
     // ======================================================================

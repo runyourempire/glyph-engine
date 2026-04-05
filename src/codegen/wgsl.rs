@@ -412,14 +412,22 @@ fn generate_fragment_inner(
     for (i, tex) in cinematic.textures.iter().enumerate() {
         let tex_binding = (i as u32) * 2 + 5;
         let samp_binding = tex_binding + 1;
-        s.push_str(&format!(
-            "@group(0) @binding({tex_binding}) var {}_tex: texture_2d<f32>;\n",
-            tex.name
-        ));
-        s.push_str(&format!(
-            "@group(0) @binding({samp_binding}) var {}_samp: sampler;\n\n",
-            tex.name
-        ));
+        if tex.texture_type == TextureType::Video {
+            // Video textures use texture_external — no sampler needed
+            s.push_str(&format!(
+                "@group(0) @binding({tex_binding}) var {}_tex: texture_external;\n\n",
+                tex.name
+            ));
+        } else {
+            s.push_str(&format!(
+                "@group(0) @binding({tex_binding}) var {}_tex: texture_2d<f32>;\n",
+                tex.name
+            ));
+            s.push_str(&format!(
+                "@group(0) @binding({samp_binding}) var {}_samp: sampler;\n\n",
+                tex.name
+            ));
+        }
     }
 
     // Memory bindings (Group 1) — only when any layer uses memory
@@ -542,6 +550,7 @@ fn generate_fragment_inner(
             cinematic.matrix_color.is_some(),
             compute_kind,
             !cinematic.textures.is_empty(),
+            &cinematic.textures,
         );
     }
 
@@ -818,6 +827,7 @@ fn emit_wgsl_layer(
     has_color_matrix: bool,
     compute_kind: Option<&str>,
     has_textures: bool,
+    textures: &[TextureDecl],
 ) {
     s.push_str(&format!("    // ── Layer {idx}: {} ──\n", layer.name));
     if multi {
@@ -832,7 +842,7 @@ fn emit_wgsl_layer(
     match &layer.body {
         LayerBody::Pipeline(stages) => {
             for stage in stages {
-                emit_wgsl_stage_with_fns(s, stage, indent, fns);
+                emit_wgsl_stage_with_fns(s, stage, indent, fns, textures);
             }
         }
         LayerBody::Conditional {
@@ -850,13 +860,13 @@ fn emit_wgsl_layer(
             // We use a fresh `p` for the then branch
             s.push_str(&format!("{inner}{{ var p = p_then;\n"));
             for stage in then_branch {
-                emit_wgsl_stage_with_fns(s, stage, inner, fns);
+                emit_wgsl_stage_with_fns(s, stage, inner, fns, textures);
             }
             s.push_str(&format!("{inner}then_color = color_result; }}\n"));
             // Else branch
             s.push_str(&format!("{inner}{{ var p = p_then;\n"));
             for stage in else_branch {
-                emit_wgsl_stage_with_fns(s, stage, inner, fns);
+                emit_wgsl_stage_with_fns(s, stage, inner, fns, textures);
             }
             s.push_str(&format!("{inner}else_color = color_result; }}\n"));
             // Conditional select
@@ -1077,17 +1087,17 @@ fn resolve_arg_wgsl(arg: &Arg, idx: usize) -> String {
 }
 
 /// Emit a stage with fn-inlining support.
-fn emit_wgsl_stage_with_fns(s: &mut String, stage: &Stage, indent: &str, fns: &[FnDef]) {
+fn emit_wgsl_stage_with_fns(s: &mut String, stage: &Stage, indent: &str, fns: &[FnDef], textures: &[TextureDecl]) {
     // Check if this is a user-defined fn call
     if let Some(fn_def) = fns.iter().find(|f| f.name == stage.name) {
         // Inline the fn body with argument substitution
         for fn_stage in &fn_def.body {
             let substituted = substitute_fn_args(fn_stage, &fn_def.params, &stage.args);
-            emit_wgsl_stage(s, &substituted, indent);
+            emit_wgsl_stage(s, &substituted, indent, textures);
         }
         return;
     }
-    emit_wgsl_stage(s, stage, indent);
+    emit_wgsl_stage(s, stage, indent, textures);
 }
 
 /// Substitute fn param names with caller's arg values in a stage.
@@ -1136,7 +1146,7 @@ fn substitute_expr(expr: &Expr, params: &[String], caller_args: &[Arg]) -> Expr 
     }
 }
 
-fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
+fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str, textures: &[TextureDecl]) {
     let args = &stage.args;
     match stage.name.as_str() {
         "circle" => {
@@ -1460,12 +1470,19 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
         "sample" => {
             // Texture sampling: Position -> Color
             let name = super::extract_string_arg(args, "name", 0);
+            let is_video = textures.iter().any(|t| t.name == name && t.texture_type == TextureType::Video);
             s.push_str(&format!(
                 "{indent}let _tex_uv = clamp(vec2<f32>(p.x / aspect * 0.5 + 0.5, 1.0 - (p.y * 0.5 + 0.5)), vec2<f32>(0.0), vec2<f32>(1.0));\n"
             ));
-            s.push_str(&format!(
-                "{indent}var color_result = textureSample({name}_tex, {name}_samp, _tex_uv);\n"
-            ));
+            if is_video {
+                s.push_str(&format!(
+                    "{indent}var color_result = textureSampleBaseClampToEdge({name}_tex, _tex_uv);\n"
+                ));
+            } else {
+                s.push_str(&format!(
+                    "{indent}var color_result = textureSample({name}_tex, {name}_samp, _tex_uv);\n"
+                ));
+            }
         }
         "flowmap" => {
             // Two-phase seamless flowmap animation (Valve/Catlikecoding technique): Position -> Color
@@ -1500,12 +1517,22 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
                 "{indent}let _fm_uv1 = clamp(_fm_uv + _fm_dir * _fm_phase1, vec2<f32>(0.0), vec2<f32>(1.0));\n"
             ));
             // Sample source texture at both phase-offset UVs
-            s.push_str(&format!(
-                "{indent}let _fm_c0 = textureSample({source}_tex, {source}_samp, _fm_uv0);\n"
-            ));
-            s.push_str(&format!(
-                "{indent}let _fm_c1 = textureSample({source}_tex, {source}_samp, _fm_uv1);\n"
-            ));
+            let src_is_video = textures.iter().any(|t| t.name == source && t.texture_type == TextureType::Video);
+            if src_is_video {
+                s.push_str(&format!(
+                    "{indent}let _fm_c0 = textureSampleBaseClampToEdge({source}_tex, _fm_uv0);\n"
+                ));
+                s.push_str(&format!(
+                    "{indent}let _fm_c1 = textureSampleBaseClampToEdge({source}_tex, _fm_uv1);\n"
+                ));
+            } else {
+                s.push_str(&format!(
+                    "{indent}let _fm_c0 = textureSample({source}_tex, {source}_samp, _fm_uv0);\n"
+                ));
+                s.push_str(&format!(
+                    "{indent}let _fm_c1 = textureSample({source}_tex, {source}_samp, _fm_uv1);\n"
+                ));
+            }
             // Blend: triangle wave peaks at phase boundaries for seamless transition
             s.push_str(&format!(
                 "{indent}let _fm_blend = abs(2.0 * _fm_phase0 - 1.0);\n"
@@ -1556,9 +1583,16 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str) {
             s.push_str(&format!(
                 "{indent}let _px_displaced = clamp(_px_uv + _px_orbit * _px_depth, vec2<f32>(0.0), vec2<f32>(1.0));\n"
             ));
-            s.push_str(&format!(
-                "{indent}var color_result = textureSample({source}_tex, {source}_samp, _px_displaced);\n"
-            ));
+            let src_is_video = textures.iter().any(|t| t.name == source && t.texture_type == TextureType::Video);
+            if src_is_video {
+                s.push_str(&format!(
+                    "{indent}var color_result = textureSampleBaseClampToEdge({source}_tex, _px_displaced);\n"
+                ));
+            } else {
+                s.push_str(&format!(
+                    "{indent}var color_result = textureSample({source}_tex, {source}_samp, _px_displaced);\n"
+                ));
+            }
         }
         _ => {
             s.push_str(&format!("{indent}// Unknown stage: {}\n", stage.name));

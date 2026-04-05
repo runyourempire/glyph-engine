@@ -1130,11 +1130,13 @@ mod tests {
     #[test]
     fn component_with_textures_has_load_methods() {
         use crate::codegen::TextureInfo;
+        use crate::ast::TextureType;
         let mut shader = make_shader("textured");
         shader.textures = vec![TextureInfo {
             name: "diffuse".into(),
             binding: 5,
             source: None,
+        texture_type: TextureType::default(),
         }];
         let js = generate_component(&shader, ShaderTarget::Both);
         assert!(
@@ -1168,11 +1170,13 @@ mod tests {
     #[test]
     fn component_with_texture_source_auto_loads() {
         use crate::codegen::TextureInfo;
+        use crate::ast::TextureType;
         let mut shader = make_shader("auto-tex");
         shader.textures = vec![TextureInfo {
             name: "bg".into(),
             binding: 5,
             source: Some("https://example.com/bg.png".into()),
+            texture_type: TextureType::default(),
         }];
         let js = generate_component(&shader, ShaderTarget::Both);
         assert!(
@@ -1257,11 +1261,13 @@ mod tests {
     #[test]
     fn component_with_texture_has_bind_group_rebuild() {
         use crate::codegen::TextureInfo;
+        use crate::ast::TextureType;
         let mut shader = make_shader("photo-wall");
         shader.textures = vec![TextureInfo {
             name: "photo".into(),
             binding: 5,
             source: None,
+        texture_type: TextureType::default(),
         }];
         let js = generate_component(&shader, ShaderTarget::Both);
         // TEX_INDEX mapping
@@ -1280,11 +1286,13 @@ mod tests {
     #[test]
     fn component_with_texture_has_webgl_support() {
         use crate::codegen::TextureInfo;
+        use crate::ast::TextureType;
         let mut shader = make_shader("photo-gl");
         shader.textures = vec![TextureInfo {
             name: "bg".into(),
             binding: 5,
             source: None,
+        texture_type: TextureType::default(),
         }];
         let js = generate_component(&shader, ShaderTarget::Both);
         // WebGL2 texture uniform locations
@@ -1297,10 +1305,11 @@ mod tests {
     #[test]
     fn component_with_multiple_textures() {
         use crate::codegen::TextureInfo;
+        use crate::ast::TextureType;
         let mut shader = make_shader("multi-tex");
         shader.textures = vec![
-            TextureInfo { name: "photo".into(), binding: 5, source: None },
-            TextureInfo { name: "depth".into(), binding: 7, source: None },
+            TextureInfo { name: "photo".into(), binding: 5, source: None, texture_type: TextureType::default() },
+            TextureInfo { name: "depth".into(), binding: 7, source: None, texture_type: TextureType::default() },
         ];
         let js = generate_component(&shader, ShaderTarget::Both);
         assert!(js.contains("'photo': 0, 'depth': 1"), "should map both textures");
