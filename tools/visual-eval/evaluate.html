@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GAME Visual Evaluator</title>
+<style>
+  body { background: #000; color: #fff; font-family: monospace; padding: 16px; font-size: 12px; }
+  #preview { width: 512px; height: 512px; border: 1px solid #333; display: block; }
+  #report { white-space: pre-wrap; margin-top: 16px; background: #111; padding: 12px; max-height: 600px; overflow-y: auto; }
+  #frames { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+  #frames canvas { border: 1px solid #222; }
+</style>
+</head>
+<body>
+<h2>GAME Visual Evaluator</h2>
+<div id="status">Loading component...</div>
+<div id="preview-container"></div>
+<div id="frames"></div>
+<pre id="report"></pre>
+
+<script type="module">
+// Load the component JS from query param: ?component=path/to/file.js&tag=game-name
+const params = new URLSearchParams(location.search);
+const componentPath = params.get('component') || './test-component.js';
+const tagName = params.get('tag') || 'game-test';
+const duration = parseFloat(params.get('duration') || '10'); // seconds to evaluate
+const captureInterval = parseFloat(params.get('interval') || '1'); // seconds between captures
+const width = parseInt(params.get('w') || '512');
+const height = parseInt(params.get('h') || '512');
+
+const status = document.getElementById('status');
+const reportEl = document.getElementById('report');
+const framesEl = document.getElementById('frames');
+const container = document.getElementById('preview-container');
+
+// Import the component
+try {
+  await import(componentPath);
+} catch (e) {
+  status.textContent = `LOAD FAIL: ${e.message}`;
+  throw e;
+}
+
+// Create element
+const el = document.createElement(tagName);
+el.style.width = width + 'px';
+el.style.height = height + 'px';
+el.style.display = 'block';
+container.appendChild(el);
+status.textContent = 'Component mounted. Starting evaluation...';
+
+// Wait for WebGPU/WebGL init
+await new Promise(r => setTimeout(r, 500));
+
+const report = {
+  component: tagName,
+  source: componentPath,
+  resolution: `${width}x${height}`,
+  duration: duration,
+  captureCount: 0,
+  frames: [],
+  metrics: {},
+  verdict: 'PENDING'
+};
+
+// Frame analysis functions
+function analyzeFrame(imageData, t) {
+  const d = imageData.data;
+  const pixelCount = d.length / 4;
+  let totalR = 0, totalG = 0, totalB = 0, totalA = 0;
+  let nonBlackPixels = 0;
+  let maxBrightness = 0;
+  let minBrightness = 255 * 3;
+  let brightnessHistogram = new Array(16).fill(0);
+  let hasColor = false;
+
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
+    totalR += r; totalG += g; totalB += b; totalA += a;
+    const brightness = r + g + b;
+    if (brightness > 5) nonBlackPixels++;
+    if (brightness > maxBrightness) maxBrightness = brightness;
+    if (brightness < minBrightness) minBrightness = brightness;
+    const bin = Math.min(15, Math.floor(brightness / (765 / 16)));
+    brightnessHistogram[bin]++;
+    if (Math.abs(r - g) > 20 || Math.abs(r - b) > 20 || Math.abs(g - b) > 20) hasColor = true;
+  }
+
+  return {
+    time: t.toFixed(2),
+    avgR: (totalR / pixelCount).toFixed(1),
+    avgG: (totalG / pixelCount).toFixed(1),
+    avgB: (totalB / pixelCount).toFixed(1),
+    avgA: (totalA / pixelCount).toFixed(1),
+    nonBlackPct: ((nonBlackPixels / pixelCount) * 100).toFixed(1),
+    maxBrightness,
+    dynamicRange: maxBrightness - minBrightness,
+    hasColor,
+    brightnessHistogram: brightnessHistogram.map(v => ((v / pixelCount) * 100).toFixed(1))
+  };
+}
+
+function computeFrameDelta(prev, curr) {
+  if (!prev || !curr) return 0;
+  const pd = prev.data, cd = curr.data;
+  let totalDelta = 0;
+  for (let i = 0; i < pd.length; i += 4) {
+    totalDelta += Math.abs(pd[i] - cd[i]) + Math.abs(pd[i+1] - cd[i+1]) + Math.abs(pd[i+2] - cd[i+2]);
+  }
+  return totalDelta / (pd.length / 4) / 765; // normalized 0-1
+}
+
+// Capture loop
+const captureCount = Math.ceil(duration / captureInterval) + 1;
+let prevFrame = null;
+const deltas = [];
+
+for (let i = 0; i <= captureCount; i++) {
+  const t = i * captureInterval;
+  if (t > duration) break;
+
+  if (i > 0) {
+    await new Promise(r => setTimeout(r, captureInterval * 1000));
+  }
+
+  status.textContent = `Capturing frame at t=${t.toFixed(1)}s (${i+1}/${captureCount+1})...`;
+
+  // Capture frame via getFrame()
+  const frame = el.getFrame ? el.getFrame() : null;
+  if (!frame) {
+    report.frames.push({ time: t.toFixed(2), error: 'getFrame() returned null' });
+    continue;
+  }
+
+  const analysis = analyzeFrame(frame, t);
+  report.frames.push(analysis);
+  report.captureCount++;
+
+  // Frame delta (motion detection)
+  if (prevFrame) {
+    const delta = computeFrameDelta(prevFrame, frame);
+    deltas.push(delta);
+    analysis.frameDelta = (delta * 100).toFixed(3) + '%';
+  }
+  prevFrame = frame;
+
+  // Render thumbnail
+  const thumb = document.createElement('canvas');
+  thumb.width = 128; thumb.height = 128;
+  const ctx = thumb.getContext('2d');
+  const tmp = document.createElement('canvas');
+  tmp.width = frame.width; tmp.height = frame.height;
+  tmp.getContext('2d').putImageData(frame, 0, 0);
+  ctx.drawImage(tmp, 0, 0, 128, 128);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px monospace';
+  ctx.fillText(`t=${t.toFixed(1)}s`, 4, 12);
+  framesEl.appendChild(thumb);
+}
+
+// Compute aggregate metrics
+const nonBlacks = report.frames.filter(f => !f.error).map(f => parseFloat(f.nonBlackPct));
+const avgMotion = deltas.length > 0 ? deltas.reduce((a, b) => a + b, 0) / deltas.length : 0;
+const maxMotion = deltas.length > 0 ? Math.max(...deltas) : 0;
+const hasAnyContent = nonBlacks.some(v => v > 1);
+const isAnimated = avgMotion > 0.0001;
+const hasColorAny = report.frames.some(f => f.hasColor);
+
+report.metrics = {
+  hasContent: hasAnyContent,
+  isAnimated: isAnimated,
+  hasColor: hasColorAny,
+  avgNonBlackPct: (nonBlacks.reduce((a, b) => a + b, 0) / nonBlacks.length).toFixed(1) + '%',
+  avgMotion: (avgMotion * 100).toFixed(4) + '%',
+  maxMotion: (maxMotion * 100).toFixed(4) + '%',
+  dynamicRange: Math.max(...report.frames.filter(f => !f.error).map(f => f.dynamicRange))
+};
+
+// Verdict
+const issues = [];
+if (!hasAnyContent) issues.push('BLACK_SCREEN: No visible content');
+if (!isAnimated) issues.push('STATIC: No motion detected between frames');
+if (!hasColorAny) issues.push('MONOCHROME: No color variation detected');
+if (nonBlacks.length > 0 && parseFloat(nonBlacks[0]) < 0.5) issues.push('LATE_START: First frame nearly black');
+
+if (issues.length === 0) {
+  report.verdict = 'PASS';
+  report.quality = avgMotion > 0.01 ? 'HIGH_MOTION' : avgMotion > 0.001 ? 'MODERATE_MOTION' : 'SUBTLE_MOTION';
+} else {
+  report.verdict = 'ISSUES';
+  report.issues = issues;
+}
+
+// Output
+status.textContent = `Evaluation complete: ${report.verdict}`;
+reportEl.textContent = JSON.stringify(report, null, 2);
+
+// Also store in window for Playwright extraction
+window.__GAME_EVAL_REPORT = report;
+console.log('GAME_EVAL_REPORT:', JSON.stringify(report));
+</script>
+</body>
+</html>
