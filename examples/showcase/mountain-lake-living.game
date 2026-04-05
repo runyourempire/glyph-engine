@@ -1,0 +1,114 @@
+// MOUNTAIN LAKE — Hand-crafted living wallpaper
+// Still water mirroring jagged peaks, ripples breaking the perfect
+// reflection, mist crawling across the surface at dawn.
+// This is not a wallpaper. This is a window into the silence.
+
+cinematic "living-mountain-lake" {
+  texture "photo" from "mountain-lake.jpg"
+  texture "depth" from "mountain-lake-depth.png"
+  texture "mask_sky" from "mountain-lake-mask_sky.png"
+  texture "mask_water" from "mountain-lake-mask_water.png"
+  texture "mask_vegetation" from "mountain-lake-mask_vegetation.png"
+
+  // ══════ THE MOUNTAINS — ancient, immovable, breathing ══════
+  layer world {
+    parallax("photo", depth: "depth", strength: 0.020, orbit_speed: 0.05)
+  }
+
+  // ══════ LAKE SURFACE — gentle oscillating ripples ══════
+  layer lake_ripple opacity: 0.82 {
+    distort(scale: 0.6, speed: 0.12, strength: 0.010)
+    | sample("photo")
+    | mask("mask_water")
+  }
+
+  // ══════ SKY DRIFT — imperceptible cloud movement ══════
+  layer sky_drift opacity: 0.86 {
+    distort(scale: 0.22, speed: 0.03, strength: 0.010)
+    | sample("photo")
+    | mask("mask_sky")
+  }
+
+  // ══════ REFLECTION SHIMMER — light dancing on water ══════
+  layer reflection_shimmer opacity: 0.10 blend: screen {
+    translate(time * 0.008, time * 0.004)
+    | distort(scale: 2.5, speed: 0.8, strength: 0.05)
+    | warp(scale: 2.0, octaves: 3, strength: 0.16)
+    | voronoi(7.0)
+    | glow(3.0)
+    | tint(0.85, 0.90, 1.0)
+    | mask("mask_water")
+  }
+
+  // ══════ WATER MIST — low fog creeping across the surface ══════
+  layer water_mist opacity: 0.09 blend: screen {
+    translate(time * 0.006, sin(time * 0.03) * 0.003)
+    | warp(scale: 0.7, octaves: 5, persistence: 0.62, strength: 0.20)
+    | fbm(scale: 1.0, octaves: 5, persistence: 0.52)
+    | glow(0.8)
+    | tint(0.82, 0.86, 0.95)
+    | mask("mask_water")
+  }
+
+  // ══════ MOUNTAIN HAZE — atmospheric depth at large scale ══════
+  layer mountain_haze opacity: 0.07 blend: screen {
+    translate(time * 0.004, time * 0.002)
+    | warp(scale: 0.3, octaves: 3, persistence: 0.55, strength: 0.10)
+    | fbm(scale: 0.35, octaves: 3, persistence: 0.50)
+    | glow(1.5)
+    | tint(0.75, 0.80, 0.92)
+    | mask("depth", invert: 1)
+  }
+
+  // ══════ WATER SPARKLE — pinpoint light on wavelets ══════
+  layer water_sparkle opacity: 0.05 blend: screen {
+    translate(time * 0.012, time * 0.006)
+    | distort(scale: 10.0, speed: 1.5, strength: 0.08)
+    | voronoi(22.0)
+    | glow(8.0)
+    | tint(0.92, 0.95, 1.0)
+    | mask("mask_water")
+  }
+
+  // ══════ TREE SWAY — wind through lakeside vegetation ══════
+  layer tree_sway opacity: 0.83 {
+    distort(scale: 0.45, speed: 0.08, strength: 0.006)
+    | sample("photo")
+    | mask("mask_vegetation")
+  }
+
+  // ══════ CLOUD REFLECTIONS — mirrored sky in the lake ══════
+  layer cloud_reflect opacity: 0.06 blend: multiply {
+    translate(time * 0.005, time * 0.002)
+    | distort(scale: 0.30, speed: 0.06, strength: 0.008)
+    | warp(scale: 0.4, octaves: 3, persistence: 0.55, strength: 0.12)
+    | fbm(scale: 0.5, octaves: 3, persistence: 0.50)
+    | glow(1.0)
+    | tint(0.70, 0.74, 0.85)
+    | mask("mask_water")
+  }
+
+  // ══════ SKY ATMOSPHERE — subtle brightness variation ══════
+  layer sky_glow opacity: 0.06 blend: screen {
+    translate(time * 0.003, time * 0.001)
+    | warp(scale: 0.25, octaves: 2, persistence: 0.5, strength: 0.06)
+    | fbm(scale: 0.20, octaves: 2, persistence: 0.5)
+    | glow(1.5)
+    | tint(0.80, 0.85, 0.95)
+    | mask("mask_sky")
+  }
+
+  // ══════ DEPTH MIST — far peaks softened by distance ══════
+  layer depth_mist opacity: 0.08 blend: screen {
+    translate(time * 0.005, sin(time * 0.04) * 0.003)
+    | warp(scale: 0.5, octaves: 4, persistence: 0.58, strength: 0.14)
+    | fbm(scale: 0.7, octaves: 4, persistence: 0.50)
+    | glow(1.0)
+    | tint(0.78, 0.82, 0.92)
+  }
+
+  // ══════ CINEMATIC POST ══════
+  pass soften { blur(0.5) }
+  pass frame { vignette(0.26) }
+  pass film { film_grain(0.012) }
+}

@@ -10,9 +10,9 @@ Models:
   - SAM 2 (Meta 2024): Video segmentation with motion-consistent masks
 
 Pipeline:
-  Video → frame extraction → camera stabilization → optical flow →
-  depth estimation → segmentation → FFT frequency analysis →
-  motion descriptor → analysis.json + texture PNGs
+  Video -> frame extraction -> camera stabilization -> optical flow ->
+  depth estimation -> segmentation -> FFT frequency analysis ->
+  motion descriptor -> analysis.json + texture PNGs
 
 Usage:
   python analyze_video.py input.mp4 --output-dir ./output [--llm-enhance]
@@ -528,7 +528,7 @@ def extract_motion_frequencies(flow: np.ndarray, masks: dict,
         )
 
         print(f"  - {region_name}: {motion_type}, speed={flow_speed:.3f}, "
-              f"freq={dominant_freq_hz:.3f}Hz → sin(time*{2*math.pi*dominant_freq_hz:.2f}), "
+              f"freq={dominant_freq_hz:.3f}Hz -> sin(time*{2*math.pi*dominant_freq_hz:.2f}), "
               f"turbulence={flow_turbulence:.3f}")
 
     return results
@@ -545,6 +545,7 @@ def analyze_multiscale_energy(flow: np.ndarray, mask: np.ndarray) -> tuple:
 
     energy_per_scale = []
     current = masked_flow.copy()
+    current_mask = mask.astype(np.float32)
 
     for octave in range(6):
         energy = np.mean(current ** 2)
@@ -552,10 +553,8 @@ def analyze_multiscale_energy(flow: np.ndarray, mask: np.ndarray) -> tuple:
         if current.shape[0] < 4 or current.shape[1] < 4:
             break
         current = cv2.pyrDown(current)
-        # Also downsample mask
-        mask_down = cv2.pyrDown(mask.astype(np.float32) if octave == 0
-                                else np.ones_like(current))
-        current = current * (mask_down > 0.3).astype(np.float32)
+        current_mask = cv2.pyrDown(current_mask)
+        current = current * (current_mask > 0.3).astype(np.float32)
 
     if len(energy_per_scale) < 2:
         return 0.55, 4

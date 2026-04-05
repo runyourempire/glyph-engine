@@ -832,6 +832,223 @@ cinematic "${componentName}" {
 };
 
 // ════════════════════════════════════════════════════════════════
+// TEMPLATE: SUNSET LANDSCAPE
+// ════════════════════════════════════════════════════════════════
+const sunsetLandscapeTemplate: TemplateGenerator = (ctx) => {
+  const { componentName, baseName, imageName, s } = ctx;
+  return `// Living World — Golden Hour Sunset
+// Golden rays, cloud shadows, warm haze, dust motes, vegetation sway
+// Template: sunset_landscape | Intensity: ${s.toFixed(2)}
+
+cinematic "${componentName}" {
+  texture "photo" from "${imageName}"
+  texture "depth" from "${baseName}-depth.png"
+  texture "mask_sky" from "${baseName}-mask_sky.png"
+  texture "mask_vegetation" from "${baseName}-mask_vegetation.png"
+
+  layer world {
+    parallax("photo", depth: "depth", strength: ${(0.022 * s).toFixed(3)}, orbit_speed: 0.06)
+  }
+
+  layer cloud_drift opacity: 0.85 {
+    distort(scale: 0.25, speed: ${(0.04 * s).toFixed(2)}, strength: 0.012)
+    | sample("photo")
+    | mask("mask_sky")
+  }
+
+  layer sun_rays opacity: ${(0.18 * s).toFixed(2)} blend: add {
+    translate(0.5, 0.35)
+    | polar()
+    | distort(scale: 0.4, speed: ${(0.025 * s).toFixed(3)}, strength: 0.012)
+    | warp(scale: 0.4, octaves: 3, persistence: 0.55, strength: 0.15)
+    | fbm(scale: 0.5, octaves: 3, persistence: 0.50)
+    | glow(4.0)
+    | tint(1.0, 0.82, 0.35)
+    | mask("mask_sky")
+  }
+
+  layer warm_haze opacity: ${(0.10 * s).toFixed(2)} blend: screen {
+    translate(time * ${(0.008 * s).toFixed(3)}, sin(time * 0.04) * 0.003)
+    | warp(scale: 0.6, octaves: 4, persistence: 0.60, strength: 0.18)
+    | fbm(scale: 0.8, octaves: 4, persistence: 0.55)
+    | glow(1.5)
+    | tint(1.0, 0.85, 0.50)
+  }
+
+  layer cloud_shadows opacity: ${(0.08 * s).toFixed(2)} blend: multiply {
+    translate(time * ${(0.012 * s).toFixed(3)}, time * 0.003)
+    | warp(scale: 0.4, octaves: 3, persistence: 0.55, strength: 0.14)
+    | fbm(scale: 0.5, octaves: 3, persistence: 0.50)
+    | glow(1.0)
+    | tint(0.75, 0.68, 0.55)
+    | mask("depth")
+  }
+
+  layer lens_flare opacity: ${(0.12 * s).toFixed(2)} blend: add {
+    translate(0.5, 0.32)
+    | radial_fade(inner: 0.0, outer: 0.35)
+    | glow(6.0)
+    | tint(1.0, 0.90, 0.55)
+    | mask("mask_sky")
+  }
+
+  layer grass_sway opacity: 0.80 {
+    distort(scale: 0.5, speed: ${(0.10 * s).toFixed(2)}, strength: 0.006)
+    | sample("photo")
+    | mask("mask_vegetation")
+  }
+
+  layer golden_wash opacity: ${(0.05 * s).toFixed(2)} blend: screen {
+    translate(time * 0.004, time * 0.002)
+    | warp(scale: 0.3, octaves: 2, persistence: 0.5, strength: 0.06)
+    | fbm(scale: 0.20, octaves: 2, persistence: 0.5)
+    | glow(1.0)
+    | tint(1.0, 0.88, 0.45)
+  }
+
+  layer dust_motes opacity: ${(0.04 * s).toFixed(2)} blend: screen {
+    translate(sin(time * 0.08) * 0.006, time * -0.002)
+    | distort(scale: 14.0, speed: 1.8, strength: 0.10)
+    | voronoi(28.0)
+    | glow(8.0)
+    | tint(1.0, 0.92, 0.60)
+    | mask("depth")
+  }
+
+  layer sky_glow opacity: ${(0.09 * s).toFixed(2)} blend: screen {
+    translate(time * 0.005, time * 0.002)
+    | warp(scale: 0.35, octaves: 3, persistence: 0.55, strength: 0.10)
+    | fbm(scale: 0.4, octaves: 3, persistence: 0.50)
+    | glow(2.0)
+    | tint(1.0, 0.78, 0.40)
+    | mask("mask_sky")
+  }
+
+  layer light_pulse opacity: ${(0.06 * s).toFixed(2)} blend: screen {
+    translate(time * 0.003, time * 0.001)
+    | warp(scale: 0.25, octaves: 2, persistence: 0.5, strength: 0.05)
+    | fbm(scale: 0.20, octaves: 2, persistence: 0.5)
+    | glow(1.5)
+    | tint(1.0, 0.90, 0.65)
+  }
+
+  pass soften { blur(0.5) }
+  pass frame { vignette(0.25) }
+  pass film { film_grain(0.012) }
+}
+`;
+};
+
+// ════════════════════════════════════════════════════════════════
+// TEMPLATE: MOUNTAIN LAKE
+// ════════════════════════════════════════════════════════════════
+const mountainLakeTemplate: TemplateGenerator = (ctx) => {
+  const { componentName, baseName, imageName, s } = ctx;
+  return `// Living World — Mountain Lake
+// Still water, rippling reflections, creeping mist, distant haze
+// Template: mountain_lake | Intensity: ${s.toFixed(2)}
+
+cinematic "${componentName}" {
+  texture "photo" from "${imageName}"
+  texture "depth" from "${baseName}-depth.png"
+  texture "mask_sky" from "${baseName}-mask_sky.png"
+  texture "mask_water" from "${baseName}-mask_water.png"
+  texture "mask_vegetation" from "${baseName}-mask_vegetation.png"
+
+  layer world {
+    parallax("photo", depth: "depth", strength: ${(0.020 * s).toFixed(3)}, orbit_speed: 0.05)
+  }
+
+  layer lake_ripple opacity: 0.82 {
+    distort(scale: 0.6, speed: ${(0.12 * s).toFixed(2)}, strength: ${(0.010 * s).toFixed(4)})
+    | sample("photo")
+    | mask("mask_water")
+  }
+
+  layer sky_drift opacity: 0.86 {
+    distort(scale: 0.22, speed: ${(0.03 * s).toFixed(2)}, strength: 0.010)
+    | sample("photo")
+    | mask("mask_sky")
+  }
+
+  layer reflection_shimmer opacity: ${(0.10 * s).toFixed(2)} blend: screen {
+    translate(time * ${(0.008 * s).toFixed(3)}, time * 0.004)
+    | distort(scale: 2.5, speed: 0.8, strength: 0.05)
+    | warp(scale: 2.0, octaves: 3, strength: 0.16)
+    | voronoi(7.0)
+    | glow(3.0)
+    | tint(0.85, 0.90, 1.0)
+    | mask("mask_water")
+  }
+
+  layer water_mist opacity: ${(0.09 * s).toFixed(2)} blend: screen {
+    translate(time * ${(0.006 * s).toFixed(3)}, sin(time * 0.03) * 0.003)
+    | warp(scale: 0.7, octaves: 5, persistence: 0.62, strength: 0.20)
+    | fbm(scale: 1.0, octaves: 5, persistence: 0.52)
+    | glow(0.8)
+    | tint(0.82, 0.86, 0.95)
+    | mask("mask_water")
+  }
+
+  layer mountain_haze opacity: ${(0.07 * s).toFixed(2)} blend: screen {
+    translate(time * 0.004, time * 0.002)
+    | warp(scale: 0.3, octaves: 3, persistence: 0.55, strength: 0.10)
+    | fbm(scale: 0.35, octaves: 3, persistence: 0.50)
+    | glow(1.5)
+    | tint(0.75, 0.80, 0.92)
+    | mask("depth", invert: 1)
+  }
+
+  layer water_sparkle opacity: ${(0.05 * s).toFixed(2)} blend: screen {
+    translate(time * ${(0.012 * s).toFixed(3)}, time * 0.006)
+    | distort(scale: 10.0, speed: 1.5, strength: 0.08)
+    | voronoi(22.0)
+    | glow(8.0)
+    | tint(0.92, 0.95, 1.0)
+    | mask("mask_water")
+  }
+
+  layer tree_sway opacity: 0.83 {
+    distort(scale: 0.45, speed: ${(0.08 * s).toFixed(2)}, strength: 0.006)
+    | sample("photo")
+    | mask("mask_vegetation")
+  }
+
+  layer cloud_reflect opacity: ${(0.06 * s).toFixed(2)} blend: multiply {
+    translate(time * 0.005, time * 0.002)
+    | distort(scale: 0.30, speed: 0.06, strength: 0.008)
+    | warp(scale: 0.4, octaves: 3, persistence: 0.55, strength: 0.12)
+    | fbm(scale: 0.5, octaves: 3, persistence: 0.50)
+    | glow(1.0)
+    | tint(0.70, 0.74, 0.85)
+    | mask("mask_water")
+  }
+
+  layer sky_glow opacity: ${(0.06 * s).toFixed(2)} blend: screen {
+    translate(time * 0.003, time * 0.001)
+    | warp(scale: 0.25, octaves: 2, persistence: 0.5, strength: 0.06)
+    | fbm(scale: 0.20, octaves: 2, persistence: 0.5)
+    | glow(1.5)
+    | tint(0.80, 0.85, 0.95)
+    | mask("mask_sky")
+  }
+
+  layer depth_mist opacity: ${(0.08 * s).toFixed(2)} blend: screen {
+    translate(time * 0.005, sin(time * 0.04) * 0.003)
+    | warp(scale: 0.5, octaves: 4, persistence: 0.58, strength: 0.14)
+    | fbm(scale: 0.7, octaves: 4, persistence: 0.50)
+    | glow(1.0)
+    | tint(0.78, 0.82, 0.92)
+  }
+
+  pass soften { blur(0.5) }
+  pass frame { vignette(0.26) }
+  pass film { film_grain(0.012) }
+}
+`;
+};
+
+// ════════════════════════════════════════════════════════════════
 // GENERIC LANDSCAPE FALLBACK
 // ════════════════════════════════════════════════════════════════
 const genericLandscapeTemplate: TemplateGenerator = (ctx) => {
@@ -922,8 +1139,8 @@ const TEMPLATES: Record<string, TemplateGenerator> = {
   thunderstorm: thunderstormTemplate,
   city_night: cityNightTemplate,
   desert_dunes: desertDunesTemplate,
-  sunset_landscape: genericLandscapeTemplate,
-  mountain_lake: genericLandscapeTemplate,
+  sunset_landscape: sunsetLandscapeTemplate,
+  mountain_lake: mountainLakeTemplate,
   generic: genericLandscapeTemplate,
 };
 
@@ -947,6 +1164,8 @@ export function selectTemplate(sceneType: string): TemplateGenerator {
   if (normalized.includes('storm') || normalized.includes('thunder') || normalized.includes('lightning') || normalized.includes('rain')) return TEMPLATES.thunderstorm;
   if (normalized.includes('city') || normalized.includes('urban') || normalized.includes('night') || normalized.includes('neon')) return TEMPLATES.city_night;
   if (normalized.includes('desert') || normalized.includes('dune') || normalized.includes('sand') || normalized.includes('arid')) return TEMPLATES.desert_dunes;
+  if (normalized.includes('sunset') || normalized.includes('golden_hour') || normalized.includes('sunrise') || normalized.includes('dawn')) return TEMPLATES.sunset_landscape;
+  if (normalized.includes('mountain') && normalized.includes('lake') || normalized.includes('alpine_lake') || normalized.includes('mirror_lake')) return TEMPLATES.mountain_lake;
 
   return TEMPLATES.generic;
 }
