@@ -1,0 +1,165 @@
+// Pentachoron Field — 4-dimensional geometry projected into light.
+// Named for the 5-cell polytope (4D simplex), this creates a field of
+// interlocking sacred geometry: concentric onion rings, kaleidoscopic
+// star mandala, flow-field connective tissue, and stardust particles.
+// Mouse warps the field. Audio drives the pulse. 4DA brand aesthetic.
+
+cinematic "pentachoron-field" {
+  layer config {
+    unfold: 0.0
+    resonance: 0.0
+  }
+
+  // Layer 1: Void field — deep space with subtle purple nebula texture
+  // The canvas from which geometry emerges
+  layer void_field memory: 0.90 {
+    warp(scale: 1.5, octaves: 5, persistence: 0.5, strength: 0.1)
+    | fbm(scale: 2.0, octaves: 5, persistence: 0.45)
+    | palette(
+        a_r: 0.004, a_g: 0.002, a_b: 0.008,
+        b_r: 0.012, b_g: 0.006, b_b: 0.025,
+        c_r: 0.15, c_g: 0.08, c_b: 0.3,
+        d_r: 0.0, d_g: 0.02, d_b: 0.1
+      )
+  }
+
+  // Layer 2: The singularity — white-lavender core with intense glow
+  // The heart of the pentachoron, where all vertices converge
+  layer singularity memory: 0.92 {
+    translate(mouse_x * 0.06 - 0.03, mouse_y * 0.06 - 0.03)
+    | distort(scale: 2.0, speed: 0.4, strength: 0.012 + unfold * 0.006)
+    | circle(0.035 + unfold * 0.015)
+    | glow(5.0 + unfold * 2.5 + audio.beat * 1.5)
+    | tint(0.83, 0.75, 1.0)
+  }
+
+  // Layer 3: Inner rings — concentric onion structure radiating from core
+  // Slow rotation creates the illusion of 4D cross-section slicing
+  layer inner_rings memory: 0.88 blend: add {
+    translate(mouse_x * 0.08 - 0.04, mouse_y * 0.08 - 0.04)
+    | rotate(time * 0.08)
+    | distort(scale: 2.0, speed: 0.3, strength: 0.015 + resonance * 0.008)
+    | circle(0.14 + unfold * 0.04)
+    | onion(5, 0.006 + resonance * 0.002)
+    | glow(1.6 + resonance * 0.8)
+    | tint(0.55, 0.4, 0.9)
+  }
+
+  // Layer 4: Outer rings — counter-rotating, wider spacing
+  // Different rotation speed creates moire-like interference patterns
+  layer outer_rings memory: 0.85 blend: add {
+    translate(mouse_x * 0.05 - 0.025, mouse_y * 0.05 - 0.025)
+    | rotate(time * -0.05)
+    | distort(scale: 1.8, speed: 0.25, strength: 0.01)
+    | circle(0.28 + unfold * 0.06)
+    | onion(3, 0.004)
+    | glow(0.9 + unfold * 0.4)
+    | tint(0.4, 0.25, 0.7)
+  }
+
+  // Layer 5: Star mandala — 5-pointed for the pentachoron's five vertices
+  // Kaleidoscopic radial symmetry with slow morphing
+  layer mandala memory: 0.86 blend: add {
+    translate(mouse_x * 0.04 - 0.02, mouse_y * 0.04 - 0.02)
+    | radial(5)
+    | rotate(time * 0.06)
+    | distort(scale: 2.5, speed: 0.35, strength: 0.02 + unfold * 0.01)
+    | star(5, 0.22 + resonance * 0.04, 0.1 + resonance * 0.02)
+    | glow(1.4 + resonance * 0.6)
+    | tint(0.83, 0.69, 0.22)
+  }
+
+  // Layer 6: Secondary geometry — 10-fold symmetry creates decagonal pattern
+  // Gold accent — the 4DA brand color woven into the structure
+  layer decagon memory: 0.83 blend: add {
+    radial(10)
+    | rotate(time * -0.04)
+    | translate(0.18 + unfold * 0.03, 0.0)
+    | triangle(0.02 + resonance * 0.008)
+    | glow(1.8 + audio.mid * 0.6)
+    | tint(0.83, 0.69, 0.22)
+  }
+
+  // Layer 7: Field lines — organic flow connecting geometric elements
+  // Subtle warped fbm creates the connective tissue of the field
+  layer field_lines memory: 0.80 blend: add {
+    translate(mouse_x * 0.1 - 0.05, mouse_y * 0.1 - 0.05)
+    | warp(scale: 3.0, octaves: 5, persistence: 0.55, strength: 0.15 + unfold * 0.08)
+    | fbm(scale: 4.0, octaves: 5, persistence: 0.5)
+    | palette(
+        a_r: 0.002, a_g: 0.001, a_b: 0.005,
+        b_r: 0.01, b_g: 0.006, b_b: 0.02,
+        c_r: 0.3, c_g: 0.2, c_b: 0.6,
+        d_r: 0.05, d_g: 0.1, d_b: 0.25
+      )
+  }
+
+  // Layer 8: Particle dust — stardust surrounding the geometry
+  // High-frequency voronoi with extreme glow = scattered bright specks
+  layer stardust memory: 0.76 blend: add {
+    warp(scale: 2.5, octaves: 3, strength: 0.12 + audio.treble * 0.06)
+    | voronoi(35.0)
+    | glow(14.0 + audio.energy * 4.0)
+    | tint(0.7, 0.6, 1.0)
+  }
+
+  // Layer 9: Orbiting vertex — a golden star tracing the pentachoron edge
+  // Elliptical orbit suggests projection of higher-dimensional rotation
+  layer vertex_a memory: 0.74 blend: add {
+    translate(
+      sin(time * 0.25) * (0.2 + unfold * 0.06) + mouse_x * 0.03 - 0.015,
+      cos(time * 0.32) * (0.18 + unfold * 0.05) + mouse_y * 0.03 - 0.015
+    )
+    | star(5, 0.01 + resonance * 0.004, 0.004)
+    | glow(2.2 + resonance * 0.8)
+    | tint(0.83, 0.69, 0.22)
+  }
+
+  // Layer 10: Counter-orbiting vertex — lavender, opposite phase
+  layer vertex_b memory: 0.72 blend: add {
+    translate(
+      cos(time * 0.2) * (0.26 + unfold * 0.04) + mouse_x * 0.02 - 0.01,
+      sin(time * 0.28) * (0.22 + unfold * 0.04) + mouse_y * 0.02 - 0.01
+    )
+    | star(5, 0.008 + resonance * 0.003, 0.003)
+    | glow(1.8 + resonance * 0.6)
+    | tint(0.6, 0.45, 1.0)
+  }
+
+  // Layer 11: Containment boundary — thin structural edge
+  layer boundary blend: add {
+    ring(0.42, 0.001)
+    | glow(0.3 + unfold * 0.15)
+    | tint(0.25, 0.18, 0.45)
+  }
+
+  // 20 second unfolding — the 4D structure reveals itself
+  arc {
+    unfold: 0.0 -> 1.0 over 15s ease-in-out
+    resonance: 0.0 -> 1.0 over 20s ease-out
+  }
+
+  // Cross-layer resonance — every element connected through the field
+  resonate {
+    unfold -> inner_rings.brightness * 0.4
+    unfold -> mandala.brightness * 0.35
+    unfold -> field_lines.intensity * 0.3
+    resonance -> singularity.brightness * 0.5
+    resonance -> outer_rings.brightness * 0.3
+    resonance -> decagon.brightness * 0.25
+  }
+
+  // Color grading — enhance violet-purple, warm the gold highlights
+  matrix color {
+    [
+      0.92, -0.02, 0.12,
+      0.0,   0.88, 0.04,
+      0.1,   0.04, 1.18
+    ]
+  }
+
+  // Post-processing — ethereal glow, chromatic shift, cinematic frame
+  pass ethereal { blur(1.8) }
+  pass split { chromatic(0.003) }
+  pass frame { vignette(0.38) }
+}

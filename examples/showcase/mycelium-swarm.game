@@ -1,0 +1,121 @@
+// Mycelium Swarm — physarum intelligence rendered in bioluminescent light.
+// Unlike 18-mycelium-network (static hyphae), this simulates the BEHAVIOR:
+// persistent trail networks, pulsing nutrient transport, mouse-guided
+// chemotaxis, and audio-reactive metabolism. A living organism.
+
+cinematic "mycelium-swarm" {
+  layer config {
+    metabolism: 0.0
+    chemotaxis: 0.0
+  }
+
+  // Layer 1: Substrate — deep humus with organic texture
+  // Ultra-dark base ensures the bioluminescence reads as light, not paint
+  layer substrate memory: 0.96 {
+    warp(scale: 1.5, octaves: 5, persistence: 0.5, strength: 0.08)
+    | fbm(scale: 2.5, octaves: 5, persistence: 0.45)
+    | palette(
+        a_r: 0.003, a_g: 0.002, a_b: 0.001,
+        b_r: 0.008, b_g: 0.005, b_b: 0.003,
+        c_r: 0.4, c_g: 0.3, c_b: 0.2,
+        d_r: 0.0, d_g: 0.05, d_b: 0.08
+      )
+  }
+
+  // Layer 2: Primary network — voronoi cell walls create the hyphae mesh
+  // High memory makes trails persist like real slime mold pheromone deposits
+  layer network memory: 0.94 {
+    warp(scale: 3.5, octaves: 6, persistence: 0.6, lacunarity: 2.1, strength: 0.22 + metabolism * 0.1)
+    | voronoi(7.0)
+    | palette(
+        a_r: 0.002, a_g: 0.008, a_b: 0.003,
+        b_r: 0.01, b_g: 0.04, b_b: 0.015,
+        c_r: 0.25, c_g: 0.85, c_b: 0.4,
+        d_r: 0.0, d_g: 0.3, d_b: 0.1
+      )
+  }
+
+  // Layer 3: Fine tendrils — higher frequency secondary network
+  // Rotated to avoid alignment with primary, creating crossing patterns
+  layer tendrils memory: 0.91 blend: add {
+    rotate(0.45)
+    | warp(scale: 5.0, octaves: 5, persistence: 0.55, strength: 0.18 + metabolism * 0.06)
+    | voronoi(16.0)
+    | palette(
+        a_r: 0.0, a_g: 0.004, a_b: 0.003,
+        b_r: 0.005, b_g: 0.02, b_b: 0.012,
+        c_r: 0.15, c_g: 0.55, c_b: 0.35,
+        d_r: 0.05, d_g: 0.35, d_b: 0.15
+      )
+  }
+
+  // Layer 4: Nutrient transport — fast-moving pulses along the network
+  // Low memory + fast distort = fleeting bright streaks like cytoplasmic streaming
+  layer transport memory: 0.78 blend: add {
+    distort(scale: 4.0, speed: 1.2, strength: 0.06 + metabolism * 0.03)
+    | warp(scale: 6.0, octaves: 4, strength: 0.3 + audio.bass * 0.12)
+    | voronoi(10.0)
+    | glow(1.2 + audio.energy * 0.8)
+    | tint(0.0, 0.95, 0.55)
+  }
+
+  // Layer 5: Growth tips — bright points where the network is actively extending
+  // Very high frequency voronoi = dense bright nodes at branching points
+  layer tips memory: 0.80 blend: add {
+    warp(scale: 4.0, octaves: 3, strength: 0.15 + chemotaxis * 0.08)
+    | voronoi(32.0)
+    | glow(12.0 + metabolism * 4.0)
+    | tint(0.15, 1.0, 0.6)
+  }
+
+  // Layer 6: Mouse chemotaxis — the organism senses and reaches toward cursor
+  // Translates a radial glow to follow mouse position, simulating chemical gradient
+  layer attract memory: 0.85 blend: add {
+    translate(mouse_x * 2.0 - 1.0, mouse_y * 2.0 - 1.0)
+    | distort(scale: 2.0, speed: 0.5, strength: 0.02 + mouse_down * 0.03)
+    | radial_fade(0.0, 0.25 + mouse_down * 0.1)
+    | glow(2.5 + mouse_down * 3.0)
+    | tint(0.0, 0.8, 1.0)
+  }
+
+  // Layer 7: Metabolic haze — the network breathes with audio
+  // Low-frequency modulation makes the entire organism pulse with sound
+  layer breath memory: 0.88 blend: add {
+    warp(scale: 2.0, octaves: 4, persistence: 0.45, strength: 0.1 + audio.bass * 0.15)
+    | fbm(scale: 1.5, octaves: 4, persistence: 0.4)
+    | palette(
+        a_r: 0.0, a_g: 0.002, a_b: 0.001,
+        b_r: 0.003, b_g: 0.01, b_b: 0.006,
+        c_r: 0.1, c_g: 0.4, c_b: 0.2,
+        d_r: 0.0, d_g: 0.2, d_b: 0.08
+      )
+  }
+
+  // 15 second lifecycle — dormant to fully active metabolism
+  arc {
+    metabolism: 0.0 -> 1.0 over 15s ease-in-out
+    chemotaxis: 0.0 -> 0.8 over 10s ease-out
+  }
+
+  // Cross-layer resonance — the organism is one connected system
+  resonate {
+    metabolism -> network.intensity * 0.35
+    metabolism -> tendrils.intensity * 0.25
+    metabolism -> transport.brightness * 0.4
+    chemotaxis -> tips.brightness * 0.35
+    chemotaxis -> attract.brightness * 0.2
+  }
+
+  // Color grading — push greens toward cyan, deepen shadows
+  matrix color {
+    [
+      0.85, -0.03, 0.02,
+      0.02,  1.1,  0.08,
+     -0.02,  0.12, 0.95
+    ]
+  }
+
+  // Post — organic softness without losing the sharp network edges
+  pass diffuse { blur(1.2) }
+  pass frame { vignette(0.4) }
+}
