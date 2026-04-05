@@ -95,70 +95,71 @@ pub fn generate_compute_wgsl(react: &ReactBlock) -> String {
 }
 
 /// Generate JavaScript runtime for reaction-diffusion GPU dispatch.
+///
+/// Features:
+/// - Periodic re-seeding loop (every 30s) for continuous grow→reset cycles
+/// - Time-modulated feed/kill (±0.005/±0.003) for visible breathing between resets
 pub fn generate_compute_runtime_js(react: &ReactBlock, width: u32, height: u32) -> String {
     let mut s = String::with_capacity(4096);
+    let feed = react.feed;
+    let kill = react.kill;
+    let da = react.diffuse_a;
+    let db = react.diffuse_b;
 
     s.push_str("class GameReactionField {\n");
     s.push_str(&format!(
-        "  constructor(device, computeCode) {{ this._w = {width}; this._h = {height}; this._device = device; this._code = computeCode; }}\n\n"
+        "  constructor(device, computeCode) {{ this._w = {width}; this._h = {height}; this._device = device; this._code = computeCode; this._resetTime = 0; }}\n\n"
     ));
 
+    // --- init: create pipeline + buffers, then seed ---
     s.push_str("  async init() {\n");
     s.push_str("    const device = this._device;\n");
     s.push_str("    const module = device.createShaderModule({ code: this._code });\n");
     s.push_str("    this._pipeline = device.createComputePipeline({\n");
     s.push_str("      layout: 'auto',\n");
     s.push_str("      compute: { module, entryPoint: 'cs_main' },\n");
-    s.push_str("    });\n\n");
-
-    // Storage buffers for field (vec2<f32> per cell: A and B concentrations)
+    s.push_str("    });\n");
     s.push_str("    const cellCount = this._w * this._h;\n");
-    s.push_str("    const bufSize = cellCount * 8; // 2 x f32\n");
+    s.push_str("    const bufSize = cellCount * 8;\n");
     s.push_str("    this._bufA = device.createBuffer({ size: bufSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });\n");
     s.push_str("    this._bufB = device.createBuffer({ size: bufSize, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC });\n");
-    s.push_str("    this._paramBuf = device.createBuffer({ size: 24, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });\n\n");
+    s.push_str("    this._paramBuf = device.createBuffer({ size: 24, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });\n");
+    s.push_str("    this._seed();\n");
+    s.push_str("  }\n\n");
 
-    // Initialize field: A=1.0 everywhere, B=0.0 except seed region
+    // --- _seed: (re)initialize the field with fresh seeds ---
+    s.push_str("  _seed() {\n");
+    s.push_str("    const cellCount = this._w * this._h;\n");
     s.push_str("    const init = new Float32Array(cellCount * 2);\n");
     s.push_str("    for (let i = 0; i < cellCount; i++) {\n");
-    s.push_str("      init[i * 2] = 1.0;     // chemical A\n");
-    s.push_str("      init[i * 2 + 1] = 0.0; // chemical B\n");
+    s.push_str("      init[i * 2] = 1.0;\n");
+    s.push_str("      init[i * 2 + 1] = 0.0;\n");
     s.push_str("    }\n");
 
-    // Seed based on mode
     match &react.seed {
         SeedMode::Center(radius) => {
-            s.push_str(&format!("    // Seed: center blob, radius {radius}\n"));
             s.push_str("    const cx = this._w / 2, cy = this._h / 2;\n");
             s.push_str(&format!(
                 "    const r = Math.floor(Math.max(this._w, this._h) * {radius});\n"
             ));
-            s.push_str("    for (let dy = -r; dy <= r; dy++) {\n");
-            s.push_str("      for (let dx = -r; dx <= r; dx++) {\n");
-            s.push_str("        if (dx*dx + dy*dy <= r*r) {\n");
-            s.push_str("          const idx = ((cy + dy) * this._w + (cx + dx)) * 2;\n");
-            s.push_str("          if (idx >= 0 && idx < init.length - 1) {\n");
-            s.push_str("            init[idx + 1] = 1.0;\n");
-            s.push_str("          }\n");
-            s.push_str("        }\n");
+            s.push_str("    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {\n");
+            s.push_str("      if (dx*dx + dy*dy <= r*r) {\n");
+            s.push_str("        const idx = ((cy + dy) * this._w + (cx + dx)) * 2;\n");
+            s.push_str("        if (idx >= 0 && idx < init.length - 1) init[idx + 1] = 1.0;\n");
             s.push_str("      }\n");
             s.push_str("    }\n");
         }
         SeedMode::Scatter(count) => {
-            s.push_str(&format!("    // Seed: {count} scattered points\n"));
             s.push_str(&format!("    for (let s = 0; s < {count}; s++) {{\n"));
             s.push_str("      const sx = Math.floor(Math.random() * this._w);\n");
             s.push_str("      const sy = Math.floor(Math.random() * this._h);\n");
-            s.push_str("      for (let dy = -2; dy <= 2; dy++) {\n");
-            s.push_str("        for (let dx = -2; dx <= 2; dx++) {\n");
-            s.push_str("          const idx = ((sy + dy) * this._w + (sx + dx)) * 2;\n");
-            s.push_str("          if (idx >= 0 && idx < init.length - 1) init[idx + 1] = 1.0;\n");
-            s.push_str("        }\n");
+            s.push_str("      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {\n");
+            s.push_str("        const idx = ((sy + dy) * this._w + (sx + dx)) * 2;\n");
+            s.push_str("        if (idx >= 0 && idx < init.length - 1) init[idx + 1] = 1.0;\n");
             s.push_str("      }\n");
             s.push_str("    }\n");
         }
         SeedMode::Random(density) => {
-            s.push_str(&format!("    // Seed: random field, density {density}\n"));
             s.push_str("    for (let i = 0; i < cellCount; i++) {\n");
             s.push_str(&format!(
                 "      if (Math.random() < {density}) init[i * 2 + 1] = 1.0;\n"
@@ -167,26 +168,25 @@ pub fn generate_compute_runtime_js(react: &ReactBlock, width: u32, height: u32) 
         }
     }
 
-    s.push_str("    device.queue.writeBuffer(this._bufA, 0, init);\n");
+    s.push_str("    this._device.queue.writeBuffer(this._bufA, 0, init);\n");
+    s.push_str("    this._resetTime = performance.now() * 0.001;\n");
     s.push_str("  }\n\n");
 
-    // Dispatch: run N simulation steps per frame
-    // Feed/kill modulated with time to prevent equilibrium — patterns breathe forever
-    let feed = react.feed;
-    let kill = react.kill;
-    let da = react.diffuse_a;
-    let db = react.diffuse_b;
+    // --- dispatch: simulate with time modulation + periodic loop reset ---
     s.push_str("  dispatch(steps = 8) {\n");
     s.push_str("    const t = performance.now() * 0.001;\n");
+    s.push_str("    // Loop: re-seed every 30 seconds for continuous grow cycles\n");
+    s.push_str("    if (t - this._resetTime > 30) this._seed();\n");
     s.push_str("    const device = this._device;\n");
     s.push_str("    const params = new ArrayBuffer(24);\n");
     s.push_str("    const f = new Float32Array(params);\n");
     s.push_str("    const u = new Uint32Array(params);\n");
+    // Stronger oscillation: ±0.005 feed, ±0.003 kill, faster frequencies
     s.push_str(&format!(
-        "    f[0] = {} + Math.sin(t * 0.3) * 0.002;\n", feed
+        "    f[0] = {} + Math.sin(t * 0.7) * 0.005;\n", feed
     ));
     s.push_str(&format!(
-        "    f[1] = {} + Math.cos(t * 0.2) * 0.001;\n", kill
+        "    f[1] = {} + Math.cos(t * 0.5) * 0.003;\n", kill
     ));
     s.push_str(&format!("    f[2] = {}; f[3] = {};\n", da, db));
     s.push_str("    u[4] = this._w; u[5] = this._h;\n");
@@ -276,8 +276,8 @@ mod tests {
     fn runtime_js_center_seed() {
         let js = generate_compute_runtime_js(&make_react(), 256, 256);
         assert!(js.contains("class GameReactionField"));
-        assert!(js.contains("center blob"));
-        assert!(js.contains("dx*dx + dy*dy"));
+        assert!(js.contains("dx*dx + dy*dy")); // circle test in seed
+        assert!(js.contains("_seed()")); // loop reset calls _seed
     }
 
     #[test]
@@ -285,8 +285,8 @@ mod tests {
         let mut r = make_react();
         r.seed = SeedMode::Scatter(50);
         let js = generate_compute_runtime_js(&r, 256, 256);
-        assert!(js.contains("scattered points"));
-        assert!(js.contains("50"));
+        assert!(js.contains("50")); // scatter count
+        assert!(js.contains("Math.random()")); // random positions
     }
 
     #[test]
@@ -294,8 +294,8 @@ mod tests {
         let mut r = make_react();
         r.seed = SeedMode::Random(0.3);
         let js = generate_compute_runtime_js(&r, 256, 256);
-        assert!(js.contains("random field"));
-        assert!(js.contains("0.3"));
+        assert!(js.contains("0.3")); // density
+        assert!(js.contains("_seed()")); // loop reset
     }
 
     #[test]
