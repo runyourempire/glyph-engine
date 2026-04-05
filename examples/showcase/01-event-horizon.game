@@ -1,69 +1,106 @@
-// Event Horizon — Turing fire accretion around a geometric black hole.
-// React patterns create evolving plasma. Geometric void stays black.
-// Lensing texture provides deep warped spacetime. Mouse pulls the void.
+// Event Horizon — 7 rotating accretion rings around a geometric void.
+// Every ring warped by gravity. Counter-rotating pairs. Deep spacetime.
+// NO compute. NO glow. Pure orbital mechanics with controlled brightness.
 
 cinematic "event-horizon" {
   layer config {
     mass: 0.5
+    accretion: 0.0
   }
 
-  // Gravitational lensing — deep warped spacetime in purple-blue
-  layer lensing memory: 0.83 {
+  // Deep spacetime lensing — warped polar texture
+  layer lensing memory: 0.84 {
     polar
     | warp(scale: 3.0, octaves: 4, persistence: 0.5, strength: 0.15 + mass * 0.06)
     | fbm(scale: 3.0, octaves: 4)
     | palette(
-        a_r: 0.002, a_g: 0.001, a_b: 0.006,
-        b_r: 0.005, b_g: 0.003, b_b: 0.012,
+        a_r: 0.003, a_g: 0.002, a_b: 0.008,
+        b_r: 0.006, b_g: 0.004, b_b: 0.015,
         c_r: 0.5, c_g: 0.3, c_b: 0.8,
         d_r: 0.0, d_g: 0.15, d_b: 0.4
       )
   }
 
-  // Accretion ring guides — thin dark structural rings
-  layer ring_outer {
-    ring(0.35, 0.003)
-    | shade(0.15, 0.08, 0.02)
+  // Outer accretion — slow, wide, gravity-wobbled
+  layer outer memory: 0.87 {
+    rotate(time * 0.04)
+    | distort(scale: 5.0, speed: 0.3, strength: 0.035)
+    | ring(0.40 + accretion * 0.02, 0.012)
+    | shade(0.45, 0.22, 0.04)
   }
 
-  layer ring_mid {
-    ring(0.25, 0.004)
-    | shade(0.2, 0.1, 0.03)
+  // Secondary band — counter-rotating
+  layer secondary memory: 0.86 {
+    rotate(time * -0.06)
+    | distort(scale: 4.0, speed: 0.4, strength: 0.03)
+    | ring(0.34, 0.008)
+    | shade(0.6, 0.3, 0.06)
   }
 
-  layer ring_inner {
-    ring(0.16, 0.003)
-    | shade(0.25, 0.15, 0.05)
+  // Main disk — brightest accretion, most active
+  layer disk memory: 0.91 {
+    rotate(time * 0.08)
+    | distort(scale: 4.0, speed: 0.6, strength: 0.045)
+    | ring(0.27 + accretion * 0.03, 0.010)
+    | shade(0.95, 0.48, 0.08)
   }
 
-  // The void — absolute black, mouse-reactive, blocks compute
+  // Inner disk — hotter, faster
+  layer inner memory: 0.88 {
+    rotate(time * -0.12)
+    | distort(scale: 3.0, speed: 0.8, strength: 0.035)
+    | ring(0.20, 0.006)
+    | shade(1.0, 0.75, 0.35)
+  }
+
+  // Photon sphere A — violet-tinted, fast
+  layer photon_a memory: 0.80 {
+    rotate(time * 0.16)
+    | distort(scale: 3.0, speed: 1.0, strength: 0.02)
+    | ring(0.155, 0.003)
+    | shade(0.75, 0.65, 0.95)
+  }
+
+  // Photon sphere B — counter-rotating
+  layer photon_b memory: 0.78 {
+    rotate(time * -0.2)
+    | ring(0.145, 0.002)
+    | shade(0.55, 0.45, 0.85)
+  }
+
+  // ISCO — innermost stable orbit, fastest, most distorted
+  layer isco memory: 0.82 {
+    rotate(time * 0.25)
+    | distort(scale: 3.0, speed: 1.2, strength: 0.025)
+    | ring(0.125, 0.004)
+    | shade(1.0, 0.92, 0.75)
+  }
+
+  // Void — absolute black, mouse-reactive
   layer void {
     translate(mouse_x * 0.04 - 0.02, mouse_y * 0.04 - 0.02)
     | circle(0.10)
     | shade(0.0, 0.0, 0.0)
   }
 
-  // React field — evolving Turing accretion patterns
-  react {
-    feed: 0.042
-    kill: 0.061
-    diffuse_a: 1.0
-    diffuse_b: 0.5
-    seed: center(0.3)
-  }
-
-  // Shift compute orange → fiery amber
-  matrix color {
-    [
-      1.2, 0.1, 0.0,
-      0.0, 0.4, 0.05,
-      0.0, 0.0, 0.08
-    ]
+  // Polar jet — faint relativistic emission
+  layer jet memory: 0.72 {
+    distort(scale: 2.0, speed: 1.5, strength: 0.025)
+    | translate(0.0, 0.30)
+    | capsule(0.025, 0.002)
+    | shade(0.5, 0.35, 0.75)
   }
 
   arc {
+    accretion: 0.0 -> 1.0 over 12s ease-in-out
     mass: 0.5 -> 0.85 over 20s ease-in-out
   }
 
-  pass frame { vignette(0.35) }
+  resonate {
+    mass -> disk.brightness * 0.15
+    accretion -> inner.brightness * 0.12
+    accretion -> outer.brightness * 0.1
+  }
+
+  pass frame { vignette(0.3) }
 }

@@ -1,71 +1,112 @@
-// Sacred Geometry — Turing morphogenesis constrained by geometric structure.
-// React patterns fill the space between dark sacred channels.
-// Living gold emerges from mathematical order. Mouse shifts void.
+// Sacred Geometry — living mandala of interlocking rotating shapes.
+// 10 layers of counter-rotating geometry on dark textured background.
+// Every element distort+memory for organic persistence.
+// NO compute. NO glow. Pure geometric animation with controlled brightness.
 
 cinematic "sacred-geometry" {
-  // Mandala texture — warm background, 12-fold symmetry
-  layer field memory: 0.85 {
+  layer config {
+    breath: 0.0
+    pulse: 0.5
+  }
+
+  // Dark mandala texture — 12-fold, rich but dim
+  layer field memory: 0.86 {
     radial(12)
-    | warp(scale: 2.0, octaves: 3, strength: 0.1)
-    | fbm(scale: 4.0, octaves: 4)
+    | warp(scale: 2.0, octaves: 4, strength: 0.12 + breath * 0.04)
+    | fbm(scale: 4.0, octaves: 5)
     | palette(
-        a_r: 0.01, a_g: 0.008, a_b: 0.003,
-        b_r: 0.02, b_g: 0.015, b_b: 0.005,
+        a_r: 0.008, a_g: 0.006, a_b: 0.003,
+        b_r: 0.015, b_g: 0.012, b_b: 0.005,
         c_r: 0.8, c_g: 0.6, c_b: 0.3,
         d_r: 0.0, d_g: 0.1, d_b: 0.2
       )
   }
 
-  // Outer ring channel — dark structural element
-  layer ring_outer {
-    ring(0.40, 0.006)
-    | shade(0.12, 0.09, 0.04)
+  // Outer ring — visible rotation, gravity-wobble
+  layer ring_outer memory: 0.84 {
+    rotate(time * 0.06)
+    | distort(scale: 3.0, speed: 0.5, strength: 0.025)
+    | ring(0.42, 0.005)
+    | shade(0.4, 0.32, 0.14)
   }
 
-  // Star channel — 6-fold dark structure
-  layer star_channel {
-    radial(6)
-    | star(6, 0.32, 0.20)
-    | shade(0.08, 0.06, 0.03)
+  // 12-fold capsule petals — sweeping like clock hands
+  layer petals_12 memory: 0.82 {
+    rotate(time * -0.08)
+    | radial(12)
+    | distort(scale: 2.0, speed: 0.4, strength: 0.02)
+    | capsule(0.18, 0.004)
+    | shade(0.35, 0.28, 0.12)
   }
 
-  // Inner ring
-  layer ring_inner {
-    ring(0.24, 0.005)
-    | shade(0.15, 0.11, 0.05)
+  // 6-fold star orbit — fast, counter-rotating
+  layer star_orbit memory: 0.85 {
+    rotate(time * 0.1)
+    | radial(6)
+    | distort(scale: 2.5, speed: 0.6, strength: 0.02)
+    | ring(0.34 + breath * 0.02, 0.006)
+    | shade(0.55, 0.44, 0.18)
   }
 
-  // Hex channel
-  layer hex_channel {
-    radial(6)
-    | ring(0.16, 0.004)
-    | shade(0.10, 0.08, 0.04)
+  // Hex ring — pulsing, wobbling
+  layer hex_ring memory: 0.87 {
+    rotate(time * -0.12)
+    | distort(scale: 2.0, speed: 0.5, strength: 0.018)
+    | ring(0.26 + pulse * 0.015, 0.008)
+    | shade(0.65, 0.52, 0.22)
   }
 
-  // Void jewel — mouse reactive, blocks compute
-  layer jewel {
+  // 8-fold inner petals — fast counter-rotation
+  layer petals_8 memory: 0.83 {
+    rotate(time * 0.15)
+    | radial(8)
+    | distort(scale: 2.5, speed: 0.5, strength: 0.015)
+    | capsule(0.10, 0.004)
+    | shade(0.5, 0.4, 0.16)
+  }
+
+  // 6-point star — morphing with breath
+  layer star_morph memory: 0.86 {
+    rotate(time * -0.18)
+    | distort(scale: 2.0, speed: 0.7, strength: 0.02)
+    | star(6, 0.18 + breath * 0.03, 0.10 + breath * 0.02)
+    | shade(0.6, 0.48, 0.2)
+  }
+
+  // Onion shells — concentric ripples, rotating
+  layer shells memory: 0.84 {
+    rotate(time * 0.08)
+    | distort(scale: 3.0, speed: 0.4, strength: 0.012)
+    | circle(0.14 + pulse * 0.01)
+    | onion(5, 0.003)
+    | shade(0.45, 0.36, 0.15)
+  }
+
+  // Boolean jewel — morphing gem, follows mouse
+  layer jewel memory: 0.90 {
     translate(mouse_x * 0.03 - 0.015, mouse_y * 0.03 - 0.015)
-    | smooth_subtract(circle(0.08), star(6, 0.06, 0.03), 0.015)
-    | shade(0.02, 0.015, 0.008)
+    | distort(scale: 1.5, speed: 0.3, strength: 0.015 + breath * 0.008)
+    | smooth_subtract(circle(0.08 + breath * 0.025), star(6, 0.065 + breath * 0.01, 0.03), 0.018)
+    | shade(0.85, 0.7, 0.28)
   }
 
-  // React field — Turing patterns emerge as golden organic texture
-  react {
-    feed: 0.037
-    kill: 0.06
-    diffuse_a: 1.0
-    diffuse_b: 0.5
-    seed: center(0.25)
+  // Core point — brightest element
+  layer core memory: 0.92 {
+    distort(scale: 3.0, speed: 0.8, strength: 0.008)
+    | circle(0.018)
+    | shade(1.0, 0.88, 0.4)
   }
 
-  // Shift compute orange → warm gold
-  matrix color {
-    [
-      1.0, 0.15, 0.0,
-      0.0, 0.65, 0.1,
-      0.0, 0.0, 0.12
-    ]
+  arc {
+    breath: 0.0 -> 1.0 over 6s ease-in-out
+    pulse: 0.5 -> 1.0 over 8s ease-in-out
   }
 
-  pass frame { vignette(0.35) }
+  resonate {
+    breath -> jewel.brightness * 0.2
+    breath -> star_morph.brightness * 0.15
+    pulse -> hex_ring.brightness * 0.1
+  }
+
+  pass frame { vignette(0.3) }
 }
