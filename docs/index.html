@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GAME Playground — GPU Visuals from Code</title>
+  <meta name="description" content="Write 30 lines of code, get a GPU-rendered interactive Web Component. The shader language designed for AI.">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #e0e0e0; font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace; display: flex; height: 100vh; overflow: hidden; }
+
+    /* Gallery sidebar */
+    #gallery { width: 200px; background: #080808; border-right: 1px solid #1a1a1a; overflow-y: auto; padding: 12px 0; flex-shrink: 0; }
+    #gallery h2 { font-size: 10px; font-weight: 500; color: #555; padding: 8px 14px 4px; letter-spacing: 2px; text-transform: uppercase; }
+    .gallery-item { padding: 6px 14px; font-size: 11px; color: #888; cursor: pointer; border-left: 2px solid transparent; transition: all 0.15s; }
+    .gallery-item:hover { color: #ccc; background: #111; border-left-color: #444; }
+    .gallery-item.active { color: #fff; border-left-color: #d4af37; }
+
+    /* Editor */
+    #editor-panel { flex: 1; padding: 16px; display: flex; flex-direction: column; border-right: 1px solid #1a1a1a; min-width: 300px; }
+    #header { display: flex; align-items: center; margin-bottom: 10px; gap: 12px; }
+    #header h1 { font-size: 14px; font-weight: 400; color: #555; letter-spacing: 2px; }
+    #header .badge { font-size: 9px; color: #d4af37; border: 1px solid #d4af3744; padding: 2px 6px; border-radius: 3px; }
+    textarea { flex: 1; background: #0d0d0d; color: #d4d4d4; border: 1px solid #1a1a1a; border-radius: 6px; padding: 14px; font-family: inherit; font-size: 12px; resize: none; line-height: 1.7; tab-size: 2; }
+    textarea:focus { outline: none; border-color: #333; }
+
+    /* Controls */
+    #controls { padding: 10px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    button { background: #141414; color: #ccc; border: 1px solid #2a2a2a; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 11px; transition: all 0.15s; }
+    button:hover { background: #1f1f1f; color: #fff; border-color: #444; }
+    button.primary { background: #1a1a2e; border-color: #d4af3744; color: #d4af37; }
+    button.primary:hover { background: #252540; }
+    #status { font-size: 10px; color: #555; flex: 1; text-align: right; }
+    #error { color: #ef4444; font-size: 11px; padding: 4px 0; min-height: 16px; }
+
+    /* Preview */
+    #preview-panel { flex: 1.2; display: flex; flex-direction: column; min-width: 300px; }
+    #preview { flex: 1; background: #000; position: relative; }
+    #preview > * { display: block; width: 100%; height: 100%; }
+
+    /* Embed modal */
+    #embed-bar { background: #0a0a0a; border-top: 1px solid #1a1a1a; padding: 8px 16px; font-size: 10px; color: #555; display: none; }
+    #embed-bar code { background: #111; padding: 3px 8px; border-radius: 3px; color: #888; user-select: all; }
+    #embed-bar.show { display: flex; align-items: center; gap: 8px; }
+
+    /* Keyboard hint */
+    kbd { background: #1a1a1a; border: 1px solid #333; padding: 1px 5px; border-radius: 2px; font-size: 9px; color: #666; }
+
+    @media (max-width: 900px) {
+      #gallery { display: none; }
+      body { flex-direction: column; }
+      #editor-panel, #preview-panel { min-width: unset; }
+    }
+  </style>
+</head>
+<body>
+  <div id="gallery">
+    <h2>Examples</h2>
+  </div>
+
+  <div id="editor-panel">
+    <div id="header">
+      <h1>GAME</h1>
+      <span class="badge">PLAYGROUND</span>
+    </div>
+    <textarea id="source" spellcheck="false">// Nebula — cosmic gas clouds with star field
+// Edit this code and press Ctrl+Enter to compile
+cinematic "nebula" {
+  layer stars {
+    warp(scale: 2.0, octaves: 3, strength: 0.15)
+    | voronoi(20.0)
+    | glow(8.0)
+    | tint(0.9, 0.92, 1.0)
+  }
+
+  layer gas opacity: 0.6 blend: add {
+    translate(time * 0.02, time * 0.01)
+    | warp(scale: 0.4, octaves: 5, persistence: 0.65, strength: 0.3)
+    | fbm(scale: 0.5, octaves: 5, persistence: 0.55)
+    | palette(
+        a_r: 0.2, a_g: 0.1, a_b: 0.3,
+        b_r: 0.3, b_g: 0.2, b_b: 0.4,
+        c_r: 1.0, c_g: 1.0, c_b: 1.0,
+        d_r: 0.0, d_g: 0.15, d_b: 0.4
+    )
+  }
+
+  layer dust opacity: 0.3 blend: screen {
+    translate(time * -0.015, time * 0.008)
+    | warp(scale: 0.8, octaves: 4, persistence: 0.6, strength: 0.2)
+    | simplex(1.5)
+    | glow(1.5)
+    | tint(0.5, 0.3, 0.7)
+  }
+
+  pass frame { vignette(0.35) }
+  pass film { film_grain(0.015) }
+}</textarea>
+    <div id="error"></div>
+    <div id="controls">
+      <button class="primary" onclick="compile()">Compile <kbd>Ctrl+Enter</kbd></button>
+      <button onclick="copyEmbed()">Copy Embed</button>
+      <button onclick="copySource()">Copy Source</button>
+      <span id="status">Loading WASM compiler...</span>
+    </div>
+  </div>
+
+  <div id="preview-panel">
+    <div id="preview"></div>
+    <div id="embed-bar">
+      Embed: <code id="embed-code"></code>
+    </div>
+  </div>
+
+  <script type="module">
+    import init, { compileGame, validateGame } from './pkg/game_compiler.js';
+
+    let wasmReady = false;
+    let lastCompiledJs = '';
+    let lastComponentName = '';
+
+    // Gallery examples
+    const examples = [
+      { name: 'Nebula', cat: 'Cosmic', src: null }, // null = use default
+      { name: 'Event Horizon', cat: 'Cosmic', src: `cinematic "event-horizon" {
+  layer void {
+    translate(sin(time * 0.1) * 0.02, cos(time * 0.08) * 0.02)
+    | circle(0.08)
+    | shade(0.0, 0.0, 0.0)
+  }
+  layer ring memory: 0.92 blend: add {
+    translate(sin(time * 0.1) * 0.02, cos(time * 0.08) * 0.02)
+    | ring(0.12, 0.003)
+    | glow(5.0)
+    | tint(1.0, 0.85, 0.5)
+  }
+  layer accretion memory: 0.88 blend: add {
+    translate(sin(time * 0.1) * 0.02, cos(time * 0.08) * 0.02)
+    | polar()
+    | distort(scale: 3.0, speed: 0.5, strength: 0.08)
+    | warp(scale: 1.5, octaves: 4, persistence: 0.6, strength: 0.2)
+    | voronoi(8.0)
+    | glow(3.0)
+    | tint(1.0, 0.6, 0.2)
+  }
+  layer jets opacity: 0.15 blend: add {
+    translate(0.0, 0.0)
+    | polar()
+    | warp(scale: 0.5, octaves: 5, persistence: 0.7, strength: 0.3)
+    | fbm(scale: 0.8, octaves: 5, persistence: 0.5)
+    | glow(6.0)
+    | tint(0.7, 0.8, 1.0)
+  }
+  pass glow { blur(1.5) }
+  pass frame { vignette(0.4) }
+  pass film { film_grain(0.012) }
+}` },
+      { name: 'Fire', cat: 'Elements', src: `cinematic "fire" {
+  layer flames memory: 0.85 blend: add {
+    translate(sin(time * 0.8) * 0.05, time * -0.15)
+    | warp(scale: 1.0, octaves: 5, persistence: 0.65, strength: 0.4)
+    | fbm(scale: 1.2, octaves: 6, persistence: 0.55)
+    | palette(fire)
+  }
+  layer embers opacity: 0.4 blend: add {
+    translate(sin(time * 0.3) * 0.08, time * -0.08)
+    | distort(scale: 12.0, speed: 3.0, strength: 0.15)
+    | voronoi(25.0)
+    | glow(10.0)
+    | tint(1.0, 0.7, 0.15)
+  }
+  layer heat opacity: 0.2 blend: screen {
+    translate(time * 0.01, time * -0.03)
+    | warp(scale: 0.3, octaves: 3, strength: 0.15)
+    | fbm(scale: 0.4, octaves: 3, persistence: 0.5)
+    | glow(2.0)
+    | tint(1.0, 0.4, 0.05)
+  }
+  pass glow { blur(2.0) }
+  pass frame { vignette(0.35) }
+}` },
+      { name: 'Ocean Deep', cat: 'Nature', src: `cinematic "ocean-deep" {
+  layer current memory: 0.90 {
+    translate(time * 0.03, sin(time * 0.15) * 0.02)
+    | warp(scale: 0.6, octaves: 5, persistence: 0.62, strength: 0.25)
+    | fbm(scale: 0.8, octaves: 5, persistence: 0.55)
+    | palette(ocean)
+  }
+  layer caustics opacity: 0.3 blend: add {
+    translate(time * 0.02, time * 0.015)
+    | warp(scale: 3.0, octaves: 3, strength: 0.15)
+    | voronoi(6.0)
+    | glow(2.0)
+    | tint(0.3, 0.7, 1.0)
+  }
+  layer particles opacity: 0.15 blend: add {
+    translate(sin(time * 0.08) * 0.01, time * -0.01)
+    | voronoi(35.0)
+    | glow(10.0)
+    | tint(0.5, 0.8, 1.0)
+  }
+  pass frame { vignette(0.3) }
+  pass film { film_grain(0.01) }
+}` },
+      { name: 'Neural Web', cat: 'Digital', src: `cinematic "neural-web" {
+  layer network memory: 0.93 blend: add {
+    warp(scale: 1.5, octaves: 4, persistence: 0.6, strength: 0.2)
+    | voronoi(5.0)
+    | glow(4.0)
+    | tint(0.0, 1.0, 0.7)
+  }
+  layer synapses opacity: 0.5 blend: add {
+    translate(time * 0.01, time * -0.008)
+    | distort(scale: 8.0, speed: 1.5, strength: 0.1)
+    | voronoi(12.0)
+    | glow(6.0)
+    | tint(0.0, 0.8, 1.0)
+  }
+  layer pulse opacity: 0.2 blend: add {
+    translate(time * 0.04, time * 0.02)
+    | warp(scale: 2.0, octaves: 3, strength: 0.1)
+    | voronoi(20.0)
+    | glow(12.0)
+    | tint(1.0, 1.0, 1.0)
+  }
+  pass glow { blur(1.0) }
+  pass frame { vignette(0.4) }
+  pass film { film_grain(0.018) }
+}` },
+      { name: 'Lava Flow', cat: 'Elements', src: `cinematic "lava" {
+  layer magma memory: 0.88 {
+    translate(time * 0.015, time * 0.01)
+    | warp(scale: 0.5, octaves: 6, persistence: 0.7, strength: 0.35)
+    | fbm(scale: 0.6, octaves: 6, persistence: 0.6)
+    | palette(lava)
+  }
+  layer crust opacity: 0.4 {
+    warp(scale: 0.8, octaves: 4, persistence: 0.55, strength: 0.2)
+    | voronoi(3.5)
+    | shade(0.02, 0.01, 0.005)
+  }
+  layer glow opacity: 0.3 blend: add {
+    translate(time * 0.02, sin(time * 0.1) * 0.01)
+    | warp(scale: 1.0, octaves: 3, strength: 0.15)
+    | fbm(scale: 1.2, octaves: 4, persistence: 0.5)
+    | glow(3.0)
+    | tint(1.0, 0.3, 0.0)
+  }
+  pass glow { blur(1.5) }
+  pass frame { vignette(0.3) }
+}` },
+      { name: 'Aurora', cat: 'Nature', src: `cinematic "aurora" {
+  layer curtain_green memory: 0.90 blend: add {
+    translate(time * 0.025, time * 0.004)
+    | warp(scale: 0.5, octaves: 5, persistence: 0.70, strength: 0.35)
+    | fbm(scale: 0.7, octaves: 5, persistence: 0.60)
+    | glow(2.5)
+    | tint(0.3, 1.0, 0.5)
+  }
+  layer curtain_purple opacity: 0.5 blend: add {
+    translate(time * -0.018, time * 0.006)
+    | warp(scale: 0.6, octaves: 5, persistence: 0.65, strength: 0.30)
+    | fbm(scale: 0.8, octaves: 5, persistence: 0.55)
+    | glow(3.0)
+    | tint(0.6, 0.2, 0.9)
+  }
+  layer stars opacity: 0.3 blend: add {
+    voronoi(30.0)
+    | glow(12.0)
+    | tint(0.95, 0.95, 1.0)
+  }
+  pass glow { blur(2.0) }
+  pass frame { vignette(0.3) }
+  pass film { film_grain(0.012) }
+}` },
+    ];
+
+    // Populate gallery
+    const galleryEl = document.getElementById('gallery');
+    let currentCat = '';
+    examples.forEach((ex, i) => {
+      if (ex.cat !== currentCat) {
+        currentCat = ex.cat;
+        const h = document.createElement('h2');
+        h.textContent = ex.cat;
+        galleryEl.appendChild(h);
+      }
+      const div = document.createElement('div');
+      div.className = 'gallery-item' + (i === 0 ? ' active' : '');
+      div.textContent = ex.name;
+      div.onclick = () => {
+        document.querySelectorAll('.gallery-item').forEach(el => el.classList.remove('active'));
+        div.classList.add('active');
+        if (ex.src) document.getElementById('source').value = ex.src;
+        compile();
+      };
+      galleryEl.appendChild(div);
+    });
+
+    async function initWasm() {
+      try {
+        await init();
+        wasmReady = true;
+        document.getElementById('status').textContent = 'WASM ready';
+        compile();
+      } catch(e) {
+        document.getElementById('error').textContent = 'WASM load failed: ' + e.message;
+      }
+    }
+
+    window.compile = function() {
+      if (!wasmReady) return;
+      const source = document.getElementById('source').value;
+      const errorEl = document.getElementById('error');
+      const statusEl = document.getElementById('status');
+      const preview = document.getElementById('preview');
+
+      errorEl.textContent = '';
+      statusEl.textContent = 'Compiling...';
+
+      try {
+        const t0 = performance.now();
+        const resultJson = compileGame(source, 'both');
+        const t1 = performance.now();
+        const results = JSON.parse(resultJson);
+
+        if (results.length === 0) {
+          errorEl.textContent = 'No output generated';
+          return;
+        }
+
+        const r = results[0];
+        lastCompiledJs = r.js;
+        lastComponentName = r.name;
+        statusEl.textContent = `"${r.name}" compiled in ${(t1-t0).toFixed(0)}ms | ${(r.js.length/1024).toFixed(1)}KB`;
+
+        preview.innerHTML = '';
+        const blob = new Blob([r.js], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = () => {
+          const match = r.js.match(/customElements\.define\('([^']+)'/);
+          if (match) {
+            const el = document.createElement(match[1]);
+            el.style.cssText = 'display:block;width:100%;height:100%';
+            preview.appendChild(el);
+          }
+          URL.revokeObjectURL(url);
+        };
+        document.head.appendChild(script);
+      } catch(e) {
+        errorEl.textContent = e.toString();
+        statusEl.textContent = 'Error';
+      }
+    };
+
+    window.copyEmbed = function() {
+      if (!lastComponentName) return;
+      const tag = `game-${lastComponentName}`;
+      const code = `<script src="${tag}.js"><\/script>\n<${tag}></${tag}>`;
+      navigator.clipboard.writeText(code);
+      const bar = document.getElementById('embed-bar');
+      document.getElementById('embed-code').textContent = `<${tag}></${tag}>`;
+      bar.classList.add('show');
+      setTimeout(() => bar.classList.remove('show'), 4000);
+    };
+
+    window.copySource = function() {
+      navigator.clipboard.writeText(document.getElementById('source').value);
+      document.getElementById('status').textContent = 'Source copied!';
+    };
+
+    // Keyboard shortcuts
+    document.getElementById('source').addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        compile();
+      }
+      // Tab inserts 2 spaces
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const ta = e.target;
+        const start = ta.selectionStart;
+        ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(ta.selectionEnd);
+        ta.selectionStart = ta.selectionEnd = start + 2;
+      }
+    });
+
+    initWasm();
+  </script>
+</body>
+</html>
