@@ -8,6 +8,12 @@ cinematic "event-horizon" {
     | shade(0.0, 0.0, 0.0)
   }
 
+  layer config {
+    color_r: 0.3
+    color_g: 0.8
+    color_b: 1.5
+  }
+
   swarm {
     agents: 100000
     sensor_angle: 30
@@ -18,14 +24,6 @@ cinematic "event-horizon" {
     decay: 0.95
     diffuse: 1
     bounds: wrap
-  }
-
-  matrix color {
-    [
-      0.1, 0.05, 0.0,
-      0.2, 0.5, 0.2,
-      0.4, 0.3, 0.9
-    ]
   }
 
   pass frame { vignette(0.3) }

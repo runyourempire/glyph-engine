@@ -318,6 +318,23 @@ fn extract_uniforms(cinematic: &Cinematic) -> Vec<UniformInfo> {
         }
     }
 
+    // Compute color params — auto-inject defaults when compute block exists.
+    // Users can override via `layer config { color_r: 0.3 }` or setParam() at runtime.
+    let has_compute = cinematic.react.is_some()
+        || cinematic.swarm.is_some()
+        || cinematic.flow.is_some()
+        || cinematic.gravity.is_some();
+    if has_compute {
+        for (name, default) in [("color_r", 1.5), ("color_g", 0.8), ("color_b", 0.3)] {
+            if seen.insert(name.to_string()) {
+                uniforms.push(UniformInfo {
+                    name: name.to_string(),
+                    default,
+                });
+            }
+        }
+    }
+
     uniforms
 }
 

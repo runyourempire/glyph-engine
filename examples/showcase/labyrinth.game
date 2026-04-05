@@ -7,20 +7,18 @@ cinematic "labyrinth" {
     circle(0.5) | glow(0.6) | tint(0.008, 0.008, 0.012)
   }
 
+  layer config {
+    color_r: 1.2
+    color_g: 1.2
+    color_b: 1.4
+  }
+
   react {
     feed: 0.029
     kill: 0.057
     diffuse_a: 1.0
     diffuse_b: 0.5
     seed: random(0.04)
-  }
-
-  matrix color {
-    [
-      0.7, 0.3, 0.2,
-      0.3, 0.7, 0.3,
-      0.2, 0.3, 0.9
-    ]
   }
 
   pass frame { vignette(0.35) }

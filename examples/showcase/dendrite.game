@@ -7,6 +7,12 @@ cinematic "dendrite" {
     circle(0.5) | glow(0.6) | tint(0.01, 0.003, 0.015)
   }
 
+  layer config {
+    color_r: 0.9
+    color_g: 0.2
+    color_b: 1.4
+  }
+
   swarm {
     agents: 120000
     sensor_angle: 15
@@ -17,14 +23,6 @@ cinematic "dendrite" {
     decay: 0.96
     diffuse: 1
     bounds: wrap
-  }
-
-  matrix color {
-    [
-      0.5, 0.1, 0.2,
-      0.0, 0.1, 0.0,
-      0.4, 0.2, 0.8
-    ]
   }
 
   pass soft { blur(0.3) }
