@@ -1,42 +1,27 @@
-// Event Horizon — deep space nebula with gravitational flow.
-// Single dominant layer, high memory for smooth temporal blending,
-// lower warp octaves and gentler distort to eliminate hash artifacts.
+// Event Horizon — GPU fluid vortex simulation as gravitational accretion.
+// Flow compute shader creates perpetual smooth swirling. No hash noise.
+// Vortex type = matter spiraling around center. Blue matrix = deep space.
 
 cinematic "event-horizon" {
-  layer config {
-    drift: 0.0
+  layer bg {
+    circle(0.5) | glow(0.5) | tint(0.005, 0.003, 0.018)
   }
 
-  // Cosmic nebula — smooth, gentle, natural
-  layer nebula memory: 0.93 {
-    polar
-    | distort(scale: 1.5, speed: 0.25, strength: 0.08)
-    | warp(scale: 1.0, octaves: 3, persistence: 0.45, strength: 0.25 + drift * 0.06)
-    | fbm(scale: 1.5, octaves: 3)
-    | palette(
-        a_r: 0.015, a_g: 0.008, a_b: 0.04,
-        b_r: 0.06, b_g: 0.04, b_b: 0.10,
-        c_r: 0.5, c_g: 0.3, c_b: 0.8,
-        d_r: 0.0, d_g: 0.15, d_b: 0.4
-      )
+  flow {
+    type: vortex
+    scale: 2.0
+    speed: 0.4
+    octaves: 5
+    strength: 1.8
   }
 
-  // Subtle warm undercurrent
-  layer warmth memory: 0.91 {
-    distort(scale: 2.0, speed: 0.2, strength: 0.06)
-    | warp(scale: 1.5, octaves: 3, persistence: 0.5, strength: 0.18)
-    | fbm(scale: 2.0, octaves: 3)
-    | palette(
-        a_r: 0.008, a_g: 0.004, a_b: 0.012,
-        b_r: 0.03, b_g: 0.015, b_b: 0.04,
-        c_r: 0.7, c_g: 0.4, c_b: 0.6,
-        d_r: 0.1, d_g: 0.05, d_b: 0.2
-      )
+  matrix color {
+    [
+      0.15, 0.05, 0.0,
+      0.05, 0.12, 0.08,
+      0.5, 0.3, 0.9
+    ]
   }
 
-  arc {
-    drift: 0.0 -> 1.0 over 15s ease-in-out
-  }
-
-  pass frame { vignette(0.3) }
+  pass frame { vignette(0.35) }
 }
