@@ -1,0 +1,33 @@
+// Discharge — electrical breakdown through a dielectric medium.
+// Erratic agents with wide sensor angles form lightning-like branches.
+// White/electric blue on black. Raw energy.
+
+cinematic "discharge" {
+  layer bg {
+    circle(0.5) | glow(0.4) | tint(0.005, 0.005, 0.01)
+  }
+
+  swarm {
+    agents: 60000
+    sensor_angle: 55
+    sensor_dist: 15.0
+    turn_angle: 55
+    step: 2.0
+    deposit: 6.0
+    decay: 0.88
+    diffuse: 1
+    bounds: reflect
+  }
+
+  matrix color {
+    [
+      0.6, 0.2, 0.1,
+      0.4, 0.7, 0.3,
+      0.5, 0.5, 1.0
+    ]
+  }
+
+  pass glow { blur(0.5) }
+  pass split { chromatic(0.003) }
+  pass frame { vignette(0.3) }
+}

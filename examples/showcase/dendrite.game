@@ -1,0 +1,32 @@
+// Dendrite — neural branching patterns from stigmergic agents.
+// Tight sensor angles produce axon-like projections.
+// Purple/violet coloring evokes synaptic imagery.
+
+cinematic "dendrite" {
+  layer bg {
+    circle(0.5) | glow(0.6) | tint(0.01, 0.003, 0.015)
+  }
+
+  swarm {
+    agents: 120000
+    sensor_angle: 15
+    sensor_dist: 12.0
+    turn_angle: 30
+    step: 1.0
+    deposit: 4.0
+    decay: 0.96
+    diffuse: 1
+    bounds: wrap
+  }
+
+  matrix color {
+    [
+      0.5, 0.1, 0.2,
+      0.0, 0.1, 0.0,
+      0.4, 0.2, 0.8
+    ]
+  }
+
+  pass soft { blur(0.3) }
+  pass frame { vignette(0.35) }
+}

@@ -1,0 +1,28 @@
+// Morphogenesis — Turing's theory of biological pattern formation.
+// Spiral reaction-diffusion waves emerge from a central seed.
+// Teal/cyan coloring evokes deep-sea bioluminescence.
+
+cinematic "morphogenesis" {
+  layer bg {
+    circle(0.5) | glow(0.8) | tint(0.005, 0.015, 0.02)
+  }
+
+  react {
+    feed: 0.014
+    kill: 0.054
+    diffuse_a: 1.0
+    diffuse_b: 0.5
+    seed: center(0.15)
+  }
+
+  matrix color {
+    [
+      0.1, 0.1, 0.0,
+      0.3, 0.6, 0.2,
+      0.4, 0.3, 0.7
+    ]
+  }
+
+  pass soft { blur(0.4) }
+  pass frame { vignette(0.3) }
+}

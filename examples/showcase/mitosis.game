@@ -1,0 +1,29 @@
+// Mitosis — cell division under a microscope.
+// React parameters at the mitosis boundary produce dividing blobs.
+// Deep red coloring evokes biological tissue.
+
+cinematic "mitosis" {
+  layer bg {
+    circle(0.5) | glow(0.5) | tint(0.015, 0.003, 0.005)
+  }
+
+  react {
+    feed: 0.028
+    kill: 0.062
+    diffuse_a: 1.0
+    diffuse_b: 0.5
+    seed: scatter(30)
+  }
+
+  matrix color {
+    [
+      0.9, 0.1, 0.0,
+      0.0, 0.1, 0.0,
+      0.0, 0.0, 0.15
+    ]
+  }
+
+  pass soft { blur(0.3) }
+  pass split { chromatic(0.002) }
+  pass frame { vignette(0.3) }
+}

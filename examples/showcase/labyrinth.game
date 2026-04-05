@@ -1,0 +1,27 @@
+// Labyrinth — mathematical maze emerging from chaos.
+// Gray-Scott at the maze boundary produces corridors and dead ends.
+// Silver/white rendering on near-black. Cold, precise, alien.
+
+cinematic "labyrinth" {
+  layer bg {
+    circle(0.5) | glow(0.6) | tint(0.008, 0.008, 0.012)
+  }
+
+  react {
+    feed: 0.029
+    kill: 0.057
+    diffuse_a: 1.0
+    diffuse_b: 0.5
+    seed: random(0.04)
+  }
+
+  matrix color {
+    [
+      0.7, 0.3, 0.2,
+      0.3, 0.7, 0.3,
+      0.2, 0.3, 0.9
+    ]
+  }
+
+  pass frame { vignette(0.35) }
+}
