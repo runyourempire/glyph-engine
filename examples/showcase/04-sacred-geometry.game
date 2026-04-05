@@ -1,111 +1,87 @@
-// Sacred Geometry — living mandala of interlocking rotating shapes.
-// 10 layers of counter-rotating geometry on dark textured background.
-// Every element distort+memory for organic persistence.
-// NO compute. NO glow. Pure geometric animation with controlled brightness.
+// Sacred Geometry — living kaleidoscopic mandala filling the viewport.
+// Multiple radial symmetries layered with warp+fbm+palette.
+// No geometric shapes. No bright center. Just deep organic texture.
 
 cinematic "sacred-geometry" {
   layer config {
     breath: 0.0
-    pulse: 0.5
+    flow: 0.5
   }
 
-  // Dark mandala texture — 12-fold, rich but dim
-  layer field memory: 0.86 {
+  // 12-fold base — warm golden mandala
+  layer twelve memory: 0.88 {
     radial(12)
-    | warp(scale: 2.0, octaves: 4, strength: 0.12 + breath * 0.04)
-    | fbm(scale: 4.0, octaves: 5)
+    | warp(scale: 2.0, octaves: 5, persistence: 0.5, strength: 0.2 + breath * 0.06)
+    | fbm(scale: 3.0, octaves: 5)
     | palette(
-        a_r: 0.008, a_g: 0.006, a_b: 0.003,
-        b_r: 0.015, b_g: 0.012, b_b: 0.005,
+        a_r: 0.10, a_g: 0.07, a_b: 0.03,
+        b_r: 0.12, b_g: 0.09, b_b: 0.04,
         c_r: 0.8, c_g: 0.6, c_b: 0.3,
         d_r: 0.0, d_g: 0.1, d_b: 0.2
       )
   }
 
-  // Outer ring — visible rotation, gravity-wobble
-  layer ring_outer memory: 0.84 {
-    rotate(time * 0.06)
-    | distort(scale: 3.0, speed: 0.5, strength: 0.025)
-    | ring(0.42, 0.005)
-    | shade(0.4, 0.32, 0.14)
+  // 6-fold overlay — deeper amber, different warp phase
+  layer six memory: 0.86 {
+    radial(6)
+    | warp(scale: 3.0, octaves: 4, persistence: 0.55, strength: 0.18 + flow * 0.04)
+    | fbm(scale: 4.0, octaves: 4)
+    | palette(
+        a_r: 0.06, a_g: 0.04, a_b: 0.015,
+        b_r: 0.08, b_g: 0.06, b_b: 0.025,
+        c_r: 0.6, c_g: 0.8, c_b: 0.4,
+        d_r: 0.1, d_g: 0.2, d_b: 0.15
+      )
   }
 
-  // 12-fold capsule petals — sweeping like clock hands
-  layer petals_12 memory: 0.82 {
-    rotate(time * -0.08)
-    | radial(12)
-    | distort(scale: 2.0, speed: 0.4, strength: 0.02)
-    | capsule(0.18, 0.004)
-    | shade(0.35, 0.28, 0.12)
+  // 8-fold detail — finer texture, higher frequency
+  layer eight memory: 0.84 {
+    radial(8)
+    | warp(scale: 4.0, octaves: 3, strength: 0.12 + breath * 0.03)
+    | fbm(scale: 6.0, octaves: 4)
+    | palette(
+        a_r: 0.04, a_g: 0.03, a_b: 0.012,
+        b_r: 0.06, b_g: 0.045, b_b: 0.02,
+        c_r: 0.7, c_g: 0.5, c_b: 0.3,
+        d_r: 0.15, d_g: 0.1, d_b: 0.2
+      )
   }
 
-  // 6-fold star orbit — fast, counter-rotating
-  layer star_orbit memory: 0.85 {
-    rotate(time * 0.1)
-    | radial(6)
-    | distort(scale: 2.5, speed: 0.6, strength: 0.02)
-    | ring(0.34 + breath * 0.02, 0.006)
-    | shade(0.55, 0.44, 0.18)
+  // Energy flow — organic distortion, non-radial
+  layer energy memory: 0.90 {
+    distort(scale: 3.0, speed: 0.4, strength: 0.12)
+    | warp(scale: 2.5, octaves: 4, strength: 0.18 + flow * 0.05)
+    | simplex(5.0)
+    | palette(
+        a_r: 0.08, a_g: 0.05, a_b: 0.02,
+        b_r: 0.10, b_g: 0.07, b_b: 0.03,
+        c_r: 0.5, c_g: 0.7, c_b: 0.3,
+        d_r: 0.0, d_g: 0.15, d_b: 0.25
+      )
   }
 
-  // Hex ring — pulsing, wobbling
-  layer hex_ring memory: 0.87 {
-    rotate(time * -0.12)
-    | distort(scale: 2.0, speed: 0.5, strength: 0.018)
-    | ring(0.26 + pulse * 0.015, 0.008)
-    | shade(0.65, 0.52, 0.22)
-  }
-
-  // 8-fold inner petals — fast counter-rotation
-  layer petals_8 memory: 0.83 {
-    rotate(time * 0.15)
-    | radial(8)
-    | distort(scale: 2.5, speed: 0.5, strength: 0.015)
-    | capsule(0.10, 0.004)
-    | shade(0.5, 0.4, 0.16)
-  }
-
-  // 6-point star — morphing with breath
-  layer star_morph memory: 0.86 {
-    rotate(time * -0.18)
-    | distort(scale: 2.0, speed: 0.7, strength: 0.02)
-    | star(6, 0.18 + breath * 0.03, 0.10 + breath * 0.02)
-    | shade(0.6, 0.48, 0.2)
-  }
-
-  // Onion shells — concentric ripples, rotating
-  layer shells memory: 0.84 {
-    rotate(time * 0.08)
-    | distort(scale: 3.0, speed: 0.4, strength: 0.012)
-    | circle(0.14 + pulse * 0.01)
-    | onion(5, 0.003)
-    | shade(0.45, 0.36, 0.15)
-  }
-
-  // Boolean jewel — morphing gem, follows mouse
-  layer jewel memory: 0.90 {
-    translate(mouse_x * 0.03 - 0.015, mouse_y * 0.03 - 0.015)
-    | distort(scale: 1.5, speed: 0.3, strength: 0.015 + breath * 0.008)
-    | smooth_subtract(circle(0.08 + breath * 0.025), star(6, 0.065 + breath * 0.01, 0.03), 0.018)
-    | shade(0.85, 0.7, 0.28)
-  }
-
-  // Core point — brightest element
-  layer core memory: 0.92 {
-    distort(scale: 3.0, speed: 0.8, strength: 0.008)
-    | circle(0.018)
-    | shade(1.0, 0.88, 0.4)
+  // Deep current — slow-moving undertone
+  layer current memory: 0.92 {
+    distort(scale: 2.0, speed: 0.25, strength: 0.08)
+    | warp(scale: 1.5, octaves: 5, persistence: 0.6, strength: 0.22)
+    | fbm(scale: 2.0, octaves: 5)
+    | palette(
+        a_r: 0.05, a_g: 0.035, a_b: 0.015,
+        b_r: 0.07, b_g: 0.05, b_b: 0.02,
+        c_r: 0.9, c_g: 0.7, c_b: 0.4,
+        d_r: 0.05, d_g: 0.1, d_b: 0.15
+      )
   }
 
   arc {
-    breath: 0.0 -> 1.0 over 6s ease-in-out
-    pulse: 0.5 -> 1.0 over 8s ease-in-out
+    breath: 0.0 -> 1.0 over 8s ease-in-out
+    flow: 0.5 -> 1.0 over 12s ease-in-out
   }
 
   resonate {
-    breath -> jewel.brightness * 0.2
-    breath -> star_morph.brightness * 0.15
-    pulse -> hex_ring.brightness * 0.1
+    breath -> twelve.brightness * 0.15
+    flow -> six.intensity * 0.1
+    flow -> energy.brightness * 0.1
   }
 
   pass frame { vignette(0.3) }
