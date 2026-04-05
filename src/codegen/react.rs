@@ -76,18 +76,14 @@ pub fn generate_compute_wgsl(react: &ReactBlock) -> String {
     s.push_str("        field_in[idx(x,   y+1)] * 0.2  +\n");
     s.push_str("        field_in[idx(x+1, y+1)] * 0.05;\n\n");
 
-    // Gray-Scott equations
-    let feed = react.feed;
-    let kill = react.kill;
-    let da = react.diffuse_a;
-    let db = react.diffuse_b;
+    // Gray-Scott equations — read from uniforms so JS can modulate with time
     s.push_str("    let abb = a * b * b;\n");
-    s.push_str(&format!(
-        "    let new_a = a + ({da} * lap.x - abb + {feed} * (1.0 - a));\n"
-    ));
-    s.push_str(&format!(
-        "    let new_b = b + ({db} * lap.y + abb - ({feed} + {kill}) * b);\n\n"
-    ));
+    s.push_str(
+        "    let new_a = a + (params.diffuse_a * lap.x - abb + params.feed * (1.0 - a));\n",
+    );
+    s.push_str(
+        "    let new_b = b + (params.diffuse_b * lap.y + abb - (params.feed + params.kill) * b);\n\n",
+    );
 
     // Clamp and write
     s.push_str(
@@ -175,16 +171,23 @@ pub fn generate_compute_runtime_js(react: &ReactBlock, width: u32, height: u32) 
     s.push_str("  }\n\n");
 
     // Dispatch: run N simulation steps per frame
+    // Feed/kill modulated with time to prevent equilibrium — patterns breathe forever
     let feed = react.feed;
     let kill = react.kill;
     let da = react.diffuse_a;
     let db = react.diffuse_b;
     s.push_str("  dispatch(steps = 8) {\n");
+    s.push_str("    const t = performance.now() * 0.001;\n");
     s.push_str("    const device = this._device;\n");
     s.push_str("    const params = new ArrayBuffer(24);\n");
     s.push_str("    const f = new Float32Array(params);\n");
     s.push_str("    const u = new Uint32Array(params);\n");
-    s.push_str(&format!("    f[0] = {}; f[1] = {};\n", feed, kill));
+    s.push_str(&format!(
+        "    f[0] = {} + Math.sin(t * 0.3) * 0.002;\n", feed
+    ));
+    s.push_str(&format!(
+        "    f[1] = {} + Math.cos(t * 0.2) * 0.001;\n", kill
+    ));
     s.push_str(&format!("    f[2] = {}; f[3] = {};\n", da, db));
     s.push_str("    u[4] = this._w; u[5] = this._h;\n");
     s.push_str("    device.queue.writeBuffer(this._paramBuf, 0, params);\n\n");
@@ -251,8 +254,8 @@ mod tests {
     fn compute_shader_has_gray_scott() {
         let wgsl = generate_compute_wgsl(&make_react());
         assert!(wgsl.contains("a * b * b")); // reaction term
-        assert!(wgsl.contains("0.055")); // feed rate
-        assert!(wgsl.contains("0.062")); // kill rate
+        assert!(wgsl.contains("params.feed")); // feed from uniform
+        assert!(wgsl.contains("params.kill")); // kill from uniform
     }
 
     #[test]
@@ -312,7 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_parameters_embedded() {
+    fn custom_parameters_in_runtime() {
         let r = ReactBlock {
             feed: 0.04,
             kill: 0.065,
@@ -320,10 +323,13 @@ mod tests {
             diffuse_b: 0.4,
             seed: SeedMode::Center(0.15),
         };
+        // Feed/kill now in JS runtime (with time modulation), not WGSL
+        let js = generate_compute_runtime_js(&r, 256, 256);
+        assert!(js.contains("0.04")); // base feed in JS
+        assert!(js.contains("0.065")); // base kill in JS
+        // WGSL reads from params uniform
         let wgsl = generate_compute_wgsl(&r);
-        assert!(wgsl.contains("0.04"));
-        assert!(wgsl.contains("0.065"));
-        assert!(wgsl.contains("0.8"));
-        assert!(wgsl.contains("0.4"));
+        assert!(wgsl.contains("params.feed"));
+        assert!(wgsl.contains("params.diffuse_a"));
     }
 }
