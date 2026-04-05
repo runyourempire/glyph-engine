@@ -2,7 +2,7 @@
 
 **Goal:** Every 4DA use case works flawlessly. GAME is publishable, documented, and the world's first AI-native visual experience language.
 
-**Current state:** v1.0.0 — ~29K LOC, 567 tests, 78 examples, dual WebGPU/WebGL2, props/dom/events/accessibility. VS Code extension v0.5.0 (preview, tuner, gallery, AI, export). Framework wrappers (React/Vue/Svelte). WASM API (needs real build). 8 templates, 30 palettes, 49 builtins.
+**Current state:** v1.0.0 — ~29K LOC, 589 tests, 79 examples, dual WebGPU/WebGL2, props/dom/events/accessibility. VS Code extension v0.5.0 (preview, tuner, gallery, AI, export). Framework wrappers (React/Vue/Svelte). WASM API (needs real build). 8 templates, 30 palettes, 52 builtins.
 
 **Honest assessment:** Compiler is production-grade. VS Code extension is feature-complete but needs real-world testing. Distribution packaging (crates.io, npm, marketplace) not yet done.
 
@@ -41,7 +41,7 @@
 - **Acceptance:** "Build me a notification card with a pulsing indicator and dismiss animation" → valid .game code → compiles → works
 
 ### 1.5 Fix all known edge cases
-- Verify all 92 examples produce correct visual output (not just compile)
+- Verify all 79 examples produce correct visual output (not just compile)
 - Test WebGL2 fallback path for all post-processing pass examples
 - Verify memory/feedback ping-pong works at non-square aspect ratios (440x160 notification)
 - Test component lifecycle: connectedCallback → disconnectedCallback → reconnect
@@ -174,7 +174,7 @@
 - LANGUAGE.md already exists (400+ lines) — expand to full reference
 - Quick Start guide (5 minutes to first component)
 - Cookbook: 10 common patterns (notification, status indicator, loading animation, data viz, etc.)
-- API reference: all 45 builtins with visual examples
+- API reference: all 52 builtins with visual examples
 - Integration guides: React, Vue, Svelte, Tauri, Electron, plain HTML
 - **Acceptance:** A developer who's never seen GAME can build a component in 10 minutes
 
@@ -266,8 +266,8 @@
 
 | Metric | Current | Phase 1 Target | v1.0 Target |
 |--------|---------|----------------|-------------|
-| Tests passing | 484 | 520+ | 600+ |
-| Examples compiling | 92 | 95+ | 110+ |
+| Tests passing | 589 | 600+ | 650+ |
+| Examples compiling | 79 | 85+ | 110+ |
 | 4DA components in production | 9 | 13+ | 20+ |
 | Notification atmosphere | CSS only | GAME wired | GAME polished |
 | npm packages published | 0 | 0 | 4+ |

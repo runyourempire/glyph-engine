@@ -16,7 +16,7 @@ cd game-engine/game-compiler
 # Build
 cargo build
 
-# Run tests (567 tests, should all pass)
+# Run tests (589 tests, should all pass)
 cargo test --lib
 
 # Compile an example
@@ -51,12 +51,12 @@ src/
   wasm.rs          — WASM bindings (behind `wasm` feature)
 editors/vscode/    — VS Code extension
 wrappers/          — Framework wrappers (React, Vue, Svelte)
-examples/          — 78 reference .game files
+examples/          — 79 reference .game files
 ```
 
 ## Development Guidelines
 
-- Run `cargo test --lib` before submitting — all 567 tests must pass
+- Run `cargo test --lib` before submitting — all 589 tests must pass
 - Run `cargo clippy` and fix any warnings
 - Run `cargo fmt` for consistent formatting
 - New builtins need: parser support, WGSL codegen, GLSL codegen, pipeline state, and a test

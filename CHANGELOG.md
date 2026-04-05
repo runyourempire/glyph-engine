@@ -21,7 +21,7 @@ All notable changes to the GAME compiler will be documented in this file.
 - **Framework wrappers** — React, Vue, Svelte (unpublished)
 - **WASM target** — browser compilation API (build pending)
 - **LSP server** — completions, hover, diagnostics, go-to-definition
-- **49 builtins** across 5 categories (SDF generators, transforms, bridges, color processors, SDF modifiers)
+- **52 builtins** across 5 categories (SDF generators, transforms, bridges, color processors, SDF modifiers)
 - **Palette name validation** — unknown palette names produce clear errors
 - **"Did you mean?" suggestions** — for both builtins and top-level keywords
 - **BOM handling** — UTF-8 BOM stripped automatically
@@ -48,8 +48,8 @@ All notable changes to the GAME compiler will be documented in this file.
 - Touch event support with passive listeners
 
 ### Testing
-- 567 Rust tests (100% pass rate)
-- 78 example files (all compile)
+- 589 Rust tests (100% pass rate)
+- 79 example files (all compile)
 - 32 gallery components (all compile)
 - 8 templates (all compile)
 - E2E test ensures no example regressions

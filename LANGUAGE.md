@@ -87,6 +87,28 @@ warp(scale: 2.0, octaves: 4, strength: 0.1 + energy * 0.2)
 - **Config**: `layer config { name: value }` -- declares uniform parameters
 - **Interaction**: `mouse_x`, `mouse_y`, `mouse_down` -- live cursor + click/touch
 
+## Compute Color Customization
+
+Configure compute output color via `color_r`, `color_g`, `color_b` parameters:
+
+```game
+cinematic "custom-color" {
+  layer config {
+    color_r: 0.3
+    color_g: 0.8
+    color_b: 1.5
+  }
+  
+  react {
+    feed: 0.037
+    kill: 0.06
+    seed: center(0.2)
+  }
+}
+```
+
+Colors are runtime-switchable via JavaScript: `element.setParam('color_r', 0.3)`
+
 ## WASM API
 ```javascript
 compileGame(source, target) // -> JSON [{name, js, wgsl, glsl, html, dts, uniforms}]
