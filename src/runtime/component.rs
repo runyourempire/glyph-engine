@@ -3,6 +3,7 @@
 //! Generates a self-contained `.js` file that defines a custom element
 //! (`<game-xyz>`) with WebGPU primary and WebGL2 fallback.
 
+use crate::ast::TextureType;
 use crate::codegen::ShaderOutput;
 use crate::ShaderTarget;
 
@@ -80,6 +81,23 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
             .map(|(i, t)| format!("'{}': {}", t.name, i))
             .collect();
         s.push_str(&format!("const TEX_INDEX = {{{}}};\n", tex_map.join(", ")));
+
+        // Texture type array for video vs image discrimination at runtime
+        let tex_types: Vec<String> = shader
+            .textures
+            .iter()
+            .map(|t| {
+                if t.texture_type == TextureType::Video {
+                    "'video'".to_string()
+                } else {
+                    "'image'".to_string()
+                }
+            })
+            .collect();
+        s.push_str(&format!(
+            "const TEXTURE_TYPES = [{}];\n",
+            tex_types.join(", ")
+        ));
     }
 
     // Pass shader constants
@@ -512,11 +530,19 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
     // Auto-load textures that have a source URL
     for tex in &shader.textures {
         if let Some(ref url) = tex.source {
-            s.push_str(&format!(
-                "    this.loadTexture('{}', '{}').catch(e => console.warn('texture load failed:', e));\n",
-                escape_js(&tex.name),
-                escape_js(url)
-            ));
+            if tex.texture_type == TextureType::Video {
+                s.push_str(&format!(
+                    "    this.loadVideoTexture('{}', '{}').catch(e => console.warn('video load failed:', e));\n",
+                    escape_js(&tex.name),
+                    escape_js(url)
+                ));
+            } else {
+                s.push_str(&format!(
+                    "    this.loadTexture('{}', '{}').catch(e => console.warn('texture load failed:', e));\n",
+                    escape_js(&tex.name),
+                    escape_js(url)
+                ));
+            }
         }
     }
 
@@ -615,6 +641,39 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
         s.push_str("    this._textures[name] = tex;\n");
         s.push_str("    if (typeof TEX_INDEX !== 'undefined' && name in TEX_INDEX) {\n");
         s.push_str("      if (this._renderer.setUserTexture) this._renderer.setUserTexture(TEX_INDEX[name], tex);\n");
+        s.push_str("    }\n");
+        s.push_str("  }\n\n");
+
+        // Video texture loading — creates <video> element, wires to renderer
+        s.push_str("  async loadVideoTexture(name, url) {\n");
+        s.push_str("    const video = document.createElement('video');\n");
+        s.push_str("    video.crossOrigin = 'anonymous';\n");
+        s.push_str("    video.muted = true;\n");
+        s.push_str("    video.loop = true;\n");
+        s.push_str("    video.playsInline = true;\n");
+        s.push_str("    video.preload = 'auto';\n");
+        s.push_str("    video.src = url;\n");
+        s.push_str("    await video.play().catch(() => {});\n");
+        s.push_str("    this._videoElements = this._videoElements || {};\n");
+        s.push_str("    this._videoElements[name] = video;\n");
+        s.push_str("    if (typeof TEX_INDEX !== 'undefined' && name in TEX_INDEX) {\n");
+        s.push_str("      if (this._renderer?.setVideoSource) this._renderer.setVideoSource(TEX_INDEX[name], video);\n");
+        s.push_str("      else if (this._renderer?.gl) {\n");
+        s.push_str("        // WebGL2 fallback: create GL texture, update each frame\n");
+        s.push_str("        const gl = this._renderer.gl;\n");
+        s.push_str("        const glTex = gl.createTexture();\n");
+        s.push_str("        gl.bindTexture(gl.TEXTURE_2D, glTex);\n");
+        s.push_str("        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);\n");
+        s.push_str("        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);\n");
+        s.push_str("        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);\n");
+        s.push_str("        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);\n");
+        s.push_str("        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);\n");
+        s.push_str("        gl.bindTexture(gl.TEXTURE_2D, null);\n");
+        s.push_str("        this._renderer.setUserTextureGL(name, glTex);\n");
+        s.push_str("        // Store for per-frame update\n");
+        s.push_str("        this._renderer._videoGLTextures = this._renderer._videoGLTextures || {};\n");
+        s.push_str("        this._renderer._videoGLTextures[name] = { glTex, video };\n");
+        s.push_str("      }\n");
         s.push_str("    }\n");
         s.push_str("  }\n\n");
     }

@@ -1,0 +1,20 @@
+// Ocean Video Test — real video motion through GAME pipeline
+cinematic "ocean-video-test" {
+  texture video "motion" from "ocean-waves.mp4"
+  texture "depth" from "ocean-coast-depth.png"
+
+  layer world {
+    parallax("motion", depth: "depth", strength: 0.003, orbit_speed: 0.06)
+  }
+
+  layer mist opacity: 0.02 blend: screen {
+    translate(time * 0.006, sin(time * 0.04) * 0.003)
+    | warp(scale: 0.8, octaves: 4, persistence: 0.60, strength: 0.12)
+    | fbm(scale: 1.0, octaves: 4, persistence: 0.50)
+    | glow(0.6)
+    | tint(0.88, 0.90, 0.96)
+  }
+
+  pass frame { vignette(0.18) }
+  pass film { film_grain(0.012) }
+}

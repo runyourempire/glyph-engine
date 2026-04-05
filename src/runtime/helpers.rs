@@ -86,6 +86,9 @@ pub fn webgpu_renderer(
         s.push_str("    this._texCount = textureCount;\n");
         s.push_str("    this._userTextures = [];\n");
         s.push_str("    this._userSamplers = [];\n");
+        s.push_str("    this._videoSources = new Array(textureCount).fill(null);\n");
+        s.push_str("    this._textureTypes = typeof TEXTURE_TYPES !== 'undefined' ? TEXTURE_TYPES : new Array(textureCount).fill('image');\n");
+        s.push_str("    this._hasVideoTextures = this._textureTypes.includes('video');\n");
     }
     s.push_str("    this.device = null;\n");
     s.push_str("    this.pipeline = null;\n");
@@ -167,23 +170,32 @@ pub fn webgpu_renderer(
 
     // Bind group layout (Group 0 = uniforms + user textures at bindings 5+)
     if has_textures {
-        // Create placeholder 1x1 white textures (bind group needs valid textures at creation)
+        // Create placeholder textures and sampler (bind group needs valid resources at creation)
         s.push_str("    this._texSampler = this.device.createSampler({ magFilter: 'linear', minFilter: 'linear', addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge' });\n");
         s.push_str("    for (let t = 0; t < this._texCount; t++) {\n");
-        s.push_str("      const ph = this.device.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });\n");
-        s.push_str("      this.device.queue.writeTexture({ texture: ph }, new Uint8Array([255,255,255,255]), { bytesPerRow: 4 }, [1, 1]);\n");
-        s.push_str("      this._userTextures.push(ph);\n");
-        s.push_str("      this._userSamplers.push(this._texSampler);\n");
+        s.push_str("      if (this._textureTypes[t] === 'video') {\n");
+        s.push_str("        this._userTextures.push(null); // Video textures created per-frame\n");
+        s.push_str("        this._userSamplers.push(null);\n");
+        s.push_str("      } else {\n");
+        s.push_str("        const ph = this.device.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });\n");
+        s.push_str("        this.device.queue.writeTexture({ texture: ph }, new Uint8Array([255,255,255,255]), { bytesPerRow: 4 }, [1, 1]);\n");
+        s.push_str("        this._userTextures.push(ph);\n");
+        s.push_str("        this._userSamplers.push(this._texSampler);\n");
+        s.push_str("      }\n");
         s.push_str("    }\n");
-        // Build layout entries dynamically: binding 0 (uniforms) + binding 5,6,7,8... (textures+samplers)
+        // Build layout entries: video textures get externalTexture, images get texture+sampler
         s.push_str("    const bglEntries = [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }];\n");
         s.push_str("    for (let t = 0; t < this._texCount; t++) {\n");
-        s.push_str("      bglEntries.push({ binding: t * 2 + 5, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } });\n");
-        s.push_str("      bglEntries.push({ binding: t * 2 + 6, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } });\n");
+        s.push_str("      if (this._textureTypes[t] === 'video') {\n");
+        s.push_str("        bglEntries.push({ binding: t * 2 + 5, visibility: GPUShaderStage.FRAGMENT, externalTexture: {} });\n");
+        s.push_str("      } else {\n");
+        s.push_str("        bglEntries.push({ binding: t * 2 + 5, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'float' } });\n");
+        s.push_str("        bglEntries.push({ binding: t * 2 + 6, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } });\n");
+        s.push_str("      }\n");
         s.push_str("    }\n");
         s.push_str("    const bindGroupLayout = this.device.createBindGroupLayout({ entries: bglEntries });\n");
         s.push_str("    this._mainBGL = bindGroupLayout;\n");
-        s.push_str("    this._rebuildBindGroup();\n\n");
+        s.push_str("    if (!this._hasVideoTextures) this._rebuildBindGroup();\n\n");
     } else {
         s.push_str("    const bindGroupLayout = this.device.createBindGroupLayout({\n");
         s.push_str("      entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } }]\n");
@@ -331,6 +343,11 @@ pub fn webgpu_renderer(
         "    for (const u of this.uniformDefs) data[i++] = this.userParams[u.name] ?? u.default;\n",
     );
     s.push_str("    this.device.queue.writeBuffer(this.uniformBuffer, 0, data);\n\n");
+
+    // Video textures: must rebuild bind group every frame (external textures expire per microtask)
+    if has_textures {
+        s.push_str("    if (this._hasVideoTextures) this._rebuildBindGroup();\n\n");
+    }
 
     s.push_str("    const encoder = this.device.createCommandEncoder();\n\n");
 
@@ -532,8 +549,18 @@ pub fn webgpu_renderer(
         s.push_str("  _rebuildBindGroup() {\n");
         s.push_str("    const entries = [{ binding: 0, resource: { buffer: this.uniformBuffer } }];\n");
         s.push_str("    for (let t = 0; t < this._texCount; t++) {\n");
-        s.push_str("      entries.push({ binding: t * 2 + 5, resource: this._userTextures[t].createView() });\n");
-        s.push_str("      entries.push({ binding: t * 2 + 6, resource: this._userSamplers[t] });\n");
+        s.push_str("      if (this._textureTypes[t] === 'video') {\n");
+        s.push_str("        // Video: import external texture from playing <video> element\n");
+        s.push_str("        if (this._videoSources[t]) {\n");
+        s.push_str("          try {\n");
+        s.push_str("            const extTex = this.device.importExternalTexture({ source: this._videoSources[t] });\n");
+        s.push_str("            entries.push({ binding: t * 2 + 5, resource: extTex });\n");
+        s.push_str("          } catch(e) { return; } // Video not ready yet\n");
+        s.push_str("        } else { return; } // No video source set yet\n");
+        s.push_str("      } else {\n");
+        s.push_str("        entries.push({ binding: t * 2 + 5, resource: this._userTextures[t].createView() });\n");
+        s.push_str("        entries.push({ binding: t * 2 + 6, resource: this._userSamplers[t] });\n");
+        s.push_str("      }\n");
         s.push_str("    }\n");
         s.push_str("    this.bindGroup = this.device.createBindGroup({ layout: this._mainBGL, entries });\n");
         s.push_str("  }\n\n");
@@ -543,7 +570,13 @@ pub fn webgpu_renderer(
         s.push_str("    const old = this._userTextures[index];\n");
         s.push_str("    if (old && old.width === 1 && old.height === 1) old.destroy();\n");
         s.push_str("    this._userTextures[index] = gpuTexture;\n");
-        s.push_str("    this._rebuildBindGroup();\n");
+        s.push_str("    if (!this._hasVideoTextures) this._rebuildBindGroup();\n");
+        s.push_str("  }\n\n");
+
+        // Video texture source setter
+        s.push_str("  setVideoSource(index, videoElement) {\n");
+        s.push_str("    if (index < 0 || index >= this._texCount) return;\n");
+        s.push_str("    this._videoSources[index] = videoElement;\n");
         s.push_str("  }\n\n");
     }
 
