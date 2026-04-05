@@ -1,80 +1,60 @@
-// Event Horizon — a black hole with gravitational lensing, accretion disk,
-// and particle jets. The void at the center is absolute darkness surrounded
-// by increasingly violent energy. Memory creates light streaks that spiral inward.
+// Event Horizon — a black hole.
+// Sharp rings on darkness. No glows. Only shade().
 
 cinematic "event-horizon" {
   layer config {
-    mass: 0.7
+    mass: 0.5
     accretion: 0.0
   }
 
-  // Deep space — warped starfield background
-  layer cosmos memory: 0.88 {
-    warp(scale: 3.0, octaves: 6, persistence: 0.45, strength: 0.2)
-    | voronoi(18.0) | palette(twilight)
-  }
-
-  // Gravitational distortion field — the spacetime warp around the hole
-  layer lensing memory: 0.93 blend: add {
+  // Gravitational lensing — ultra-subtle warped purple-blue field
+  layer lensing memory: 0.83 {
     polar
-    | warp(scale: 5.0, octaves: 5, persistence: 0.5, strength: 0.4 + mass * 0.15)
-    | fbm(scale: 4.0, octaves: 6)
+    | warp(scale: 3.0, octaves: 3, persistence: 0.5, strength: 0.12 + mass * 0.06)
+    | fbm(scale: 3.0, octaves: 3)
     | palette(
-        a_r: 0.02, a_g: 0.0, a_b: 0.05,
-        b_r: 0.3, b_g: 0.15, b_b: 0.5,
-        c_r: 1.0, c_g: 0.7, c_b: 0.5,
-        d_r: 0.0, d_g: 0.2, d_b: 0.5
+        a_r: 0.001, a_g: 0.0005, a_b: 0.003,
+        b_r: 0.003, b_g: 0.002, b_b: 0.006,
+        c_r: 0.5, c_g: 0.3, c_b: 0.8,
+        d_r: 0.0, d_g: 0.15, d_b: 0.4
       )
   }
 
-  // Accretion disk — hot matter spiraling in
-  layer disk memory: 0.91 blend: add {
-    distort(scale: 4.0, speed: 0.6, strength: 0.06)
-    | ring(0.25 + accretion * 0.05, 0.04)
-    | glow(3.0 + mass * 1.5)
-    | tint(1.0, 0.5, 0.15)
+  // Accretion disk — thin bright ring, shade only
+  layer disk memory: 0.92 {
+    distort(scale: 4.0, speed: 0.5, strength: 0.04)
+    | ring(0.30 + accretion * 0.04, 0.010)
+    | shade(1.0, 0.5, 0.08)
   }
 
-  // Inner ring — superheated plasma
-  layer inner_plasma memory: 0.94 blend: add {
-    distort(scale: 3.0, speed: 0.9, strength: 0.03)
-    | ring(0.14, 0.02) | glow(4.0 + mass * 2.0) | tint(1.0, 0.85, 0.6)
+  // Inner ring — hotter, thinner
+  layer inner memory: 0.85 {
+    distort(scale: 3.0, speed: 0.7, strength: 0.02)
+    | ring(0.19, 0.004)
+    | shade(1.0, 0.8, 0.45)
   }
 
-  // The void — absolute darkness at center
+  // Photon ring — razor-thin
+  layer photon memory: 0.78 {
+    ring(0.12, 0.002)
+    | shade(0.8, 0.7, 1.0)
+  }
+
+  // The void — absolute black
   layer void {
-    circle(0.06) | shade(0.0, 0.0, 0.0)
-  }
-
-  // Photon ring — the last stable orbit
-  layer photon_ring memory: 0.85 {
-    ring(0.09, 0.003) | glow(2.5) | tint(0.9, 0.8, 1.0)
-  }
-
-  // Structural boundary
-  layer boundary {
-    ring(0.46, 0.002) | glow(0.6) | tint(0.2, 0.15, 0.3)
+    circle(0.095)
+    | shade(0.0, 0.0, 0.0)
   }
 
   arc {
-    accretion: 0.0 -> 1.0 over 15s ease-in-out
+    accretion: 0.0 -> 1.0 over 12s ease-in-out
+    mass: 0.5 -> 0.85 over 20s ease-in-out
   }
 
   resonate {
-    mass -> disk.brightness * 0.5
-    mass -> lensing.intensity * 0.3
-    accretion -> inner_plasma.brightness * 0.4
+    mass -> disk.brightness * 0.15
+    accretion -> inner.brightness * 0.12
   }
 
-  matrix color {
-    [
-      1.0, -0.03, 0.12,
-      0.0,  0.92, 0.05,
-      0.06, -0.02, 1.2
-    ]
-  }
-
-  pass glow_pass { blur(2.5) }
-  pass aberration { chromatic(0.004) }
   pass frame { vignette(0.45) }
 }
