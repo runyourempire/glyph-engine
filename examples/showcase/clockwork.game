@@ -1,0 +1,62 @@
+// Clockwork — orbital mechanics rendered as precision timepiece.
+// Satellites orbit concentric rings at different speeds.
+// Pure shade(). Zero noise. Only geometry and time.
+
+cinematic "clockwork" {
+  // Outer tick ring — 60 divisions
+  layer ticks {
+    radial(60)
+    | ring(0.40, 0.0008)
+    | shade(0.15, 0.12, 0.06)
+  }
+
+  // Outer satellite — slow orbit
+  layer sat_outer memory: 0.85 {
+    rotate(time * 0.1)
+    | translate(0.40, 0.0)
+    | circle(0.015)
+    | shade(0.9, 0.75, 0.3)
+  }
+
+  // Middle ring
+  layer mid_ring {
+    ring(0.28, 0.002)
+    | shade(0.35, 0.28, 0.12)
+  }
+
+  // Middle satellite — counter-rotation
+  layer sat_mid memory: 0.83 {
+    rotate(time * -0.18)
+    | translate(0.28, 0.0)
+    | circle(0.012)
+    | shade(0.7, 0.55, 0.22)
+  }
+
+  // Inner ring
+  layer inner_ring {
+    ring(0.16, 0.003)
+    | shade(0.5, 0.4, 0.17)
+  }
+
+  // Inner satellite — fast orbit
+  layer sat_inner memory: 0.87 {
+    rotate(time * 0.3)
+    | translate(0.16, 0.0)
+    | circle(0.01)
+    | shade(1.0, 0.85, 0.4)
+  }
+
+  // Core jewel
+  layer core memory: 0.90 {
+    circle(0.035)
+    | shade(1.0, 0.9, 0.5)
+  }
+
+  // Outer boundary
+  layer boundary {
+    ring(0.44, 0.001)
+    | shade(0.1, 0.08, 0.04)
+  }
+
+  pass output { vignette(0.4) }
+}

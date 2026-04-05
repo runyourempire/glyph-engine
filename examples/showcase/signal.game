@@ -1,0 +1,73 @@
+// Signal — dashboard indicator with rotating probe.
+// Concentric gauge rings, orbiting indicator, hexagonal overlay.
+// Pure geometry. Data visualization aesthetic.
+
+cinematic "signal" {
+  layer config {
+    pulse: 0.3
+  }
+
+  // Outer gauge ring
+  layer outer {
+    ring(0.38, 0.001)
+    | shade(0.2, 0.15, 0.08)
+  }
+
+  // Tick marks — 24 divisions
+  layer ticks {
+    radial(24)
+    | ring(0.38, 0.0008)
+    | shade(0.15, 0.12, 0.05)
+  }
+
+  // Middle gauge ring
+  layer mid {
+    ring(0.30, 0.002)
+    | shade(0.3, 0.24, 0.12)
+  }
+
+  // Inner gauge ring
+  layer inner {
+    ring(0.22, 0.003)
+    | shade(0.45, 0.36, 0.16)
+  }
+
+  // Rotating probe — triangular indicator on middle ring
+  layer probe memory: 0.86 {
+    rotate(time * 0.15)
+    | translate(0.30, 0.0)
+    | star(3, 0.015, 0.008)
+    | shade(0.9, 0.7, 0.25)
+  }
+
+  // Hexagonal symmetry overlay
+  layer hex {
+    radial(6)
+    | ring(0.15, 0.001)
+    | shade(0.25, 0.2, 0.1)
+  }
+
+  // Pulse center — breathing status indicator
+  layer center memory: 0.90 {
+    distort(scale: 2.0, speed: 0.6, strength: 0.01 + pulse * 0.005)
+    | circle(0.045 + pulse * 0.015)
+    | shade(1.0, 0.85, 0.35)
+  }
+
+  // Center dot
+  layer dot {
+    circle(0.008)
+    | shade(1.0, 0.95, 0.6)
+  }
+
+  arc {
+    pulse: 0.3 -> 0.9 over 5s ease-in-out
+  }
+
+  resonate {
+    pulse -> center.brightness * 0.3
+    pulse -> probe.brightness * 0.2
+  }
+
+  pass output { vignette(0.35) }
+}

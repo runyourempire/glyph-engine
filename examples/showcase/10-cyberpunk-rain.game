@@ -1,6 +1,6 @@
 // Cyberpunk Rain — neon-soaked digital rain on wet streets.
 // Grid structure, vertical noise, shade() neon signs.
-// No blend:add. Chromatic aberration for lens distortion.
+// No blend:add. Subtle chromatic aberration.
 
 cinematic "cyberpunk-rain" {
   layer config {
@@ -29,17 +29,17 @@ cinematic "cyberpunk-rain" {
 
   // Neon A — pink/magenta light source
   layer pink memory: 0.90 {
-    translate(-0.15, 0.1)
+    translate(-0.12, 0.08)
     | distort(scale: 2.0, speed: 0.8, strength: 0.015 + downpour * 0.008)
-    | circle(0.05 + neon * 0.015)
+    | circle(0.065 + neon * 0.02)
     | shade(0.9, 0.15, 0.4)
   }
 
   // Neon B — cyan light source
   layer cyan memory: 0.89 {
-    translate(0.18, -0.08)
+    translate(0.14, -0.06)
     | distort(scale: 2.0, speed: 0.6, strength: 0.012)
-    | circle(0.04 + neon * 0.01)
+    | circle(0.055 + neon * 0.015)
     | shade(0.08, 0.7, 0.9)
   }
 
@@ -80,6 +80,6 @@ cinematic "cyberpunk-rain" {
     neon -> cyan.brightness * 0.25
   }
 
-  pass split { chromatic(0.005) }
+  pass split { chromatic(0.002) }
   pass frame { vignette(0.5) }
 }

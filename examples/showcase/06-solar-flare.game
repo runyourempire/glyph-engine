@@ -1,6 +1,6 @@
 // Solar Flare — coronal mass ejection from a stellar surface.
 // Polar-space corona, palette-driven plasma, shade() for precision.
-// No blend:add. Fire palette with ultra-low a values.
+// No blend:add. Pure warm palette — no green artifacts.
 
 cinematic "solar-flare" {
   layer config {
@@ -8,15 +8,15 @@ cinematic "solar-flare" {
     corona: 0.4
   }
 
-  // Stellar surface — boiling granular texture
+  // Stellar surface — boiling granular fire texture
   layer surface memory: 0.88 {
     warp(scale: 4.0, octaves: 6, persistence: 0.55, strength: 0.2)
     | fbm(scale: 5.0, octaves: 5)
     | palette(
-        a_r: 0.003, a_g: 0.001, a_b: 0.0,
-        b_r: 0.015, b_g: 0.005, b_b: 0.001,
-        c_r: 1.0, c_g: 0.5, c_b: 0.2,
-        d_r: 0.0, d_g: 0.15, d_b: 0.3
+        a_r: 0.005, a_g: 0.001, a_b: 0.0,
+        b_r: 0.025, b_g: 0.008, b_b: 0.001,
+        c_r: 1.0, c_g: 0.8, c_b: 0.5,
+        d_r: 0.0, d_g: 0.0, d_b: 0.0
       )
   }
 
@@ -26,10 +26,10 @@ cinematic "solar-flare" {
     | warp(scale: 2.0, octaves: 5, persistence: 0.6, strength: 0.3 + corona * 0.12)
     | fbm(scale: 3.0, octaves: 5)
     | palette(
-        a_r: 0.003, a_g: 0.001, a_b: 0.0,
-        b_r: 0.01, b_g: 0.004, b_b: 0.001,
-        c_r: 0.8, c_g: 0.4, c_b: 0.15,
-        d_r: 0.0, d_g: 0.1, d_b: 0.2
+        a_r: 0.004, a_g: 0.001, a_b: 0.0,
+        b_r: 0.015, b_g: 0.005, b_b: 0.0,
+        c_r: 0.8, c_g: 0.6, c_b: 0.3,
+        d_r: 0.0, d_g: 0.0, d_b: 0.0
       )
   }
 
@@ -39,10 +39,10 @@ cinematic "solar-flare" {
     | warp(scale: 3.0, octaves: 4, strength: 0.25 + eruption * 0.15)
     | simplex(6.0)
     | palette(
-        a_r: 0.004, a_g: 0.001, a_b: 0.0,
-        b_r: 0.02, b_g: 0.008, b_b: 0.002,
-        c_r: 1.0, c_g: 0.6, c_b: 0.2,
-        d_r: 0.0, d_g: 0.1, d_b: 0.15
+        a_r: 0.006, a_g: 0.002, a_b: 0.0,
+        b_r: 0.03, b_g: 0.012, b_b: 0.001,
+        c_r: 1.0, c_g: 0.7, c_b: 0.3,
+        d_r: 0.0, d_g: 0.05, d_b: 0.0
       )
   }
 

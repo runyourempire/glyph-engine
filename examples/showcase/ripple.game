@@ -1,0 +1,48 @@
+// Ripple — expanding concentric pulses from a central origin.
+// onion() creates ring sets. Memory preserves fading wavefronts.
+// Pure geometry, pure shade(), zero noise.
+
+cinematic "ripple" {
+  layer config {
+    expand: 0.0
+  }
+
+  // Primary wavefront — expanding rings
+  layer waves memory: 0.88 {
+    distort(scale: 2.0, speed: 0.5, strength: 0.015)
+    | circle(0.08 + expand * 0.18)
+    | onion(8, 0.003)
+    | shade(0.6, 0.5, 0.2)
+  }
+
+  // Secondary wavefront — offset phase
+  layer waves2 memory: 0.85 {
+    distort(scale: 2.5, speed: 0.4, strength: 0.012)
+    | circle(0.14 + expand * 0.12)
+    | onion(6, 0.002)
+    | shade(0.4, 0.32, 0.15)
+  }
+
+  // Origin point — the source
+  layer origin memory: 0.92 {
+    distort(scale: 3.0, speed: 0.8, strength: 0.008)
+    | circle(0.02)
+    | shade(1.0, 0.9, 0.45)
+  }
+
+  // Boundary
+  layer bound {
+    ring(0.44, 0.001)
+    | shade(0.2, 0.15, 0.08)
+  }
+
+  arc {
+    expand: 0.0 -> 1.0 over 8s ease-in-out
+  }
+
+  resonate {
+    expand -> waves.brightness * 0.2
+  }
+
+  pass output { vignette(0.35) }
+}
