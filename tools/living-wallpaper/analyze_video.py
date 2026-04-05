@@ -253,32 +253,54 @@ def compute_optical_flow_opencv(frames: np.ndarray) -> np.ndarray:
 
 def compute_optical_flow_raft(frames: np.ndarray) -> np.ndarray:
     """
-    Compute dense optical flow using SEA-RAFT (ECCV 2024).
+    Compute dense optical flow using RAFT (torchvision).
     Requires: pip install torchvision
     Falls back to OpenCV if unavailable.
     """
     try:
         import torch
-        from torchvision.models.optical_flow import raft_large
+        import time as _time
+        from torchvision.models.optical_flow import raft_large, Raft_Large_Weights
         from torchvision.transforms.functional import to_tensor
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        model = raft_large(pretrained=True).to(device).eval()
+        print(f"[flow] Loading RAFT model on {device}...")
+        t0 = _time.perf_counter()
+        model = raft_large(weights=Raft_Large_Weights.DEFAULT).to(device).eval()
+        print(f"[flow] Model loaded in {_time.perf_counter() - t0:.2f}s")
+
+        orig_h, orig_w = frames.shape[1], frames.shape[2]
+        # RAFT requires H and W divisible by 8 — pad if needed
+        pad_h = (8 - orig_h % 8) % 8
+        pad_w = (8 - orig_w % 8) % 8
+        if pad_h > 0 or pad_w > 0:
+            print(f"[flow] Padding frames from {orig_w}x{orig_h} to "
+                  f"{orig_w + pad_w}x{orig_h + pad_h} (RAFT requires divisible by 8)")
 
         flows = []
+        t1 = _time.perf_counter()
         with torch.no_grad():
             for i in range(len(frames) - 1):
                 img1 = to_tensor(cv2.cvtColor(frames[i], cv2.COLOR_BGR2RGB)).unsqueeze(0).to(device)
                 img2 = to_tensor(cv2.cvtColor(frames[i + 1], cv2.COLOR_BGR2RGB)).unsqueeze(0).to(device)
+                # Pad to divisible-by-8 dimensions
+                if pad_h > 0 or pad_w > 0:
+                    img1 = torch.nn.functional.pad(img1, (0, pad_w, 0, pad_h), mode='reflect')
+                    img2 = torch.nn.functional.pad(img2, (0, pad_w, 0, pad_h), mode='reflect')
                 # RAFT returns list of flow predictions; last is most refined
                 flow_predictions = model(img1, img2)
                 flow = flow_predictions[-1].squeeze(0).permute(1, 2, 0).cpu().numpy()
+                # Crop back to original dimensions
+                flow = flow[:orig_h, :orig_w, :]
                 flows.append(flow)
 
-        print(f"[flow] Computed {len(flows)} flow fields (RAFT on {device})")
+        elapsed = _time.perf_counter() - t1
+        fps = len(flows) / elapsed if elapsed > 0 else 0
+        print(f"[flow] Computed {len(flows)} flow fields (RAFT on {device}) "
+              f"in {elapsed:.2f}s ({fps:.1f} pairs/sec)")
         return np.array(flows)
 
-    except (ImportError, RuntimeError) as e:
+    except (ImportError, RuntimeError, ValueError) as e:
         print(f"[flow] RAFT unavailable ({e}), falling back to OpenCV Farneback")
         return compute_optical_flow_opencv(frames)
 
