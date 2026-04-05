@@ -1,107 +1,93 @@
-// Sacred Geometry — living mandala that fills the viewport.
-// 12 layers of counter-rotating geometry. Boolean-sculpted jewel.
-// Mouse shifts the central axis. Every ring moves independently.
+// Sacred Geometry — living golden mandala with depth and radiance.
+// Soft glowing shapes on rich palette texture. Warped organic edges.
+// Mouse shifts the jewel. Everything breathes.
 
 cinematic "sacred-geometry" {
   layer config {
     breath: 0.0
-    bloom: 0.5
   }
 
-  // Outermost boundary — 60 tick marks
-  layer ticks {
-    radial(60)
-    | ring(0.44, 0.0008)
-    | shade(0.1, 0.08, 0.04)
+  // Golden mandala texture — fills viewport with warm sacred pattern
+  layer field memory: 0.88 {
+    radial(12)
+    | warp(scale: 2.0, octaves: 4, strength: 0.15 + breath * 0.05)
+    | fbm(scale: 4.0, octaves: 5)
+    | palette(gold)
   }
 
-  // Outer ring — slow counter-rotation
-  layer ring_outer memory: 0.80 {
-    rotate(time * -0.02)
-    | ring(0.44, 0.003)
-    | shade(0.15, 0.12, 0.06)
+  // Outer halo — warped soft ring, slow rotation
+  layer outer memory: 0.85 {
+    rotate(time * 0.02)
+    | warp(scale: 2.5, octaves: 3, strength: 0.08)
+    | ring(0.40, 0.012)
+    | glow(2.5)
+    | tint(0.7, 0.55, 0.2)
   }
 
-  // 12-fold petal ring — rotating capsules at edge
-  layer petals_12 memory: 0.82 {
-    rotate(time * 0.025)
-    | radial(12)
-    | capsule(0.20, 0.006)
-    | shade(0.3, 0.24, 0.1)
-  }
-
-  // Star orbit — 12-fold, counter-rotating
-  layer stars_12 memory: 0.84 {
-    rotate(time * -0.035)
-    | radial(12)
-    | ring(0.36, 0.004)
-    | shade(0.4, 0.32, 0.14)
-  }
-
-  // Hexagonal ring — 6-fold breathing
-  layer hex memory: 0.86 {
-    rotate(time * 0.045)
-    | radial(6)
-    | distort(scale: 2.0, speed: 0.4, strength: 0.015)
-    | ring(0.28 + breath * 0.02, 0.010)
-    | shade(0.6, 0.48, 0.2)
-  }
-
-  // 8-fold inner petals — counter-rotating
-  layer petals_8 memory: 0.83 {
-    rotate(time * -0.055)
-    | radial(8)
-    | distort(scale: 2.5, speed: 0.5, strength: 0.012)
-    | capsule(0.12, 0.005)
-    | shade(0.5, 0.4, 0.16)
-  }
-
-  // Inner star ring
-  layer star_inner memory: 0.85 {
-    rotate(time * 0.065)
-    | ring(0.20, 0.006)
-    | shade(0.55, 0.44, 0.18)
-  }
-
-  // Onion shells — fine concentric detail
-  layer shells memory: 0.82 {
+  // 6-fold star — warped, glowing, counter-rotating
+  layer star memory: 0.84 {
     rotate(time * -0.03)
-    | circle(0.16)
-    | onion(5, 0.003)
-    | shade(0.45, 0.36, 0.15)
+    | warp(scale: 2.0, octaves: 3, strength: 0.06)
+    | star(6, 0.32 + breath * 0.03, 0.18)
+    | glow(2.0)
+    | tint(0.6, 0.45, 0.12)
   }
 
-  // Boolean jewel — smooth_subtract creates faceted gem
+  // Mid ring — warped organic circle
+  layer mid memory: 0.87 {
+    rotate(time * 0.04)
+    | warp(scale: 3.0, octaves: 3, strength: 0.07)
+    | distort(scale: 2.5, speed: 0.4, strength: 0.02)
+    | ring(0.26, 0.010)
+    | glow(3.0)
+    | tint(0.9, 0.7, 0.25)
+  }
+
+  // 8-fold capsule petals — rotating
+  layer petals memory: 0.83 {
+    rotate(time * -0.045)
+    | radial(8)
+    | warp(scale: 2.0, octaves: 2, strength: 0.04)
+    | capsule(0.14, 0.008)
+    | glow(2.0)
+    | tint(0.5, 0.38, 0.12)
+  }
+
+  // Hex shape — 6-fold, pulsing
+  layer hex memory: 0.86 {
+    rotate(time * 0.055)
+    | warp(scale: 1.5, octaves: 2, strength: 0.03)
+    | hex(0.16 + breath * 0.02)
+    | glow(2.5)
+    | tint(0.8, 0.6, 0.18)
+  }
+
+  // Jewel — boolean gem, follows mouse
   layer jewel memory: 0.90 {
-    translate(mouse_x * 0.02 - 0.01, mouse_y * 0.02 - 0.01)
-    | distort(scale: 1.5, speed: 0.3, strength: 0.01 + breath * 0.005)
-    | smooth_subtract(circle(0.09 + breath * 0.02), star(6, 0.07, 0.035), 0.015)
-    | shade(0.9, 0.75, 0.3)
+    translate(mouse_x * 0.04 - 0.02, mouse_y * 0.04 - 0.02)
+    | distort(scale: 1.5, speed: 0.3, strength: 0.015)
+    | smooth_subtract(circle(0.10 + breath * 0.025), star(6, 0.08, 0.04), 0.02)
+    | glow(4.0)
+    | tint(1.0, 0.85, 0.35)
   }
 
-  // Inner hex detail
-  layer hex_inner {
-    radial(6)
-    | ring(0.065, 0.002)
-    | shade(0.7, 0.55, 0.22)
-  }
-
-  // Core point — brightest element
+  // Core radiance
   layer core memory: 0.92 {
-    circle(0.02)
-    | shade(1.0, 0.9, 0.5)
+    circle(0.025)
+    | glow(5.0)
+    | tint(1.0, 0.95, 0.6)
   }
 
   arc {
     breath: 0.0 -> 1.0 over 6s ease-in-out
-    bloom: 0.5 -> 1.0 over 10s ease-in-out
   }
 
   resonate {
-    breath -> jewel.brightness * 0.2
-    breath -> hex.brightness * 0.15
-    bloom -> star_inner.brightness * 0.1
+    breath -> jewel.brightness * 0.3
+    breath -> star.brightness * 0.15
+    breath -> field.intensity * 0.1
   }
 
-  pass frame { vignette(0.25) }
+  pass bloom { blur(1.5) }
+  pass frame { vignette(0.3) }
 }

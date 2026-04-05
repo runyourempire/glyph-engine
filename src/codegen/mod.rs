@@ -30,7 +30,7 @@ pub mod temporal;
 pub mod voice;
 pub mod wgsl;
 
-use crate::ast::{Cinematic, Expr, FnDef, LayerBody, Param};
+use crate::ast::{Cinematic, Expr, FnDef, LayerBody, Param, TextureType};
 use crate::builtins;
 use crate::error::CompileError;
 
@@ -48,6 +48,8 @@ pub struct TextureInfo {
     pub binding: u32,
     /// Optional source URL (from `texture "name" from "url"`).
     pub source: Option<String>,
+    /// Whether this is a static image or a video stream.
+    pub texture_type: TextureType,
 }
 
 /// Collected shader output for a single cinematic.
@@ -583,6 +585,7 @@ pub fn generate_with_fns(
             name: td.name.clone(),
             binding: (i as u32) * 2 + 5, // bindings 5,6 / 7,8 / 9,10 / 11,12
             source: td.source.clone(),
+            texture_type: td.texture_type,
         })
         .collect();
 
