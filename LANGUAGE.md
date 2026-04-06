@@ -1,8 +1,8 @@
-# GAME Language Reference
+# GLYPH Language Reference
 
 **Version 1.0.0** | Generative Animation Matrix Engine
 
-GAME compiles .game files to WebGPU/WebGL2 shaders packaged as zero-dependency Web Components. Every compiled component renders at 60fps on the GPU with automatic ACES tonemapping and dithering.
+GLYPH compiles .glyph files to WebGPU/WebGL2 shaders packaged as zero-dependency Web Components. Every compiled component renders at 60fps on the GPU with automatic ACES tonemapping and dithering.
 
 ## Syntax Overview
 
@@ -91,7 +91,7 @@ warp(scale: 2.0, octaves: 4, strength: 0.1 + energy * 0.2)
 
 Configure compute output color via `color_r`, `color_g`, `color_b` parameters:
 
-```game
+```glyph
 cinematic "custom-color" {
   layer config {
     color_r: 0.3

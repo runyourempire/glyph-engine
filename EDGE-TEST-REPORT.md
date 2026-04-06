@@ -1,4 +1,4 @@
-# GAME Compiler Edge Case Test Report
+# GLYPH Compiler Edge Case Test Report
 
 **Date:** 2026-03-25
 **Compiler Version:** v1.0.0
@@ -211,8 +211,8 @@ runtime file. HTML/standalone/artblocks all include embeddable HTML files.**
 
 | Test | Scenario | Result |
 |------|----------|--------|
-| 22 | 2 .game files in one command | PASS |
-| 23 | Directory of .game files | FAIL (Expected -- not supported) |
+| 22 | 2 .glyph files in one command | PASS |
+| 23 | Directory of .glyph files | FAIL (Expected -- not supported) |
 | 24 | File with 2 cinematics | PASS (produces 2 output files) |
 | 25 | Same file twice to same dir | PASS (clean overwrite) |
 
@@ -381,7 +381,7 @@ poisoned mutex recovery.**
 
 ## Test Infrastructure
 
-- All test files: `D:/runyourempire/game-engine/game-compiler/tmp-edge-tests/`
+- All test files: `D:/runyourempire/glyph-engine/glyph-compiler/tmp-edge-tests/`
 - All build outputs: `tmp-edge-tests/out/` and format-specific subdirectories
 - Existing test suite: 567 tests, all passing
 - Compiler build: clean, no warnings

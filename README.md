@@ -1,4 +1,4 @@
-# GLYPH — Generative Animation Matrix Engine
+# GLYPH — Write Visual Language
 
 **GPU compute simulations from declarative code.** Write 15 lines, get a zero-dependency Web Component with reaction-diffusion, swarm intelligence, or flow dynamics — running at 60fps on any GPU.
 
@@ -21,7 +21,7 @@
 
 Each animation above is a single `.glyph` file compiled to a self-contained Web Component. No runtime. No dependencies. No framework.
 
-```game
+```glyph
 cinematic "deep-coral" {
   layer bg {
     circle(0.5) | glow(0.6) | tint(0.003, 0.008, 0.02)
@@ -43,7 +43,7 @@ cinematic "deep-coral" {
 }
 ```
 
-**That's it.** 15 lines → Gray-Scott reaction-diffusion on a 256x256 GPU compute grid, color-customizable at runtime, compiled to `<game-deep-coral>`. Drop the `.js` file into any web page and it works.
+**That's it.** 15 lines → Gray-Scott reaction-diffusion on a 256x256 GPU compute grid, color-customizable at runtime, compiled to `<glyph-deep-coral>`. Drop the `.js` file into any web page and it works.
 
 ## Install
 
@@ -72,7 +72,7 @@ Open `http://localhost:4200` — you'll see your shader with parameter sliders, 
 
 A cinematic is a named visual composition. It compiles to a custom HTML element.
 
-```game
+```glyph
 cinematic "name" {
   layer layer_name {
     shape() | effect() | color()
@@ -94,7 +94,7 @@ Position → [SDF Primitive] → [SDF Modifier] → [SDF→Color Bridge] → [Co
 
 ### SDF Primitives
 
-```game
+```glyph
 circle(0.3)                      // Circle with radius 0.3
 ring(0.3, 0.02)                  // Ring with radius 0.3, width 0.02
 star(5, 0.3, 0.15)              // 5-pointed star, outer 0.3, inner 0.15
@@ -115,7 +115,7 @@ grid(0.1, 0.005)               // Grid lattice, spacing 0.1, line width 0.005
 
 Combine shapes using constructive solid geometry:
 
-```game
+```glyph
 union(circle(0.3), box(0.2, 0.4))              // Union (OR)
 subtract(circle(0.3), box(0.1, 0.1))           // Subtraction (A minus B)
 intersect(ring(0.3, 0.05), star(5, 0.35, 0.15)) // Intersection (AND)
@@ -129,7 +129,7 @@ xor(circle(0.3), box(0.25, 0.25))              // Symmetric difference
 
 Transform the coordinate space before shape evaluation:
 
-```game
+```glyph
 repeat(0.5, 0.5) | circle(0.1) | glow(2.0)   // Infinite tiling
 mirror() | star(5, 0.3, 0.15) | glow(2.0)     // Bilateral symmetry
 radial(6) | box(0.3, 0.05) | glow(2.0)        // 6-fold radial symmetry
@@ -137,7 +137,7 @@ radial(6) | box(0.3, 0.05) | glow(2.0)        // 6-fold radial symmetry
 
 ### Shape Modifiers
 
-```game
+```glyph
 circle(0.3) | round(0.05) | glow(2.0)          // Round corners
 circle(0.3) | shell(0.02) | glow(2.0)          // Hollow out
 circle(0.3) | onion(3, 0.02) | glow(2.0)       // Concentric shells
@@ -145,7 +145,7 @@ circle(0.3) | onion(3, 0.02) | glow(2.0)       // Concentric shells
 
 ### SDF → Color Bridges
 
-```game
+```glyph
 glow(2.0)                       // Exponential falloff glow
 shade(0.8, 0.6, 0.2)           // Direct SDF-to-color mapping
 emissive(1.5)                   // Glow with alpha transparency
@@ -154,7 +154,7 @@ palette(...)                    // Cosine palette (12 params: a,b,c,d RGB)
 
 ### Color Effects
 
-```game
+```glyph
 tint(0.83, 0.69, 0.22)         // Multiply by RGB color
 bloom(0.3, 2.0)                // High-pass bloom, threshold + strength
 grain(0.05)                    // Film grain noise
@@ -163,7 +163,7 @@ outline(0.01)                  // Edge outline, width
 
 ### Transforms
 
-```game
+```glyph
 rotate(1.0) | circle(0.3) | glow(2.0)         // Time-driven rotation
 translate(0.2, 0.1) | circle(0.3) | glow(2.0) // Offset position
 scale(2.0) | circle(0.3) | glow(2.0)          // Scale up 2x
@@ -171,7 +171,7 @@ scale(2.0) | circle(0.3) | glow(2.0)          // Scale up 2x
 
 ### Procedural Noise
 
-```game
+```glyph
 fbm(3.0, 4, 0.5, 2.0)         // Fractional Brownian motion
 simplex(5.0)                   // Simplex noise
 voronoi(5.0)                   // Voronoi cells
@@ -184,7 +184,7 @@ polar()                        // Polar coordinate transform
 
 Declare named parameters that become GPU uniforms:
 
-```game
+```glyph
 cinematic "reactive-orb" {
   layer config {
     intensity: 1.0
@@ -198,13 +198,13 @@ cinematic "reactive-orb" {
 }
 ```
 
-Access from JavaScript: `element.intensity = 0.8` or `<game-reactive-orb intensity="0.8">`.
+Access from JavaScript: `element.intensity = 0.8` or `<glyph-reactive-orb intensity="0.8">`.
 
 ### Temporal Operators
 
 Modulate parameters with smooth time-domain processing:
 
-```game
+```glyph
 layer config {
   bass: 0.5 ~ audio.bass <> 50ms >> 200ms .. [0.0, 1.0]
 }
@@ -220,7 +220,7 @@ layer config {
 
 ### Multi-Layer Composition
 
-```game
+```glyph
 cinematic "layered" {
   layer background blend screen {
     fbm(2.0, 4, 0.5, 2.0) | glow(1.0) | tint(0.1, 0.1, 0.3)
@@ -238,7 +238,7 @@ Blend modes: `add` (default), `screen`, `multiply`, `overlay`.
 
 Sequence cinematics with timed transitions:
 
-```game
+```glyph
 cinematic "dawn" { ... }
 cinematic "noon" { ... }
 cinematic "dusk" { ... }
@@ -252,11 +252,11 @@ scene "day-cycle" {
 }
 ```
 
-Compiles to a `<game-scene-day-cycle>` Web Component that creates child cinematic elements and crossfades between them via CSS opacity transitions.
+Compiles to a `<glyph-scene-day-cycle>` Web Component that creates child cinematic elements and crossfades between them via CSS opacity transitions.
 
 ### User-Defined Functions
 
-```game
+```glyph
 fn neon_dot(r, g, b) {
   circle(0.1) | glow(4.0) | tint(r, g, b)
 }
@@ -272,7 +272,7 @@ cinematic "dots" {
 
 Import reusable functions from the stdlib:
 
-```game
+```glyph
 import "std:shapes"    // dot, petal, gear, bullseye, halo, badge, blob, pill
 import "std:palettes"  // ocean, fire, forest, neon, sunset, aurora, cyber
 import "std:patterns"  // checker, dots, stripes
@@ -282,7 +282,7 @@ import "std:motion"    // orbit, pulse_ring, spin, wobble
 
 ### Conditionals
 
-```game
+```glyph
 layer main {
   if energy > 0.5 {
     star(5, 0.3, 0.15) | glow(3.0) | tint(1.0, 0.5, 0.1)
@@ -296,7 +296,7 @@ layer main {
 
 Layers with `memory` retain a fraction of the previous frame:
 
-```game
+```glyph
 layer trails memory: 0.95 {
   circle(0.2) | glow(3.0) | tint(1.0, 0.5, 0.2)
 }
@@ -304,7 +304,7 @@ layer trails memory: 0.95 {
 
 ### Animation Curves (Arc)
 
-```game
+```glyph
 arc {
   scale: 0.1 -> 1.0 over 3s ease_in_out
   brightness: 0.0 -> 1.0 over 2s ease_out
@@ -313,7 +313,7 @@ arc {
 
 ### Parameter Coupling (Resonate)
 
-```game
+```glyph
 resonate {
   bass -> core.scale * 0.3
   pulse -> ring.brightness * 0.5
@@ -322,7 +322,7 @@ resonate {
 
 ### Audio Analysis (Listen)
 
-```game
+```glyph
 listen {
   onset: attack(threshold: 0.7, decay: 300ms)
   melody: pitch(min: 200, max: 4000)
@@ -333,7 +333,7 @@ listen {
 
 ### Audio Synthesis (Voice)
 
-```game
+```glyph
 voice {
   osc: sine(freq: 440)
   filter: lowpass(cutoff: 2000, q: 1.5)
@@ -344,7 +344,7 @@ voice {
 
 ### Musical Timeline (Score)
 
-```game
+```glyph
 score tempo(120) {
   motif rise { scale: 0.5 -> 2.0 over 4bars }
   motif fall { scale: 2.0 -> 0.5 over 2bars }
@@ -357,7 +357,7 @@ score tempo(120) {
 ### Compute Shaders
 
 #### N-Body Gravity
-```game
+```glyph
 gravity {
   force_law: 1.0 / (distance * distance)
   damping: 0.995
@@ -366,7 +366,7 @@ gravity {
 ```
 
 #### Reaction-Diffusion
-```game
+```glyph
 react {
   feed: 0.055
   kill: 0.062
@@ -377,7 +377,7 @@ react {
 ```
 
 #### Physarum Stigmergy
-```game
+```glyph
 swarm {
   agents: 500000
   sensor_angle: 45
@@ -392,7 +392,7 @@ swarm {
 ```
 
 #### Vector Field Flow
-```game
+```glyph
 flow {
   type: curl
   scale: 3.0
@@ -404,7 +404,7 @@ flow {
 
 ### Genetic Composition (Breed)
 
-```game
+```glyph
 breed "child" from "fire" + "ice" {
   inherit layers: mix(0.6)
   inherit params: pick(0.5)
@@ -415,7 +415,7 @@ breed "child" from "fire" + "ice" {
 
 ### Projection Mapping
 
-```game
+```glyph
 project dome(theta: 0.5) {
   source: "my-cinematic"
 }
@@ -425,7 +425,7 @@ Modes: `flat`, `dome`, `cube`, `led`.
 
 ### External Imports
 
-```game
+```glyph
 import "shadertoy://XsXXDn" as shader
 import "midi://channel/1" as midi
 import "osc://localhost:9000/params" as osc
@@ -441,7 +441,7 @@ game build input.glyph -o dist/
 Produces `dist/name.js` — a self-registering custom element:
 ```html
 <script src="name.js"></script>
-<game-name intensity="0.8"></game-name>
+<glyph-name intensity="0.8"></glyph-name>
 ```
 
 ### Standalone HTML
@@ -458,12 +458,12 @@ Every build also produces `name.wgsl` and `name.frag` (GLSL ES 3.0) alongside th
 ### HTML
 ```html
 <script type="module" src="./golden-orb.js"></script>
-<game-golden-orb style="width:200px;height:200px"></game-golden-orb>
+<glyph-golden-orb style="width:200px;height:200px"></glyph-golden-orb>
 ```
 
 ### React/TypeScript
 ```tsx
-import './lib/game-components/golden-orb.js';
+import './lib/glyph-components/golden-orb.js';
 
 function App() {
   const ref = useRef<HTMLElement>(null);
@@ -474,13 +474,13 @@ function App() {
     }
   }, []);
 
-  return <game-golden-orb ref={ref} />;
+  return <glyph-golden-orb ref={ref} />;
 }
 ```
 
 ### JavaScript API
 ```js
-const el = document.querySelector('game-golden-orb');
+const el = document.querySelector('glyph-golden-orb');
 el.intensity = 0.8;           // Property setter
 el.setParam('radius', 0.3);   // Generic setter
 el.setAudioData({ bass: 0.5, mid: 0.3, treble: 0.1, energy: 0.3, beat: 0 });

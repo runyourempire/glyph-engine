@@ -1,6 +1,6 @@
-# Contributing to GAME
+# Contributing to GLYPH
 
-Thank you for your interest in contributing to GAME.
+Thank you for your interest in contributing to GLYPH.
 
 ## License
 
@@ -10,8 +10,8 @@ By contributing to this repository, you agree that your contributions will be li
 
 ```bash
 # Clone
-git clone https://github.com/runyourempire/game-engine.git
-cd game-engine/game-compiler
+git clone https://github.com/runyourempire/glyph-engine.git
+cd glyph-engine/glyph-compiler
 
 # Build
 cargo build
@@ -20,10 +20,10 @@ cargo build
 cargo test --lib
 
 # Compile an example
-cargo run -- build examples/001-hello.game -o dist
+cargo run -- build examples/001-hello.glyph -o dist
 
 # Run the dev server with hot reload
-cargo run -- dev examples/001-hello.game
+cargo run -- dev examples/001-hello.glyph
 ```
 
 ## Project Structure
@@ -51,7 +51,7 @@ src/
   wasm.rs          — WASM bindings (behind `wasm` feature)
 editors/vscode/    — VS Code extension
 wrappers/          — Framework wrappers (React, Vue, Svelte)
-examples/          — 79 reference .game files
+examples/          — 79 reference .glyph files
 ```
 
 ## Development Guidelines
@@ -64,7 +64,7 @@ examples/          — 79 reference .game files
 
 ## Reporting Issues
 
-Open an issue on [GitHub](https://github.com/runyourempire/game-engine/issues) with:
-- GAME source code that reproduces the problem
+Open an issue on [GitHub](https://github.com/runyourempire/glyph-engine/issues) with:
+- GLYPH source code that reproduces the problem
 - Expected vs actual output
 - `game --version` output

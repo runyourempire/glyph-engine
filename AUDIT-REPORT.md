@@ -1,4 +1,4 @@
-# GAME Compiler Audit Report
+# GLYPH Compiler Audit Report
 
 **Date:** 2026-03-25
 **Version:** 1.0.0
@@ -247,8 +247,8 @@ Error messages are clear with byte-offset positions. The "Did you mean?" feature
 
 | Test | Time | Notes |
 |------|------|-------|
-| Simple file (001-hello.game, 1 layer) | 196ms | Includes process startup |
-| Complex file (038-genesis.game, multi-layer) | 213ms | ~17ms compilation overhead |
+| Simple file (001-hello.glyph, 1 layer) | 196ms | Includes process startup |
+| Complex file (038-genesis.glyph, multi-layer) | 213ms | ~17ms compilation overhead |
 | Multi-component (019-swarm, 2 components) | 186ms | Parallel? Or cached? |
 | All 76 examples sequentially | 15.0s | ~197ms per invocation |
 
@@ -298,9 +298,9 @@ Error messages are clear with byte-offset positions. The "Did you mean?" feature
 
 5. **No argument count validation.** `circle(0.3, 0.5, 0.7)` silently ignores extra arguments. `circle()` silently uses defaults. `circle("hello")` silently uses defaults. No warnings emitted for any of these.
 
-6. **Empty file validates as "ok".** An empty `.game` file passes `validate` and `build` silently produces nothing. Should at minimum warn "no components found".
+6. **Empty file validates as "ok".** An empty `.glyph` file passes `validate` and `build` silently produces nothing. Should at minimum warn "no components found".
 
-7. **011-project-dome.game produces no output with no error.** The `project` block compiles without error but generates nothing. No warning or indication of a no-op.
+7. **011-project-dome.glyph produces no output with no error.** The `project` block compiles without error but generates nothing. No warning or indication of a no-op.
 
 8. **3 special output types lack .d.ts files.** Breed mergers (`child.js`), scene timelines (`day-cycle.js`), and transition matrices (`matrix_transitions_flow.js`) are generated without TypeScript definitions.
 
@@ -373,7 +373,7 @@ Error messages are clear with byte-offset positions. The "Did you mean?" feature
 
 ## Appendix B: Gallery Failure Summary
 
-All 32 gallery `.game` files fail with identical error:
+All 32 gallery `.glyph` files fail with identical error:
 ```
 parse error at 0:9: expected `import`, `use`, `fn`, `cinematic`, `breed`,
 `project`, `scene`, `matrix`, `ifs`, `lsystem`, or `automaton` at top level,

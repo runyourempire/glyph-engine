@@ -1,4 +1,4 @@
-# GAME v1.0 — Pre-Release Checklist
+# GLYPH v1.0 — Pre-Release Checklist
 
 **Generated:** 2026-03-25
 **Sources:** 3 deep-dive audits (VS Code extension, compiler edge cases, distribution/DX), 2 prior audit rounds
@@ -39,7 +39,7 @@
 |---|------|---------|--------|
 | 9 | [DONE] **5/8 `game new` templates broken** | Fixed: blend syntax, pipeline order, resonate syntax. | Done |
 | 10 | [DONE] **32/32 gallery components broken** | Fixed: rewrote all to valid `cinematic` syntax. | Done |
-| 11 | [DONE] **AI provider taught wrong GAME syntax** | Fixed: rewrote system prompt with correct cinematic/layer/pipeline syntax. | Done |
+| 11 | [DONE] **AI provider taught wrong GLYPH syntax** | Fixed: rewrote system prompt with correct cinematic/layer/pipeline syntax. | Done |
 | 12 | **WASM package is non-functional** | `pkg/` contains a 375-byte placeholder WASM file. Needs real `wasm-pack build --features wasm`. | Easy |
 
 ---
@@ -60,13 +60,13 @@
 
 | # | Item | Details | Effort |
 |---|------|---------|--------|
-| 18 | **Temp file path collisions across VS Code windows** | `game-preview.game`, `game-ai-gen.game`, `game-export.game` use hardcoded names in os.tmpdir(). Two windows = race condition. Fix: include PID or random suffix. | Easy |
+| 18 | **Temp file path collisions across VS Code windows** | `game-preview.glyph`, `game-ai-gen.glyph`, `game-export.glyph` use hardcoded names in os.tmpdir(). Two windows = race condition. Fix: include PID or random suffix. | Easy |
 | 19 | **Preview compile doesn't check panel disposal before postMessage** | `cp.exec` callback fires after panel close → throws. Child process not stored so can't be killed. | Medium |
 | 20 | **Gallery fork overwrites existing files silently** | `_forkComponent` does `writeFileSync` with no existence check. Data loss risk. | Easy |
 | 21 | [DONE] **Palette list mismatch** | Fixed: synced 30 palettes between extension and compiler. | Done |
 | 22 | [DONE] **Gallery keybinding conflicts with VS Code build task** | Fixed: Ctrl+Shift+B → Ctrl+Shift+L. | Done |
 | 23 | **Gallery description/name not HTML-escaped** | Component names/descriptions injected into WebView HTML without escaping. XSS vector if gallery index is ever user-editable. | Easy |
-| 24 | **`onDidChangeTextDocument` fires for background .game documents** | Any .game file change triggers recompile — even non-active background documents. Preview may show wrong file. | Easy |
+| 24 | **`onDidChangeTextDocument` fires for background .glyph documents** | Any .glyph file change triggers recompile — even non-active background documents. Preview may show wrong file. | Easy |
 | 25 | **Stale output directory not cleaned before compile** | `readdirSync(outputDir)` may pick up files from previous compilation. | Easy |
 
 ---
@@ -95,7 +95,7 @@
 | 36 | **Empty cinematic generates 17KB** | Full renderer for empty shader. Should warn. | Easy |
 | 37 | **No "did you mean?" for top-level keywords** | `componet` → lists valid keywords but no suggestion. Stage functions already have this. | Easy |
 | 38 | **6 output types lack .d.ts** | breed, scene, ifs, lsystem, automaton, matrix. | Medium |
-| 39 | **No file extension check** | Building a `.toml` file gives confusing parse errors instead of "not a .game file". | Easy |
+| 39 | **No file extension check** | Building a `.toml` file gives confusing parse errors instead of "not a .glyph file". | Easy |
 | 40 | **Directory path gives OS error** | `game build examples/` doesn't say "expected file, got directory". | Easy |
 | 41 | **No BOM stripping** | Windows Notepad may add UTF-8 BOM, causing parse failure. | Easy |
 | 42 | [DONE] **Dev server mutex unwraps can cascade-panic** | Fixed: `unwrap_or_else(poisoned)`. | Done |
@@ -134,7 +134,7 @@
 | 61 | **No output size in build log** | Users can't see bloat. | Trivial |
 | 62 | **No batch compilation mode** | 76 files = 15s due to process startup overhead. | Medium |
 | 63 | **No `--strict` mode** | CI can't distinguish warnings from clean builds. | Easy |
-| 64 | **`011-project-dome.game` silent no-op** | Compiles without error, produces nothing. | Easy |
+| 64 | **`011-project-dome.glyph` silent no-op** | Compiles without error, produces nothing. | Easy |
 | 65 | **Float precision truncated to 6 decimals** | `0.123456789012345` → 6 decimal output. Probably fine. | Low |
 | 66 | **No MSRV declared in Cargo.toml** | Users don't know minimum Rust version. | Trivial |
 | 67 | **LSP only reports first error per file** | Requires parser error recovery — hard. | Hard |
@@ -148,8 +148,8 @@
 | 70 | **`\b` word boundary catches numbers in identifiers** | `layer2` → tuner offers to tune `2`. | Low |
 | 71 | **Only first `tint()`/`palette()` on line detected** | Multiple calls on same line → only first matched. | Low |
 | 72 | **`activationEvents` is redundant** | VS Code 1.74+ auto-activates from language contribution. | Trivial |
-| 73 | **Ctrl+Shift+G conflicts with Source Control** | Limited to .game files via `when` clause. Acceptable trade-off. | Low |
-| 74 | **Ctrl+Shift+A conflicts with Block Comment** | Limited to .game files. | Low |
+| 73 | **Ctrl+Shift+G conflicts with Source Control** | Limited to .glyph files via `when` clause. Acceptable trade-off. | Low |
+| 74 | **Ctrl+Shift+A conflicts with Block Comment** | Limited to .glyph files. | Low |
 | 75 | **React export uses side-effect import** | Non-standard for modern React. Comment partially addresses it. | Low |
 | 76 | **HTML export puts script after element** | FOUC possible. Browsers handle via upgrade. | Low |
 | 77 | **Tuner doesn't validate line/col bounds** | Document modified between detection and edit → invalid range. | Low |
@@ -165,7 +165,7 @@
 | 82 | **VS Code extension not on marketplace** | Needs VS Code marketplace publishing. | Medium |
 | 83 | **Extension version 0.5.0 doesn't match compiler 1.0.0** | Confusing. Should align or clearly document relationship. | Trivial |
 | 84 | **AI model default hardcoded** | `claude-sonnet-4-20250514` will eventually be stale. | Trivial |
-| 85 | **`@game-engine/react` npm scope not claimed** | Wrapper package.json references unclaimed scope. | Trivial |
+| 85 | **`@glyph-engine/react` npm scope not claimed** | Wrapper package.json references unclaimed scope. | Trivial |
 
 ### Accessibility
 

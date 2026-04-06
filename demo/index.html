@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>GAME Compiler — State of the Art Components</title>
+<title>GLYPH Compiler — State of the Art Components</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #0A0A0A; color: #fff; font-family: 'Inter', system-ui, sans-serif; padding: 32px; }
@@ -16,51 +16,51 @@ h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.5
 </style>
 </head>
 <body>
-<h1>GAME Components — Advanced Features</h1>
+<h1>GLYPH Components — Advanced Features</h1>
 <p class="subtitle">warp + memory + palette + resonate + arc + vignette — compiled from .game DSL</p>
 <div class="grid">
   <div class="card">
-    <game-ambient-intelligence style="width:160px;height:160px;display:block"></game-ambient-intelligence>
+    <glyph-ambient-intelligence style="width:160px;height:160px;display:block"></glyph-ambient-intelligence>
     <div class="label"><span>ambient-intelligence</span> — organic heartbeat</div>
     <div class="size">48px in 4DA | warp + memory + resonate + vignette</div>
   </div>
   <div class="card">
-    <game-celebration-burst style="width:200px;height:200px;display:block"></game-celebration-burst>
+    <glyph-celebration-burst style="width:200px;height:200px;display:block"></glyph-celebration-burst>
     <div class="label"><span>celebration-burst</span> — achievement splash</div>
     <div class="size">320px in 4DA | warp + memory + palette + resonate + bloom</div>
   </div>
   <div class="card">
-    <game-boot-ring style="width:160px;height:160px;display:block"></game-boot-ring>
+    <glyph-boot-ring style="width:160px;height:160px;display:block"></glyph-boot-ring>
     <div class="label"><span>boot-ring</span> — splash screen</div>
     <div class="size">160px in 4DA | warp + memory + palette + bloom</div>
   </div>
   <div class="card">
-    <game-scan-ring style="width:120px;height:120px;display:block"></game-scan-ring>
+    <glyph-scan-ring style="width:120px;height:120px;display:block"></glyph-scan-ring>
     <div class="label"><span>scan-ring</span> — radar sweep</div>
     <div class="size">20px in 4DA | memory trail + vignette</div>
   </div>
   <div class="card">
-    <game-achievement-progress style="width:120px;height:120px;display:block"></game-achievement-progress>
+    <glyph-achievement-progress style="width:120px;height:120px;display:block"></glyph-achievement-progress>
     <div class="label"><span>achievement-progress</span> — progress ring</div>
     <div class="size">32px in 4DA | warp + memory + bloom</div>
   </div>
   <div class="card">
-    <game-decision-countdown style="width:120px;height:120px;display:block"></game-decision-countdown>
+    <glyph-decision-countdown style="width:120px;height:120px;display:block"></glyph-decision-countdown>
     <div class="label"><span>decision-countdown</span> — urgency ring</div>
     <div class="size">32px in 4DA | warp + memory + resonate + vignette</div>
   </div>
   <div class="card">
-    <game-score-fingerprint style="width:120px;height:120px;display:block"></game-score-fingerprint>
+    <glyph-score-fingerprint style="width:120px;height:120px;display:block"></glyph-score-fingerprint>
     <div class="label"><span>score-fingerprint</span> — radial identity</div>
     <div class="size">32px in 4DA | warp + memory + resonate + vignette</div>
   </div>
   <div class="card">
-    <game-status-orb style="width:80px;height:80px;display:block"></game-status-orb>
+    <glyph-status-orb style="width:80px;height:80px;display:block"></glyph-status-orb>
     <div class="label"><span>status-orb</span> — connection indicator</div>
     <div class="size">10px in 4DA | warp + memory + vignette</div>
   </div>
   <div class="card">
-    <game-engagement-bars style="width:120px;height:120px;display:block"></game-engagement-bars>
+    <glyph-engagement-bars style="width:120px;height:120px;display:block"></glyph-engagement-bars>
     <div class="label"><span>engagement-bars</span> — activity field</div>
     <div class="size">varies in 4DA | warp + memory + vignette</div>
   </div>
@@ -78,25 +78,25 @@ import './engagement-bars.js';
 
 // Set some default params to make components visible
 setTimeout(() => {
-  const ai = document.querySelector('game-ambient-intelligence');
+  const ai = document.querySelector('glyph-ambient-intelligence');
   if (ai) { ai.setParam('pulse', 0.5); ai.setParam('heat', 0.3); ai.setParam('metabolism', 0.4); }
 
-  const ap = document.querySelector('game-achievement-progress');
+  const ap = document.querySelector('glyph-achievement-progress');
   if (ap) { ap.setParam('fill_angle', 4.2); ap.setParam('glow_val', 2.0); }
 
-  const br = document.querySelector('game-boot-ring');
+  const br = document.querySelector('glyph-boot-ring');
   if (br) { br.setParam('fill_angle', 3.5); }
 
-  const cb = document.querySelector('game-celebration-burst');
+  const cb = document.querySelector('glyph-celebration-burst');
   if (cb) { cb.setParam('glow_str', 2.5); cb.setParam('inner_glow', 1.8); cb.setParam('flash_str', 1.2); }
 
-  const dc = document.querySelector('game-decision-countdown');
+  const dc = document.querySelector('glyph-decision-countdown');
   if (dc) { dc.setParam('progress', 4.0); dc.setParam('urgency', 0.3); }
 
-  const so = document.querySelector('game-status-orb');
+  const so = document.querySelector('glyph-status-orb');
   if (so) { so.setParam('green', 1.0); so.setParam('intensity', 1.0); }
 
-  const sf = document.querySelector('game-score-fingerprint');
+  const sf = document.querySelector('glyph-score-fingerprint');
   if (sf) { sf.setParam('relevance', 0.7); sf.setParam('confidence', 0.8); }
 }, 500);
 </script>

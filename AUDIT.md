@@ -1,8 +1,8 @@
-# GAME Engine: Nuke-Proof Audit
+# GLYPH Engine: Nuke-Proof Audit
 
-## What Is GAME, Precisely?
+## What Is GLYPH, Precisely?
 
-**GAME = Generative Animation Matrix Engine**
+**GLYPH = Generative Animation Matrix Engine**
 
 Let's dissect every word.
 
@@ -10,15 +10,15 @@ Let's dissect every word.
 
 ## Part 1: Is "Generative Animation Matrix Engine" Gibberish?
 
-No. Each word maps to a real computational concept that GAME already implements or has a clear path to implement. Here's the proof:
+No. Each word maps to a real computational concept that GLYPH already implements or has a clear path to implement. Here's the proof:
 
 ### "Generative"
 
 In computational art, "generative" has a precise definition: **a system that produces output from rules rather than explicit authoring**. You don't draw each frame — you describe the *process* that produces frames.
 
-GAME is genuinely generative in multiple ways:
+GLYPH is genuinely generative in multiple ways:
 
-| Generative System | How GAME Implements It | Status |
+| Generative System | How GLYPH Implements It | Status |
 |---|---|---|
 | **SDF algebra** | Boolean composition (union, subtract, intersect) creates shapes from rules, not pixels | Implemented v0.3 |
 | **Spatial repetition** | `repeat(0.3, 0.3) \| circle(0.05)` generates infinite grids from one shape | Implemented v0.3 |
@@ -32,11 +32,11 @@ GAME is genuinely generative in multiple ways:
 | **Arc timelines** | `from -> to over 4s ease_out` generates animation curves from endpoints | Implemented |
 | **Resonance coupling** | `pulse -> core.scale * 0.3` generates parameter interdependencies | Implemented |
 
-**Verdict: GAME is genuinely generative across 11 distinct mechanisms.** This is not gibberish — it's one of the most comprehensive generative systems in any shader DSL.
+**Verdict: GLYPH is genuinely generative across 11 distinct mechanisms.** This is not gibberish — it's one of the most comprehensive generative systems in any shader DSL.
 
 ### "Animation"
 
-Animation = change over time. GAME treats time as a first-class dimension:
+Animation = change over time. GLYPH treats time as a first-class dimension:
 
 - **`u.time`** is injected into every shader as a uniform, wrapped at 120s to prevent floating-point precision loss
 - **Temporal operators** (`>>` delay, `<>` smooth, `!!` trigger, `..` range) make time manipulation syntactic — not a parameter hack
@@ -45,7 +45,7 @@ Animation = change over time. GAME treats time as a first-class dimension:
 - **Duration types** are first-class in the AST: `4s`, `500ms`, `2bars`
 - **Memory buffers** (ping-pong framebuffers) create temporal feedback — current frame reads previous frame
 
-**Verdict: GAME has deeper time semantics than any competitor.** Shadertoy only has `iTime`. Hydra has no timeline. TouchDesigner has CHOPs but no declarative animation syntax. GAME has temporal operators, arcs, scores, and memory feedback — four distinct temporal systems.
+**Verdict: GLYPH has deeper time semantics than any competitor.** Shadertoy only has `iTime`. Hydra has no timeline. TouchDesigner has CHOPs but no declarative animation syntax. GLYPH has temporal operators, arcs, scores, and memory feedback — four distinct temporal systems.
 
 ### "Matrix"
 
@@ -55,7 +55,7 @@ This is the word that requires the most careful examination. "Matrix" can mean:
 
 Every GPU shader pipeline is fundamentally matrix-powered:
 
-- **Vertex transform**: GAME's vertex shader uses a 4x4 projection matrix (implicit in the fullscreen triangle)
+- **Vertex transform**: GLYPH's vertex shader uses a 4x4 projection matrix (implicit in the fullscreen triangle)
 - **`translate(x, y)`**: Emits `p = p - vec2(x, y)` — this IS a 2D affine translation matrix applied to the coordinate space
 - **`rotate(angle)`**: Emits `p = mat2(cos(a), -sin(a), sin(a), cos(a)) * p` — a 2D rotation matrix
 - **`scale(s)`**: Emits `p = p / s` — a 2D scaling matrix
@@ -63,11 +63,11 @@ Every GPU shader pipeline is fundamentally matrix-powered:
 - **`mirror()`**: Applies a reflection matrix `p.x = abs(p.x)`
 - **Project block**: `dome` mode uses fisheye projection (non-linear transformation matrix), `cube` uses cubemap projection
 
-Every spatial transform in GAME is a matrix operation. The pipeline `translate(0.2, 0.0) | rotate(0.5) | scale(1.5)` is literally matrix composition: `M = S * R * T`.
+Every spatial transform in GLYPH is a matrix operation. The pipeline `translate(0.2, 0.0) | rotate(0.5) | scale(1.5)` is literally matrix composition: `M = S * R * T`.
 
 #### 2. Matrix as Composition Grid (The Deeper Meaning)
 
-But "Matrix Engine" means something more profound than "uses transformation matrices." A **matrix** in the mathematical sense is a 2D grid of values that transforms vectors. In GAME's architecture:
+But "Matrix Engine" means something more profound than "uses transformation matrices." A **matrix** in the mathematical sense is a 2D grid of values that transforms vectors. In GLYPH's architecture:
 
 - **The uniform struct IS a parameter matrix** — a row vector of floats that defines the complete state of the animation at any moment
 - **The resonate block IS a coupling matrix** — entries like `pulse -> core.scale * 0.3` define weighted connections between parameters, which is literally an adjacency matrix of a directed graph
@@ -76,23 +76,23 @@ But "Matrix Engine" means something more profound than "uses transformation matr
 
 #### 3. Matrix as "The Matrix" (Generative Substrate)
 
-The sci-fi connotation is intentional and earned: GAME creates a computational substrate (the GPU shader) from which visual reality emerges. The `.game` file is the "source code of the visual universe" — it doesn't describe what you see, it describes the *rules from which what you see emerges*. This is the definition of a matrix in the generative sense.
+The sci-fi connotation is intentional and earned: GLYPH creates a computational substrate (the GPU shader) from which visual reality emerges. The `.glyph` file is the "source code of the visual universe" — it doesn't describe what you see, it describes the *rules from which what you see emerges*. This is the definition of a matrix in the generative sense.
 
-**Verdict: "Matrix Engine" is not gibberish.** GAME uses transformation matrices for spatial ops, coupling matrices for resonance, genetic matrices for breeding, and the conceptual matrix as a generative substrate. The name is accurately aspirational.
+**Verdict: "Matrix Engine" is not gibberish.** GLYPH uses transformation matrices for spatial ops, coupling matrices for resonance, genetic matrices for breeding, and the conceptual matrix as a generative substrate. The name is accurately aspirational.
 
 ### "Engine"
 
-An engine takes fuel (source code) and produces output (rendered pixels). GAME's engine pipeline:
+An engine takes fuel (source code) and produces output (rendered pixels). GLYPH's engine pipeline:
 
 ```
-.game source → Lexer (logos) → Parser (recursive descent) → AST →
+.glyph source → Lexer (logos) → Parser (recursive descent) → AST →
 Validate (state machine) → Codegen (WGSL + GLSL) →
 Runtime (Web Component) → GPU (rendered pixels)
 ```
 
 This is a compiler, a runtime, and a rendering engine. The output is a zero-dependency Web Component that self-initializes, creates a GPU context, compiles shaders, manages uniform buffers, handles resize, and runs a requestAnimationFrame loop. That's an engine.
 
-**Verdict: "Engine" is accurate.** GAME is a full compiler-to-runtime pipeline that manages the GPU lifecycle.
+**Verdict: "Engine" is accurate.** GLYPH is a full compiler-to-runtime pipeline that manages the GPU lifecycle.
 
 ---
 
@@ -116,7 +116,7 @@ This is a compiler, a runtime, and a rendering engine. The output is a zero-depe
 | **CLI commands** | 3 (build, dev, new) |
 | **Compiler version** | 0.3.0 |
 
-### What GAME Can Express Today
+### What GLYPH Can Express Today
 
 **Layer 1 — Shape Vocabulary (43 builtins)**
 ```
@@ -188,7 +188,7 @@ The compiler is not a prototype — it's a working v0.3.0 with real output consu
 
 **Yes, and it already does.** This is not theoretical. Let me trace exactly what happens:
 
-```game
+```glyph
 cinematic "demo" {
   layer main {
     radial(6) | translate(0.25, 0.0) | circle(0.06) | glow(2.0) | tint(0.83, 0.69, 0.22)
@@ -259,13 +259,13 @@ These are not toy implementations — they're production-grade GPU compute patte
 8. Exposes property accessors for external control
 9. Falls back from WebGPU to WebGL2 automatically
 
-Drop `<game-demo></game-demo>` into any HTML page with the script tag and it renders. No build step, no framework, no dependencies. This actually works.
+Drop `<glyph-demo></game-demo>` into any HTML page with the script tag and it renders. No build step, no framework, no dependencies. This actually works.
 
 ---
 
 ## Part 4: The Gap Analysis — Current State vs Optimal Vision
 
-### What GAME Has That Nobody Else Does
+### What GLYPH Has That Nobody Else Does
 
 1. **DSL → Web Component pipeline** — No other tool compiles a declarative language to self-contained, zero-dependency custom elements
 2. **Dual-target shader codegen** — WGSL + GLSL from the same source, with automatic fallback
@@ -281,7 +281,7 @@ Drop `<game-demo></game-demo>` into any HTML page with the script tag and it ren
 
 Without `fn`, every pattern must be built from builtins. Artists can't create abstractions. This is the single most important missing feature.
 
-```game
+```glyph
 // Not yet possible:
 fn petal(size, color_r, color_g, color_b) {
   circle(size) | glow(2.0) | tint(color_r, color_g, color_b)
@@ -299,7 +299,7 @@ layer p2 { translate(-0.2, 0.0) | petal(0.08, 0.3, 1.0, 0.5) }
 
 Without conditionals, every pixel follows the same code path. Real generative art needs branching:
 
-```game
+```glyph
 // Not yet possible:
 layer adaptive {
   if bass > 0.5 {
@@ -317,7 +317,7 @@ layer adaptive {
 
 Currently each cinematic is isolated. Complex effects need one cinematic's output as another's input:
 
-```game
+```glyph
 cinematic "noise-field" { ... }
 cinematic "masked-shape" {
   use "noise-field" as noise_tex
@@ -332,7 +332,7 @@ cinematic "masked-shape" {
 
 SDF morphing (linear interpolation between two distance fields) is a key generative technique:
 
-```game
+```glyph
 morph(circle(0.3), star(5, 0.3, 0.15), sin(time) * 0.5 + 0.5) | glow(2.0)
 ```
 
@@ -343,7 +343,7 @@ morph(circle(0.3), star(5, 0.3, 0.15), sin(time) * 0.5 + 0.5) | glow(2.0)
 
 Currently no way to sequence multiple cinematics over time. A "show" or "piece" needs transitions:
 
-```game
+```glyph
 scene "performance" {
   play "intro" for 10s
   transition dissolve over 2s
@@ -379,7 +379,7 @@ No syntax highlighting, no autocomplete, no error squiggles in editors.
 
 ### What "Matrix Engine" Should Genuinely Mean
 
-Based on the mathematical analysis, here's how GAME should earn the "Matrix" in its name at every level:
+Based on the mathematical analysis, here's how GLYPH should earn the "Matrix" in its name at every level:
 
 #### Level 1: Transformation Matrix Composition (Already There)
 Every `translate | rotate | scale` chain is matrix multiplication. The pipeline `A | B | C` applies `M_C * M_B * M_A * p`. This is working.
@@ -431,7 +431,7 @@ Where `blend_mode` is the matrix operation: `add = a + b`, `screen = 1 - (1-a)(1
 
 The deepest meaning of "Matrix Engine" would be: **the matrix IS the creative operator**. Imagine:
 
-```game
+```glyph
 // A 4x4 matrix that IS the artwork
 matrix artwork {
   [0.3, 0.1, 0.0, 0.5]
@@ -449,9 +449,9 @@ matrix artwork {
 
 This is Iterated Function System (IFS) territory — where a set of affine transformation matrices, applied recursively, generates fractal geometry. The Barnsley fern is generated by 4 affine matrices. The Sierpinski triangle by 3. The Mandelbrot set by a single complex quadratic iteration (which is a 2x2 matrix rotation in the complex plane).
 
-GAME could genuinely implement this:
+GLYPH could genuinely implement this:
 
-```game
+```glyph
 cinematic "fractal-garden" {
   ifs {
     // Each transform is an affine matrix [a b c d e f]
@@ -477,7 +477,7 @@ This would render the Barnsley fern — generated entirely from 4 matrices. THAT
 1. **User-defined functions** (`fn`) — enables abstraction and reuse
 2. **Morphing** (`morph(a, b, t)`) — SDF interpolation, low-hanging fruit
 3. **Conditional pipelines** (`if/else`) — branching logic in shaders
-4. **File imports** (`use "library.game"`) — code sharing
+4. **File imports** (`use "library.glyph"`) — code sharing
 
 #### Phase 2: Composition Architecture (v0.5)
 5. **Render-to-texture** — cinematic output as input to another cinematic
@@ -506,20 +506,20 @@ Before any feature is added:
 - New features must have tests covering valid use AND invalid use (error paths)
 - WGSL and GLSL codegen must stay in sync — every feature works on both targets
 - The zero-dependency Web Component output must never acquire dependencies
-- Compilation of a typical .game file must stay under 50ms
+- Compilation of a typical .glyph file must stay under 50ms
 - The state machine validation must catch invalid pipelines at compile time, not at GPU runtime
 
 ---
 
 ## Part 7: Final Assessment
 
-### Is GAME Real?
+### Is GLYPH Real?
 
 **Yes.** 13,690 lines of working Rust. 43 shader builtins. 4 compute shader systems. 234 passing tests. 34 examples. 9 components in production. Dual-target WGSL + GLSL codegen. Zero-dependency Web Component output. Live preview dev server. This is not a prototype — it's a working compiler with a real pipeline and real output.
 
 ### Is "Generative Animation Matrix Engine" Justified?
 
-**Yes, with an asterisk.** GAME is genuinely generative (11 mechanisms), genuinely about animation (4 temporal systems), genuinely uses matrices (5 levels from transforms to coupling to state transitions), and genuinely an engine (full compiler + runtime pipeline). The asterisk: the deepest "matrix" meaning (IFS/fractal generation from matrices as the primary creative operator) is not yet implemented. Phase 3 of the roadmap addresses this.
+**Yes, with an asterisk.** GLYPH is genuinely generative (11 mechanisms), genuinely about animation (4 temporal systems), genuinely uses matrices (5 levels from transforms to coupling to state transitions), and genuinely an engine (full compiler + runtime pipeline). The asterisk: the deepest "matrix" meaning (IFS/fractal generation from matrices as the primary creative operator) is not yet implemented. Phase 3 of the roadmap addresses this.
 
 ### Can It Revolutionize Generative Animation?
 
@@ -536,14 +536,14 @@ The gap between "foundation" and "revolution" is: user-defined functions, compos
 
 The code quality is high. The architecture is clean. The pipeline is proven. The vision is coherent and technically sound. This is buildable.
 
-### The One Thing That Makes GAME Unique Above All
+### The One Thing That Makes GLYPH Unique Above All
 
 Every other tool in this space either:
-- Requires a runtime (p5.js, Three.js, Processing) — GAME compiles away the runtime
-- Locks output to a platform (Shadertoy = browser tab, TouchDesigner = project file) — GAME outputs portable Web Components
-- Is a raw shader editor with no abstraction (KodeLife, ISF) — GAME is a high-level DSL
-- Is a visual node graph that can't be version-controlled (Cables, TouchDesigner) — GAME is text that diffs cleanly in git
+- Requires a runtime (p5.js, Three.js, Processing) — GLYPH compiles away the runtime
+- Locks output to a platform (Shadertoy = browser tab, TouchDesigner = project file) — GLYPH outputs portable Web Components
+- Is a raw shader editor with no abstraction (KodeLife, ISF) — GLYPH is a high-level DSL
+- Is a visual node graph that can't be version-controlled (Cables, TouchDesigner) — GLYPH is text that diffs cleanly in git
 
-**GAME's unique position: compiled DSL → zero-dependency, portable, embeddable Web Components.** This is the distribution moat. A GAME component can be dropped into any web page, any framework, any CMS, any email template that supports custom HTML. No npm. No build step. No framework lock-in.
+**GAME's unique position: compiled DSL → zero-dependency, portable, embeddable Web Components.** This is the distribution moat. A GLYPH component can be dropped into any web page, any framework, any CMS, any email template that supports custom HTML. No npm. No build step. No framework lock-in.
 
 That's not a feature — that's a category.

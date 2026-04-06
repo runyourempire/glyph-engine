@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the GAME compiler will be documented in this file.
+All notable changes to the GLYPH compiler will be documented in this file.
 
 ## [1.0.0] - 2026-03-25
 
@@ -27,7 +27,7 @@ All notable changes to the GAME compiler will be documented in this file.
 - **BOM handling** — UTF-8 BOM stripped automatically
 - **Empty file warnings** — clear feedback instead of silent success
 - **Directory path detection** — helpful error instead of OS-level message
-- **File extension warnings** — hints when non-.game files are compiled
+- **File extension warnings** — hints when non-.glyph files are compiled
 - **Arc parser fix** — multi-entry arc blocks without easing no longer misparse
 - **Duplicate layer detection** — same-name layers produce validation errors
 - **FSL-1.1-Apache-2.0 license** — source-available, converts to Apache 2.0 after 2 years

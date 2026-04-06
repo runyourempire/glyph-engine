@@ -1,9 +1,9 @@
 {
-  "name": "@game/living-wallpaper",
+  "name": "@glyph/living-wallpaper",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "AI pipeline: single image -> living wallpaper textures + .game source",
+  "description": "AI pipeline: single image -> living wallpaper textures + .glyph source",
   "scripts": {
     "generate": "tsx src/cli.ts"
   },

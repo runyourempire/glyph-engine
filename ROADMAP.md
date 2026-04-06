@@ -1,4 +1,4 @@
-# GAME Compiler Roadmap — v0.6.0 to v1.0
+# GLYPH Compiler Roadmap — v0.6.0 to v1.0
 
 > ~19,700 lines of Rust. 400 tests. 43/43 examples compile. 9 production components.
 > Phase 1–6 complete. All scaffolding is now substance.
@@ -60,7 +60,7 @@
 
 **Fix:** Insert `glow()` or `shade()` between SDF generators and color stages in affected examples. This is an example fix, not a compiler fix — the state machine is correct.
 
-**Files:** `examples/018-react-turing.game`, `examples/019-swarm-physarum.game`, `examples/020-flow-fields.game`
+**Files:** `examples/018-react-turing.glyph`, `examples/019-swarm-physarum.glyph`, `examples/020-flow-fields.glyph`
 **Fixes:** examples 018, 019, 020
 
 ### 1.4 Parser: Parameterless stages in pipelines
@@ -154,9 +154,9 @@ Gravity, reaction-diffusion, swarm, and flow all generate compute shaders that a
 ### 2.4 Verification
 
 Create visual test examples:
-- `examples/035-feedback-trails.game` — circles with feedback creating persistence trails
-- `examples/036-blur-pass.game` — sharp geometry with blur post-processing
-- `examples/037-compute-react.game` — reaction-diffusion with proper compute dispatch
+- `examples/035-feedback-trails.glyph` — circles with feedback creating persistence trails
+- `examples/036-blur-pass.glyph` — sharp geometry with blur post-processing
+- `examples/037-compute-react.glyph` — reaction-diffusion with proper compute dispatch
 
 **Verification gate:**
 - [x] Feedback texture binding wired (memory + feedback share ping-pong)
@@ -175,7 +175,7 @@ Create visual test examples:
 
 ### 3.1 "Genesis" — L-system growth with feedback trails
 
-```game
+```glyph
 // L-system that expands over time, leaves glowing trails via feedback
 cinematic "genesis" {
     layer branches feedback: true {
@@ -190,7 +190,7 @@ cinematic "genesis" {
 
 ### 3.2 "Turing" — Reaction-diffusion with palette morphing
 
-```game
+```glyph
 // Gray-Scott reaction-diffusion colored by palette that shifts over time
 cinematic "turing" {
     react { feed: 0.055, kill: 0.062, ... }
@@ -203,7 +203,7 @@ cinematic "turing" {
 
 ### 3.3 "Emergence" — Cellular automaton with scene transitions
 
-```game
+```glyph
 // Game of Life → Highlife → Brian's Brain via scene sequencing
 scene "emergence" {
     play "game-of-life" for 10s
@@ -216,7 +216,7 @@ scene "emergence" {
 
 ### 3.4 "Fractal Cathedral" — IFS with parametric animation
 
-```game
+```glyph
 // Barnsley fern with arcs that morph transform weights over time
 ifs {
     transform stem [0.0, 0.0, 0.0, 0.16, 0.0, 0.0] weight 0.01
@@ -230,7 +230,7 @@ ifs {
 
 ### 3.5 "Cosmos" — Everything together
 
-```game
+```glyph
 // Multi-layer: swarm agents + flow field + bloom + palette cycling
 cinematic "cosmos" {
     flow { type: curl, scale: 4.0, speed: 0.3, octaves: 6, ... }
@@ -259,7 +259,7 @@ cinematic "cosmos" {
 **Dependencies:** Phase 2 (runtime must be solid)
 
 **Tasks:**
-1. `game build` all 9 production .game files
+1. `game build` all 9 production .glyph files
 2. Copy output .js files to `D:\4DA\src\lib\game-components\`
 3. Verify in 4DA dev server
 4. Commit to 4DA repo
@@ -335,9 +335,9 @@ Ensure all new features render correctly in the dev server:
 ### 6.2 Stdlib expansion
 
 Add more reusable functions:
-- `stdlib/effects.game` — bloom, chromatic aberration, CRT scanlines
-- `stdlib/motion.game` — easing functions, oscillators, noise generators
-- `stdlib/fractals.game` — IFS presets (Sierpinski, Barnsley, Dragon)
+- `stdlib/effects.glyph` — bloom, chromatic aberration, CRT scanlines
+- `stdlib/motion.glyph` — easing functions, oscillators, noise generators
+- `stdlib/fractals.glyph` — IFS presets (Sierpinski, Barnsley, Dragon)
 
 ### 6.3 Error messages
 
@@ -375,15 +375,15 @@ These are NOT blocked by any current work. They're future multipliers.
 ### 7.1 WASM Playground
 - `wasm-pack` compile of game_compiler lib
 - Browser-based editor with live preview
-- Zero-install "try GAME in 10 seconds" experience
+- Zero-install "try GLYPH in 10 seconds" experience
 
 ### 7.2 Landing Page
 - 5 embedded showcase demos running live
-- "View Source" button showing the .game code
+- "View Source" button showing the .glyph code
 - Single CTA: download CLI or try playground
 
 ### 7.3 npm Package
-- `npm install game-compiler`
+- `npm install glyph-compiler`
 - Programmatic API: `compile(source) → { js, wgsl, html }`
 - Framework adapters: React, Svelte, Vue
 

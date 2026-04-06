@@ -4,21 +4,21 @@
   "collaborators": [
     "4DA Systems Pty Ltd <dev@4da.ai>"
   ],
-  "description": "GAME (Generative Animation Matrix Engine) — compiles .game DSL to WebGPU shaders + Web Components",
+  "description": "GLYPH — compiles .glyph visual DSL to WebGPU shaders + Web Components",
   "version": "1.0.0",
   "license": "FSL-1.1-Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/runyourempire/game-engine"
+    "url": "https://github.com/runyourempire/glyph-engine"
   },
   "files": [
-    "game_compiler_bg.wasm",
-    "game_compiler.js",
-    "game_compiler.d.ts"
+    "glyph_compiler_bg.wasm",
+    "glyph_compiler.js",
+    "glyph_compiler.d.ts"
   ],
-  "main": "game_compiler.js",
+  "main": "glyph_compiler.js",
   "homepage": "https://4da.ai",
-  "types": "game_compiler.d.ts",
+  "types": "glyph_compiler.d.ts",
   "sideEffects": [
     "./snippets/*"
   ],
