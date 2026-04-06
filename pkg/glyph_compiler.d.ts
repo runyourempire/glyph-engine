@@ -2,16 +2,16 @@
 /* eslint-disable */
 
 /**
- * Compile GAME source to a Web Component JS string.
+ * Compile GLYPH source to a Web Component JS string.
  *
  * # Arguments
- * * `source` - GAME DSL source code
+ * * `source` - GLYPH DSL source code
  * * `target` - "webgpu", "webgl2", or "both"
  *
  * # Returns
  * JSON string with `[{ name, js, wgsl?, glsl?, html? }]` or error message
  */
-export function compileGame(source: string, target: string): string;
+export function compileGlyph(source: string, target: string): string;
 
 /**
  * Get all available builtin function signatures as JSON.
@@ -24,20 +24,20 @@ export function getBuiltins(): string;
 export function getPaletteNames(): string;
 
 /**
- * Validate GAME source without generating output.
+ * Validate GLYPH source without generating output.
  *
  * Returns "ok" or an error description.
  */
-export function validateGame(source: string): string;
+export function validateGlyph(source: string): string;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly compileGame: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly compileGlyph: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly getBuiltins: () => [number, number];
     readonly getPaletteNames: () => [number, number];
-    readonly validateGame: (a: number, b: number) => [number, number];
+    readonly validateGlyph: (a: number, b: number) => [number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

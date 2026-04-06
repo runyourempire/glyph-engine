@@ -1,32 +1,23 @@
 {
-  "name": "glyph-compiler",
-  "type": "module",
-  "collaborators": [
-    "4DA Systems Pty Ltd <dev@4da.ai>"
-  ],
-  "description": "GLYPH — compiles .glyph visual DSL to WebGPU shaders + Web Components",
+  "name": "@4da/glyph-compiler",
   "version": "1.0.0",
-  "license": "FSL-1.1-Apache-2.0",
+  "description": "GLYPH — compiles .glyph visual DSL to WebGPU/WebGL2 shader Web Components. Zero dependencies. Runs in the browser via WASM.",
+  "keywords": ["glyph", "shader", "webgpu", "webgl", "wasm", "web-component", "gpu", "visual", "dsl", "compiler", "generative-art", "procedural"],
+  "homepage": "https://runyourempire.github.io/glyph-engine/",
   "repository": {
     "type": "git",
     "url": "https://github.com/runyourempire/glyph-engine"
   },
+  "license": "FSL-1.1-Apache-2.0",
+  "author": "4DA Systems Pty Ltd",
+  "type": "module",
+  "main": "glyph_compiler.js",
+  "types": "glyph_compiler.d.ts",
   "files": [
     "glyph_compiler_bg.wasm",
     "glyph_compiler.js",
-    "glyph_compiler.d.ts"
+    "glyph_compiler.d.ts",
+    "glyph_compiler_bg.wasm.d.ts"
   ],
-  "main": "glyph_compiler.js",
-  "homepage": "https://4da.ai",
-  "types": "glyph_compiler.d.ts",
-  "sideEffects": [
-    "./snippets/*"
-  ],
-  "keywords": [
-    "shader",
-    "webgpu",
-    "wgsl",
-    "glsl",
-    "web-components"
-  ]
+  "sideEffects": false
 }

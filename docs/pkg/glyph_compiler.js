@@ -1,10 +1,10 @@
 /* @ts-self-types="./glyph_compiler.d.ts" */
 
 /**
- * Compile GAME source to a Web Component JS string.
+ * Compile GLYPH source to a Web Component JS string.
  *
  * # Arguments
- * * `source` - GAME DSL source code
+ * * `source` - GLYPH DSL source code
  * * `target` - "webgpu", "webgl2", or "both"
  *
  * # Returns
@@ -13,7 +13,7 @@
  * @param {string} target
  * @returns {string}
  */
-export function compileGame(source, target) {
+export function compileGlyph(source, target) {
     let deferred4_0;
     let deferred4_1;
     try {
@@ -21,7 +21,7 @@ export function compileGame(source, target) {
         const len0 = WASM_VECTOR_LEN;
         const ptr1 = passStringToWasm0(target, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
-        const ret = wasm.compileGame(ptr0, len0, ptr1, len1);
+        const ret = wasm.compileGlyph(ptr0, len0, ptr1, len1);
         var ptr3 = ret[0];
         var len3 = ret[1];
         if (ret[3]) {
@@ -71,19 +71,19 @@ export function getPaletteNames() {
 }
 
 /**
- * Validate GAME source without generating output.
+ * Validate GLYPH source without generating output.
  *
  * Returns "ok" or an error description.
  * @param {string} source
  * @returns {string}
  */
-export function validateGame(source) {
+export function validateGlyph(source) {
     let deferred2_0;
     let deferred2_1;
     try {
         const ptr0 = passStringToWasm0(source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.validateGame(ptr0, len0);
+        const ret = wasm.validateGlyph(ptr0, len0);
         deferred2_0 = ret[0];
         deferred2_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
