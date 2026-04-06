@@ -26,14 +26,14 @@ fn parse_empty_program() {
 fn parse_import() {
     let tokens = vec![
         s(Token::Import),
-        s(Token::StringLit("lib/base.game".into())),
+        s(Token::StringLit("lib/base.glyph".into())),
         s(Token::As),
         s(Token::Ident("base".into())),
     ];
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse import");
     assert_eq!(prog.imports.len(), 1);
-    assert_eq!(prog.imports[0].path, "lib/base.game");
+    assert_eq!(prog.imports[0].path, "lib/base.glyph");
     assert_eq!(prog.imports[0].alias, "base");
 }
 
@@ -1658,21 +1658,21 @@ fn parse_conditional_multi_stage_branches() {
 
 #[test]
 fn parse_use_import_basic() {
-    // use "shapes.game"
-    let tokens = vec![s(Token::Use), s(Token::StringLit("shapes.game".into()))];
+    // use "shapes.glyph"
+    let tokens = vec![s(Token::Use), s(Token::StringLit("shapes.glyph".into()))];
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse use import");
     assert_eq!(prog.imports.len(), 1);
-    assert_eq!(prog.imports[0].path, "shapes.game");
+    assert_eq!(prog.imports[0].path, "shapes.glyph");
     assert_eq!(prog.imports[0].alias, "shapes");
 }
 
 #[test]
 fn parse_use_import_with_path() {
-    // use "lib/palettes.game"
+    // use "lib/palettes.glyph"
     let tokens = vec![
         s(Token::Use),
-        s(Token::StringLit("lib/palettes.game".into())),
+        s(Token::StringLit("lib/palettes.glyph".into())),
     ];
     let mut p = Parser::new(tokens);
     let prog = p.parse().expect("should parse use import with path");

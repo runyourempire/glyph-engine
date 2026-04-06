@@ -9,7 +9,7 @@ describe("Component Gallery", () => {
     fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
     await browser.executeWorkbench(async (vscode) => {
-      await vscode.commands.executeCommand("game.openGallery");
+      await vscode.commands.executeCommand("glyph.openGallery");
     });
 
     await browser.pause(3000);

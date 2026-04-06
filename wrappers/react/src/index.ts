@@ -1,3 +1,3 @@
-export { GameComponent } from './GameComponent';
-export type { GameComponentRef } from './GameComponent';
-export { useGameComponent } from './useGameComponent';
+export { GlyphComponent } from './GlyphComponent';
+export type { GlyphComponentRef } from './GlyphComponent';
+export { useGlyphComponent } from './useGlyphComponent';

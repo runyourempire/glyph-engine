@@ -101,6 +101,6 @@ mod tests {
 
     #[test]
     fn parse_file_uri() {
-        assert_eq!(parse_uri("lib/base.game"), ImportScheme::File);
+        assert_eq!(parse_uri("lib/base.glyph"), ImportScheme::File);
     }
 }

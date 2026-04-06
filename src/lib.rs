@@ -20,12 +20,12 @@ use error::CompileError;
 fn resolve_stdlib(path: &str) -> Option<String> {
     let name = path.strip_prefix("std:")?;
     match name {
-        "shapes" => Some(include_str!("../stdlib/shapes.game").to_string()),
-        "palettes" => Some(include_str!("../stdlib/palettes.game").to_string()),
-        "patterns" => Some(include_str!("../stdlib/patterns.game").to_string()),
-        "effects" => Some(include_str!("../stdlib/effects.game").to_string()),
-        "motion" => Some(include_str!("../stdlib/motion.game").to_string()),
-        "recipes" => Some(include_str!("../stdlib/recipes.game").to_string()),
+        "shapes" => Some(include_str!("../stdlib/shapes.glyph").to_string()),
+        "palettes" => Some(include_str!("../stdlib/palettes.glyph").to_string()),
+        "patterns" => Some(include_str!("../stdlib/patterns.glyph").to_string()),
+        "effects" => Some(include_str!("../stdlib/effects.glyph").to_string()),
+        "motion" => Some(include_str!("../stdlib/motion.glyph").to_string()),
+        "recipes" => Some(include_str!("../stdlib/recipes.glyph").to_string()),
         _ => None,
     }
 }
@@ -35,7 +35,7 @@ fn resolve_stdlib(path: &str) -> Option<String> {
 #[derive(Debug, Clone)]
 pub enum OutputFormat {
     Component,
-    /// Split output: separate `game-runtime.js` + lightweight component `.js` files.
+    /// Split output: separate `glyph-runtime.js` + lightweight component `.js` files.
     Split,
     Html,
     Standalone,
@@ -86,7 +86,7 @@ pub struct CompileOutput {
 
 // ── Public API ───────────────────────────────────────────
 
-/// Parse a `.game` source string into an AST.
+/// Parse a `.glyph` source string into an AST.
 pub fn compile_to_ast(source: &str) -> Result<ast::Program, CompileError> {
     let tokens = lexer::lex(source)?;
     let mut parser = parser::Parser::new(tokens);
@@ -120,7 +120,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
         }
     }
 
-    // Handle file imports: resolve `use "path.game"` into fn definitions
+    // Handle file imports: resolve `use "path.glyph"` into fn definitions
     let mut all_fns = program.fns.clone();
     for import in &program.imports {
         if let Some(stdlib_source) = resolve_stdlib(&import.path) {
@@ -128,7 +128,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
             if let Ok(imported) = compile_to_ast(&stdlib_source) {
                 all_fns.extend(imported.fns);
             }
-        } else if import.path.ends_with(".game") {
+        } else if import.path.ends_with(".glyph") {
             // File import — try to read and parse for fn definitions
             if let Ok(source) = std::fs::read_to_string(&import.path) {
                 if let Ok(imported) = compile_to_ast(&source) {
@@ -283,7 +283,7 @@ pub fn compile(source: &str, config: &CompileConfig) -> Result<Vec<CompileOutput
         outputs.insert(
             0,
             CompileOutput {
-                name: "game-runtime".into(),
+                name: "glyph-runtime".into(),
                 wgsl: None,
                 glsl: None,
                 js: runtime::helpers::generate_standalone_runtime(),
@@ -384,7 +384,7 @@ mod tests {
         assert!(outputs[1].js.contains("GameSceneTimeline"));
         // Scene now produces a full Web Component
         assert!(outputs[1].js.contains("customElements.define"));
-        assert!(outputs[1].js.contains("game-scene-show"));
+        assert!(outputs[1].js.contains("glyph-scene-show"));
     }
 
     #[test]
@@ -704,7 +704,7 @@ mod tests {
 
     #[test]
     fn e2e_example_015_resonate_network() {
-        let source = std::fs::read_to_string("examples/015-resonate-network.game").unwrap();
+        let source = std::fs::read_to_string("examples/015-resonate-network.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -715,7 +715,7 @@ mod tests {
 
     #[test]
     fn e2e_example_016_arc_evolution() {
-        let source = std::fs::read_to_string("examples/016-arc-evolution.game").unwrap();
+        let source = std::fs::read_to_string("examples/016-arc-evolution.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -726,7 +726,7 @@ mod tests {
 
     #[test]
     fn e2e_example_018_react_turing() {
-        let source = std::fs::read_to_string("examples/018-react-turing.game").unwrap();
+        let source = std::fs::read_to_string("examples/018-react-turing.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -737,7 +737,7 @@ mod tests {
 
     #[test]
     fn e2e_example_023_polar_distort() {
-        let source = std::fs::read_to_string("examples/023-polar-distort.game").unwrap();
+        let source = std::fs::read_to_string("examples/023-polar-distort.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -748,7 +748,7 @@ mod tests {
 
     #[test]
     fn e2e_example_017_living_organism() {
-        let source = std::fs::read_to_string("examples/017-living-organism.game").unwrap();
+        let source = std::fs::read_to_string("examples/017-living-organism.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -759,7 +759,7 @@ mod tests {
 
     #[test]
     fn e2e_example_019_swarm() {
-        let source = std::fs::read_to_string("examples/019-swarm-physarum.game").unwrap();
+        let source = std::fs::read_to_string("examples/019-swarm-physarum.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -770,7 +770,7 @@ mod tests {
 
     #[test]
     fn e2e_example_020_flow() {
-        let source = std::fs::read_to_string("examples/020-flow-fields.game").unwrap();
+        let source = std::fs::read_to_string("examples/020-flow-fields.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -784,7 +784,7 @@ mod tests {
         let mut failures = Vec::new();
         for entry in std::fs::read_dir("examples").unwrap() {
             let path = entry.unwrap().path();
-            if path.extension().map_or(false, |e| e == "game") {
+            if path.extension().map_or(false, |e| e == "glyph") {
                 let source = std::fs::read_to_string(&path).unwrap();
                 if compile(&source, &default_config()).is_err() {
                     failures.push(path.display().to_string());
@@ -1024,7 +1024,7 @@ mod tests {
 
     #[test]
     fn e2e_example_035_feedback_trails() {
-        let source = std::fs::read_to_string("examples/035-feedback-trails.game").unwrap();
+        let source = std::fs::read_to_string("examples/035-feedback-trails.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -1035,7 +1035,7 @@ mod tests {
 
     #[test]
     fn e2e_example_036_blur_vignette() {
-        let source = std::fs::read_to_string("examples/036-blur-vignette.game").unwrap();
+        let source = std::fs::read_to_string("examples/036-blur-vignette.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -1049,7 +1049,7 @@ mod tests {
 
     #[test]
     fn e2e_example_038_genesis() {
-        let source = std::fs::read_to_string("examples/038-genesis.game").unwrap();
+        let source = std::fs::read_to_string("examples/038-genesis.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -1064,7 +1064,7 @@ mod tests {
 
     #[test]
     fn e2e_example_039_cosmos() {
-        let source = std::fs::read_to_string("examples/039-cosmos.game").unwrap();
+        let source = std::fs::read_to_string("examples/039-cosmos.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -1080,7 +1080,7 @@ mod tests {
 
     #[test]
     fn e2e_example_042_mandala_bloom() {
-        let source = std::fs::read_to_string("examples/042-mandala-bloom.game").unwrap();
+        let source = std::fs::read_to_string("examples/042-mandala-bloom.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -1112,7 +1112,7 @@ mod tests {
         assert_eq!(outputs.len(), 3); // 2 cinematics + 1 scene
         let scene_js = &outputs[2].js;
         assert!(scene_js.contains("SCENE_CINEMATICS"));
-        assert!(scene_js.contains("game-scene-demo"));
+        assert!(scene_js.contains("glyph-scene-demo"));
         assert!(scene_js.contains("GameSceneTimeline"));
         assert!(scene_js.contains("style.opacity"));
     }
@@ -1189,7 +1189,7 @@ mod tests {
 
     #[test]
     fn e2e_example_043_scene_sequence() {
-        let source = std::fs::read_to_string("examples/043-scene-sequence.game").unwrap();
+        let source = std::fs::read_to_string("examples/043-scene-sequence.glyph").unwrap();
         let result = compile(&source, &default_config());
         assert!(
             result.is_ok(),
@@ -1199,7 +1199,7 @@ mod tests {
         let outputs = result.unwrap();
         // 3 cinematics + 1 scene component
         assert_eq!(outputs.len(), 4);
-        assert!(outputs[3].js.contains("game-scene-day-cycle"));
+        assert!(outputs[3].js.contains("glyph-scene-day-cycle"));
     }
 
     #[test]
@@ -1642,7 +1642,7 @@ mod tests {
             "045-matrix-color",
             "046-matrix-transitions",
         ] {
-            let path = format!("examples/{}.game", example);
+            let path = format!("examples/{}.glyph", example);
             let source =
                 std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("should read {}", path));
             let result = compile(&source, &default_config());
@@ -1931,17 +1931,17 @@ mod tests {
         };
         let outputs = compile(source, &config).unwrap();
         // First output is the shared runtime
-        assert_eq!(outputs[0].name, "game-runtime");
-        assert!(outputs[0].js.contains("class GameRenderer"));
-        assert!(outputs[0].js.contains("class GameRendererGL"));
-        assert!(outputs[0].js.contains("window.GameRenderer"));
-        assert!(outputs[0].js.contains("window.GameRendererGL"));
+        assert_eq!(outputs[0].name, "glyph-runtime");
+        assert!(outputs[0].js.contains("class GlyphRenderer"));
+        assert!(outputs[0].js.contains("class GlyphRendererGL"));
+        assert!(outputs[0].js.contains("window.GlyphRenderer"));
+        assert!(outputs[0].js.contains("window.GlyphRendererGL"));
         // Second output is the component
         assert_eq!(outputs[1].name, "test");
-        assert!(!outputs[1].js.contains("class GameRenderer"));
-        assert!(!outputs[1].js.contains("class GameRendererGL"));
+        assert!(!outputs[1].js.contains("class GlyphRenderer"));
+        assert!(!outputs[1].js.contains("class GlyphRendererGL"));
         // Component should still have shaders, custom element, etc.
-        assert!(outputs[1].js.contains("customElements.define('game-test'"));
+        assert!(outputs[1].js.contains("customElements.define('glyph-test'"));
         assert!(outputs[1].js.contains("WGSL_V"));
         assert!(outputs[1].js.contains("GLSL_F"));
     }
@@ -1994,11 +1994,11 @@ mod tests {
         let outputs = compile(source, &config).unwrap();
         // runtime + 2 components
         assert_eq!(outputs.len(), 3);
-        assert_eq!(outputs[0].name, "game-runtime");
+        assert_eq!(outputs[0].name, "glyph-runtime");
         assert_eq!(outputs[1].name, "a");
         assert_eq!(outputs[2].name, "b");
         // Neither component should contain renderer classes
-        assert!(!outputs[1].js.contains("class GameRenderer"));
-        assert!(!outputs[2].js.contains("class GameRenderer"));
+        assert!(!outputs[1].js.contains("class GlyphRenderer"));
+        assert!(!outputs[2].js.contains("class GlyphRenderer"));
     }
 }

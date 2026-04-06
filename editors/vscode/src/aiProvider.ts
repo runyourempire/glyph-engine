@@ -4,7 +4,7 @@ import * as http from "http";
 
 const SYSTEM_PROMPT = `You are a GAME DSL expert. GAME is a shader language that compiles to Web Components.
 
-Generate a single GAME component based on the user's description. Return ONLY the .game code block, nothing else.
+Generate a single GAME component based on the user's description. Return ONLY the .glyph code block, nothing else.
 
 GAME syntax:
 cinematic "component-name" {
@@ -41,7 +41,7 @@ Guidelines:
 - Use multiple layers with blend modes for complex effects
 - 5-15 lines is ideal`;
 
-const FIX_SYSTEM_PROMPT = `You are a GAME DSL expert. The user will provide GAME code that failed to compile, along with the error message. Fix the code and return ONLY the corrected .game code block, nothing else. Keep the visual intent. GAME uses cinematic "name" { layer name { pipeline... } } syntax with pipe-separated stages.`;
+const FIX_SYSTEM_PROMPT = `You are a GAME DSL expert. The user will provide GAME code that failed to compile, along with the error message. Fix the code and return ONLY the corrected .glyph code block, nothing else. Keep the visual intent. GAME uses cinematic "name" { layer name { pipeline... } } syntax with pipe-separated stages.`;
 
 export interface AiGenerationResult {
   code: string;
@@ -63,7 +63,7 @@ export class AiProvider {
     this._secrets = secrets;
     // Check legacy config as initial value; will be migrated on first use
     this._apiKey = vscode.workspace
-      .getConfiguration("game")
+      .getConfiguration("glyph")
       .get<string>("ai.apiKey");
   }
 
@@ -91,7 +91,7 @@ export class AiProvider {
     const messages: ClaudeMessage[] = [
       {
         role: "user",
-        content: `This GAME code failed to compile:\n\n\`\`\`game\n${code}\n\`\`\`\n\nError:\n${error}\n\nFix it.`,
+        content: `This GAME code failed to compile:\n\n\`\`\`glyph\n${code}\n\`\`\`\n\nError:\n${error}\n\nFix it.`,
       },
     ];
     const response = await this._callClaude(
@@ -106,8 +106,8 @@ export class AiProvider {
     let code = response;
     // Match code blocks — try with newline first, then without (handles both)
     const codeBlock =
-      response.match(/```(?:game)?\s*\n([\s\S]*?)```/) ||
-      response.match(/```(?:game)?\s+([\s\S]*?)```/);
+      response.match(/```(?:glyph)?\s*\n([\s\S]*?)```/) ||
+      response.match(/```(?:glyph)?\s+([\s\S]*?)```/);
     if (codeBlock) {
       code = codeBlock[1].trim();
     }
@@ -134,7 +134,7 @@ export class AiProvider {
     if (this._apiKey) return this._apiKey;
 
     // Try SecretStorage first
-    const stored = await this._secrets.get('game.ai.apiKey');
+    const stored = await this._secrets.get('glyph.ai.apiKey');
     if (stored) {
       this._apiKey = stored;
       return stored;
@@ -142,10 +142,10 @@ export class AiProvider {
 
     // Fallback: migrate from plaintext config if present
     const legacyKey = vscode.workspace
-      .getConfiguration("game")
+      .getConfiguration("glyph")
       .get<string>("ai.apiKey");
     if (legacyKey) {
-      await this._secrets.store('game.ai.apiKey', legacyKey);
+      await this._secrets.store('glyph.ai.apiKey', legacyKey);
       this._apiKey = legacyKey;
       return legacyKey;
     }
@@ -164,7 +164,7 @@ export class AiProvider {
     }
 
     this._apiKey = key;
-    await this._secrets.store('game.ai.apiKey', key);
+    await this._secrets.store('glyph.ai.apiKey', key);
     return key;
   }
 
@@ -174,7 +174,7 @@ export class AiProvider {
     onChunk?: (text: string) => void
   ): Promise<string> {
     const apiKey = await this._ensureApiKey();
-    const config = vscode.workspace.getConfiguration("game");
+    const config = vscode.workspace.getConfiguration("glyph");
     const model = config.get<string>("ai.model", "claude-sonnet-4-20250514");
 
     const body = JSON.stringify({

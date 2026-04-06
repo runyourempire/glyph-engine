@@ -2,20 +2,20 @@ import { browser } from "@wdio/globals";
 import path from "path";
 import fs from "fs";
 
-const FIXTURE = path.join(__dirname, "../fixtures/hello.game");
+const FIXTURE = path.join(__dirname, "../fixtures/hello.glyph");
 const SCREENSHOT_DIR = path.join(__dirname, "../screenshots");
 
 describe("Preview WebView Panel", () => {
   before(async () => {
     fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
-    // Open a .game file and trigger preview
+    // Open a .glyph file and trigger preview
     await browser.executeWorkbench(async (vscode, filePath) => {
       const doc = await vscode.workspace.openTextDocument(
         vscode.Uri.file(filePath)
       );
       await vscode.window.showTextDocument(doc);
-      await vscode.commands.executeCommand("game.openPreview");
+      await vscode.commands.executeCommand("glyph.openPreview");
     }, FIXTURE);
 
     // Wait for compile + WebView render

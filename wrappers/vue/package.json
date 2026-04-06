@@ -1,5 +1,5 @@
 {
-  "name": "@game-engine/vue",
+  "name": "@glyph-engine/vue",
   "version": "0.1.0",
   "description": "Vue 3 integration for GAME Web Components",
   "main": "dist/index.js",

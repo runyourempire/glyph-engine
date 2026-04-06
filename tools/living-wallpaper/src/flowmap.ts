@@ -754,7 +754,7 @@ export async function generateRegionFlows(
  *
  * Delegates to generateRegionFlows() internally, then composites all
  * per-region flows into a single texture. This preserves the old interface
- * for existing .game templates that reference a single "flow" texture.
+ * for existing .glyph templates that reference a single "flow" texture.
  *
  * Where regions overlap, the flow with higher magnitude wins (max blend).
  */

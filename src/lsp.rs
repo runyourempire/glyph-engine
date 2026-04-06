@@ -1,4 +1,4 @@
-//! Language Server Protocol implementation for the GAME language.
+//! Language Server Protocol implementation for the GLYPH language.
 //!
 //! Provides completion, hover, diagnostics, and go-to-definition
 //! via stdio JSON-RPC transport using `lsp-server` + `lsp-types`.
@@ -22,7 +22,7 @@ use crate::builtins::{self, ShaderState};
 
 /// Run the LSP server on stdin/stdout. Blocks until the client disconnects.
 pub fn run_lsp() {
-    eprintln!("[game-lsp] starting GAME language server");
+    eprintln!("[glyph-lsp] starting GLYPH language server");
 
     let (connection, io_threads) = Connection::stdio();
 
@@ -32,7 +32,7 @@ pub fn run_lsp() {
     let init_params = match connection.initialize(server_capabilities) {
         Ok(params) => params,
         Err(e) => {
-            eprintln!("[game-lsp] initialization failed: {e}");
+            eprintln!("[glyph-lsp] initialization failed: {e}");
             return;
         }
     };
@@ -40,14 +40,14 @@ pub fn run_lsp() {
     let _init_params: InitializeParams =
         serde_json::from_value(init_params).unwrap_or_else(|_| InitializeParams::default());
 
-    eprintln!("[game-lsp] initialized, entering main loop");
+    eprintln!("[glyph-lsp] initialized, entering main loop");
 
     if let Err(e) = main_loop(&connection) {
-        eprintln!("[game-lsp] main loop error: {e}");
+        eprintln!("[glyph-lsp] main loop error: {e}");
     }
 
     io_threads.join().ok();
-    eprintln!("[game-lsp] server shut down");
+    eprintln!("[glyph-lsp] server shut down");
 }
 
 fn make_server_capabilities() -> ServerCapabilities {
@@ -147,7 +147,7 @@ where
         Ok(pair) => Some(pair),
         Err(ExtractError::MethodMismatch(_)) => None,
         Err(ExtractError::JsonError { .. }) => {
-            eprintln!("[game-lsp] failed to deserialize {} params", R::METHOD);
+            eprintln!("[glyph-lsp] failed to deserialize {} params", R::METHOD);
             None
         }
     }
@@ -237,7 +237,7 @@ fn compute_diagnostics(source: &str) -> Vec<Diagnostic> {
                     crate::error::DiagnosticSeverity::Info => DiagnosticSeverity::INFORMATION,
                     crate::error::DiagnosticSeverity::Hint => DiagnosticSeverity::HINT,
                 }),
-                source: Some("game".to_string()),
+                source: Some("glyph".to_string()),
                 message: d.message,
                 ..Default::default()
             }]

@@ -1,4 +1,4 @@
-//! GAME Lexer — transforms source text into a token stream.
+//! GLYPH Lexer — transforms source text into a token stream.
 //!
 //! Uses the `logos` crate for fast zero-allocation lexing.
 

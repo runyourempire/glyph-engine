@@ -1,6 +1,6 @@
 /**
  * Claude Vision API analysis — identifies regions and animation parameters.
- * Returns a structured recipe for generating flowmaps, masks, and .game code.
+ * Returns a structured recipe for generating flowmaps, masks, and .glyph code.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -36,7 +36,7 @@ Return ONLY valid JSON (no markdown, no explanation) matching this exact schema:
 }
 
 Top-level fields:
-- sun_position: [x, y] normalized position of brightest light source in GAME coordinates (x: -1 to 1, y: -1 to 1, 0,0 is center). Null if no visible light source.
+- sun_position: [x, y] normalized position of brightest light source in GLYPH coordinates (x: -1 to 1, y: -1 to 1, 0,0 is center). Null if no visible light source.
 - color_temp: "warm" (sunset, golden), "cool" (overcast, blue), "neutral"
 - time_of_day: "dawn", "day", "golden_hour", "dusk", "night"
 - has_water: true if visible water surface (river, lake, ocean)

@@ -1,7 +1,7 @@
 /// A source-location span: (start_byte, end_byte).
 pub type Spanned<T> = (T, usize, usize);
 
-/// Every lexeme the GAME language can produce.
+/// Every lexeme the GLYPH language can produce.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     // --- keywords ---

@@ -1,6 +1,6 @@
 <template>
   <div ref="containerRef" :class="className" :style="containerStyle">
-    <component :is="tag" ref="gameRef" style="width: 100%; height: 100%" />
+    <component :is="tag" ref="glyphRef" style="width: 100%; height: 100%" />
   </div>
 </template>
 
@@ -24,7 +24,7 @@ const emit = defineEmits<{
 }>();
 
 const containerRef = ref<HTMLDivElement>();
-const gameRef = ref<HTMLElement>();
+const glyphRef = ref<HTMLElement>();
 
 const containerStyle = computed<CSSProperties>(() => ({
   width: '100%',
@@ -34,17 +34,17 @@ const containerStyle = computed<CSSProperties>(() => ({
 
 onMounted(() => {
   // Load component script
-  const existing = document.querySelector(`script[data-game-src="${props.src}"]`);
+  const existing = document.querySelector(`script[data-glyph-src="${props.src}"]`);
   if (!existing) {
     const script = document.createElement('script');
     script.src = props.src;
-    script.dataset.gameSrc = props.src;
+    script.dataset.glyphSrc = props.src;
     document.head.appendChild(script);
   }
 
-  if (gameRef.value) {
+  if (glyphRef.value) {
     customElements.whenDefined(props.tag).then(() => {
-      emit('ready', gameRef.value!);
+      emit('ready', glyphRef.value!);
     });
   }
 });
@@ -53,7 +53,7 @@ onMounted(() => {
 watch(
   () => props.params,
   (params) => {
-    const el = gameRef.value as any;
+    const el = glyphRef.value as any;
     if (!el?.setParam) return;
     for (const [name, value] of Object.entries(params || {})) {
       el.setParam(name, value);
@@ -64,16 +64,16 @@ watch(
 
 // Expose methods
 function setParam(name: string, value: number) {
-  (gameRef.value as any)?.setParam(name, value);
+  (glyphRef.value as any)?.setParam(name, value);
 }
 
 function getFrame(): ImageData | null {
-  return (gameRef.value as any)?.getFrame?.() ?? null;
+  return (glyphRef.value as any)?.getFrame?.() ?? null;
 }
 
 function getFrameDataURL(type?: string): string | null {
-  return (gameRef.value as any)?.getFrameDataURL?.(type) ?? null;
+  return (glyphRef.value as any)?.getFrameDataURL?.(type) ?? null;
 }
 
-defineExpose({ setParam, getFrame, getFrameDataURL, element: gameRef });
+defineExpose({ setParam, getFrame, getFrameDataURL, element: glyphRef });
 </script>

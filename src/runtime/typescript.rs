@@ -1,13 +1,13 @@
-//! TypeScript definition generation for GAME Web Components.
+//! TypeScript definition generation for GLYPH Web Components.
 //!
 //! Generates `.d.ts` files alongside the compiled `.js` output, providing
-//! full type safety for consumers of GAME components.
+//! full type safety for consumers of GLYPH components.
 
 use crate::codegen::ShaderOutput;
 
 use super::component::{to_kebab, to_pascal};
 
-/// Generate a `.d.ts` TypeScript definition file for a compiled GAME component.
+/// Generate a `.d.ts` TypeScript definition file for a compiled GLYPH component.
 pub fn generate_typescript_defs(shader: &ShaderOutput) -> String {
     let tag = to_kebab(&shader.name);
     let class = to_pascal(&shader.name);
@@ -17,7 +17,7 @@ pub fn generate_typescript_defs(shader: &ShaderOutput) -> String {
 
     // Header
     s.push_str(&format!(
-        "/**\n * GAME Component: {tag}\n * Auto-generated TypeScript definitions \u{2014} do not edit.\n */\n\n"
+        "/**\n * GLYPH Component: {tag}\n * Auto-generated TypeScript definitions \u{2014} do not edit.\n */\n\n"
     ));
 
     // Shared interfaces
@@ -53,16 +53,16 @@ pub fn generate_typescript_defs(shader: &ShaderOutput) -> String {
 
     // Component interface with JSDoc
     s.push_str(&format!(
-        "/**\n * `<game-{tag}>` Web Component\n *\n * A self-contained WebGPU/WebGL2 shader component.\n *\n"
+        "/**\n * `<glyph-{tag}>` Web Component\n *\n * A self-contained WebGPU/WebGL2 shader component.\n *\n"
     ));
     if !shader.uniforms.is_empty() {
         s.push_str(" * @example\n * ```html\n");
-        s.push_str(&format!(" * <game-{tag}{example_attrs}></game-{tag}>\n"));
+        s.push_str(&format!(" * <glyph-{tag}{example_attrs}></glyph-{tag}>\n"));
         s.push_str(" * ```\n *\n");
         if !example_props.is_empty() {
             s.push_str(" * @example\n * ```typescript\n");
             s.push_str(&format!(
-                " * const el = document.querySelector('game-{tag}')!;\n"
+                " * const el = document.querySelector('glyph-{tag}')!;\n"
             ));
             s.push_str(&example_props);
             s.push_str(" * ```\n");
@@ -147,7 +147,7 @@ pub fn generate_typescript_defs(shader: &ShaderOutput) -> String {
     // Global augmentation
     s.push_str("declare global {\n");
     s.push_str("  interface HTMLElementTagNameMap {\n");
-    s.push_str(&format!("    'game-{tag}': {interface_name};\n"));
+    s.push_str(&format!("    'glyph-{tag}': {interface_name};\n"));
     s.push_str("  }\n");
     s.push_str("}\n\n");
 
@@ -202,7 +202,7 @@ mod tests {
     fn dts_has_correct_tag_name() {
         let shader = make_shader("glowing-orb");
         let dts = generate_typescript_defs(&shader);
-        assert!(dts.contains("'game-glowing-orb': GameGlowingOrbElement"));
+        assert!(dts.contains("'glyph-glowing-orb': GameGlowingOrbElement"));
         assert!(dts.contains("interface GameGlowingOrbElement extends HTMLElement"));
     }
 
@@ -333,7 +333,7 @@ mod tests {
     fn dts_header_comment() {
         let shader = make_shader("cool-viz");
         let dts = generate_typescript_defs(&shader);
-        assert!(dts.contains("GAME Component: cool-viz"));
+        assert!(dts.contains("GLYPH Component: cool-viz"));
         assert!(dts.contains("Auto-generated TypeScript definitions"));
     }
 }

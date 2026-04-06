@@ -197,7 +197,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "game-compiler"
+name = "glyph-compiler"
 version = "1.0.0"
 dependencies = [
  "anyhow",

@@ -11,15 +11,15 @@
   let { tag, src, params = {}, className, style, onReady }: Props = $props();
 
   let containerEl: HTMLDivElement;
-  let gameEl: HTMLElement | null = $state(null);
+  let glyphEl: HTMLElement | null = $state(null);
 
   $effect(() => {
     // Load script
-    const existing = document.querySelector(`script[data-game-src="${src}"]`);
+    const existing = document.querySelector(`script[data-glyph-src="${src}"]`);
     if (!existing) {
       const script = document.createElement('script');
       script.src = src;
-      script.dataset.gameSrc = src;
+      script.dataset.glyphSrc = src;
       document.head.appendChild(script);
     }
 
@@ -28,39 +28,39 @@
     el.style.width = '100%';
     el.style.height = '100%';
     containerEl.appendChild(el);
-    gameEl = el;
+    glyphEl = el;
 
     customElements.whenDefined(tag).then(() => {
-      if (gameEl && onReady) onReady(gameEl);
+      if (glyphEl && onReady) onReady(glyphEl);
     });
 
     return () => {
       if (el && containerEl?.contains(el)) {
         containerEl.removeChild(el);
       }
-      gameEl = null;
+      glyphEl = null;
     };
   });
 
   // Reactive params
   $effect(() => {
-    if (gameEl && params) {
+    if (glyphEl && params) {
       for (const [name, value] of Object.entries(params)) {
-        (gameEl as any).setParam?.(name, value);
+        (glyphEl as any).setParam?.(name, value);
       }
     }
   });
 
   export function setParam(name: string, value: number) {
-    (gameEl as any)?.setParam(name, value);
+    (glyphEl as any)?.setParam(name, value);
   }
 
   export function getFrame(): ImageData | null {
-    return (gameEl as any)?.getFrame?.() ?? null;
+    return (glyphEl as any)?.getFrame?.() ?? null;
   }
 
   export function getFrameDataURL(type?: string): string | null {
-    return (gameEl as any)?.getFrameDataURL?.(type) ?? null;
+    return (glyphEl as any)?.getFrameDataURL?.(type) ?? null;
   }
 </script>
 

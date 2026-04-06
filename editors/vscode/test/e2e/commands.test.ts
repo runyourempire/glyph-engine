@@ -1,11 +1,11 @@
 import { browser } from "@wdio/globals";
 import path from "path";
 
-const FIXTURE = path.join(__dirname, "../fixtures/hello.game");
+const FIXTURE = path.join(__dirname, "../fixtures/hello.glyph");
 
 describe("Extension Commands", () => {
   before(async () => {
-    // Open a .game file first
+    // Open a .glyph file first
     await browser.executeWorkbench(async (vscode, filePath) => {
       const doc = await vscode.workspace.openTextDocument(
         vscode.Uri.file(filePath)
@@ -15,10 +15,10 @@ describe("Extension Commands", () => {
     await browser.pause(2000);
   });
 
-  it("game.openPreview executes without error", async () => {
+  it("glyph.openPreview executes without error", async () => {
     const result = await browser.executeWorkbench(async (vscode) => {
       try {
-        await vscode.commands.executeCommand("game.openPreview");
+        await vscode.commands.executeCommand("glyph.openPreview");
         return { ok: true };
       } catch (e: unknown) {
         return { ok: false, error: String(e) };
@@ -27,10 +27,10 @@ describe("Extension Commands", () => {
     expect((result as { ok: boolean }).ok).toBe(true);
   });
 
-  it("game.openGallery executes without error", async () => {
+  it("glyph.openGallery executes without error", async () => {
     const result = await browser.executeWorkbench(async (vscode) => {
       try {
-        await vscode.commands.executeCommand("game.openGallery");
+        await vscode.commands.executeCommand("glyph.openGallery");
         return { ok: true };
       } catch (e: unknown) {
         return { ok: false, error: String(e) };
@@ -39,10 +39,10 @@ describe("Extension Commands", () => {
     expect((result as { ok: boolean }).ok).toBe(true);
   });
 
-  it("game.openAi executes without error", async () => {
+  it("glyph.openAi executes without error", async () => {
     const result = await browser.executeWorkbench(async (vscode) => {
       try {
-        await vscode.commands.executeCommand("game.openAi");
+        await vscode.commands.executeCommand("glyph.openAi");
         return { ok: true };
       } catch (e: unknown) {
         return { ok: false, error: String(e) };
@@ -51,8 +51,8 @@ describe("Extension Commands", () => {
     expect((result as { ok: boolean }).ok).toBe(true);
   });
 
-  it("game.exportCopyJs executes without error", async () => {
-    // Need active .game editor for export
+  it("glyph.exportCopyJs executes without error", async () => {
+    // Need active .glyph editor for export
     await browser.executeWorkbench(async (vscode, filePath) => {
       const doc = await vscode.workspace.openTextDocument(
         vscode.Uri.file(filePath)
@@ -63,7 +63,7 @@ describe("Extension Commands", () => {
 
     const result = await browser.executeWorkbench(async (vscode) => {
       try {
-        await vscode.commands.executeCommand("game.exportCopyJs");
+        await vscode.commands.executeCommand("glyph.exportCopyJs");
         return { ok: true };
       } catch (e: unknown) {
         return { ok: false, error: String(e) };

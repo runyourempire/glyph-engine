@@ -1230,7 +1230,7 @@ export function buildContextFromVideo(descriptor: VideoMotionDescriptor, opts: {
 }
 
 /**
- * Generate .game source code using scene-specific template.
+ * Generate .glyph source code using scene-specific template.
  */
 export function generateFromTemplate(sceneType: string, context: TemplateContext): string {
   const template = selectTemplate(sceneType);

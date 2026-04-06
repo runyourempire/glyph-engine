@@ -1,7 +1,7 @@
 /**
- * GAME Compiler Invocation Wrapper
+ * GLYPH Compiler Invocation Wrapper
  *
- * Spawns the GAME compiler as a child process to compile .game source files
+ * Spawns the GLYPH compiler as a child process to compile .glyph source files
  * into HTML, web components, wallpaper bundles, or standalone outputs.
  *
  * The compiler binary is built from the parent Rust project at COMPILER_ROOT.
@@ -13,21 +13,21 @@ import { spawn } from 'child_process';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
-/** Root of the GAME compiler Rust project (three levels up from src/) */
+/** Root of the GLYPH compiler Rust project (three levels up from src/) */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const COMPILER_ROOT = path.resolve(__dirname, '../../..');
 
-/** Output format supported by the GAME compiler */
+/** Output format supported by the GLYPH compiler */
 export type CompileFormat = 'html' | 'component' | 'wallpaper' | 'standalone';
 
 /**
- * Compile a .game source file using the GAME compiler.
+ * Compile a .glyph source file using the GLYPH compiler.
  *
  * Spawns `cargo run --release -- build <gameFilePath> -o <outputDir> --format <format>`
  * in the compiler root directory.
  *
- * @param gameFilePath - Absolute or relative path to the .game source file
+ * @param gameFilePath - Absolute or relative path to the .glyph source file
  * @param outputDir    - Directory for compiled output files
  * @param format       - Output format (default: 'html')
  * @returns Path to the generated .js file in the output directory
@@ -41,8 +41,8 @@ export async function compileGameFile(
   const absoluteGamePath = path.resolve(gameFilePath);
   const absoluteOutputDir = path.resolve(outputDir);
 
-  // Derive the expected output .js filename from the .game source
-  const baseName = path.basename(gameFilePath, '.game');
+  // Derive the expected output .js filename from the .glyph source
+  const baseName = path.basename(gameFilePath, '.glyph');
   const expectedOutput = path.join(absoluteOutputDir, `${baseName}.js`);
 
   return new Promise<string>((resolve, reject) => {
@@ -85,7 +85,7 @@ export async function compileGameFile(
     child.on('close', (code) => {
       if (code !== 0) {
         reject(new Error(
-          `GAME compiler exited with code ${code}\n` +
+          `GLYPH compiler exited with code ${code}\n` +
           `stdout: ${stdout}\n` +
           `stderr: ${stderr}`
         ));

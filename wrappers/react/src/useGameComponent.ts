@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 
-interface GameElement extends HTMLElement {
+interface GlyphElement extends HTMLElement {
   setParam(name: string, value: number): void;
   setAudioData(data: Record<string, number>): void;
   setAudioSource(bridge: { subscribe(cb: (data: Record<string, number>) => void): void }): void;
@@ -8,17 +8,17 @@ interface GameElement extends HTMLElement {
   getFrameDataURL(type?: string): string | null;
 }
 
-interface UseGameComponentOptions {
+interface UseGlyphComponentOptions {
   /** Path to the compiled .js component file */
   src: string;
   /** Initial uniform parameters */
   params?: Record<string, number>;
   /** Callback when component is ready */
-  onReady?: (element: GameElement) => void;
+  onReady?: (element: GlyphElement) => void;
 }
 
-export function useGameComponent(options: UseGameComponentOptions) {
-  const ref = useRef<GameElement>(null);
+export function useGlyphComponent(options: UseGlyphComponentOptions) {
+  const ref = useRef<GlyphElement>(null);
   const scriptLoaded = useRef(false);
 
   // Load the component script on mount
@@ -26,11 +26,11 @@ export function useGameComponent(options: UseGameComponentOptions) {
     if (scriptLoaded.current) return;
 
     // Check if already loaded
-    const existing = document.querySelector(`script[data-game-src="${options.src}"]`);
+    const existing = document.querySelector(`script[data-glyph-src="${options.src}"]`);
     if (!existing) {
       const script = document.createElement('script');
       script.src = options.src;
-      script.dataset.gameSrc = options.src;
+      script.dataset.glyphSrc = options.src;
       document.head.appendChild(script);
       script.onload = () => {
         scriptLoaded.current = true;

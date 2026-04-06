@@ -26,7 +26,7 @@ export class PreviewPanel {
       return;
     }
     const panel = vscode.window.createWebviewPanel(
-      "gamePreview",
+      "glyphPreview",
       "GAME Preview",
       column,
       {
@@ -76,7 +76,7 @@ export class PreviewPanel {
 
     // Send initial code if editor is active
     const editor = vscode.window.activeTextEditor;
-    if (editor?.document.languageId === "game") {
+    if (editor?.document.languageId === "glyph") {
       this._scheduleCompile(editor.document.getText());
     }
   }
@@ -87,12 +87,12 @@ export class PreviewPanel {
   }
 
   private _compile(code: string): void {
-    const config = vscode.workspace.getConfiguration("game");
-    const serverPath = config.get<string>("serverPath", "game");
+    const config = vscode.workspace.getConfiguration("glyph");
+    const serverPath = config.get<string>("serverPath", "glyph");
 
     const tmp = os.tmpdir();
-    const inputPath = path.join(tmp, `game-preview-${process.pid}.game`);
-    const outputDir = path.join(tmp, `game-preview-out-${process.pid}`);
+    const inputPath = path.join(tmp, `glyph-preview-${process.pid}.glyph`);
+    const outputDir = path.join(tmp, `glyph-preview-out-${process.pid}`);
 
     fs.writeFileSync(inputPath, code);
     fs.mkdirSync(outputDir, { recursive: true });
@@ -112,7 +112,7 @@ export class PreviewPanel {
         if (err) {
           let msg = stderr || err.message;
           if (msg.includes("ENOENT") || msg.includes("not found") || msg.includes("not recognized")) {
-            msg = "GAME compiler not found. Set game.serverPath in VS Code settings.";
+            msg = "GAME compiler not found. Set glyph.serverPath in VS Code settings.";
           }
           this._panel.webview.postMessage({ type: "error", message: msg });
           return;
@@ -489,7 +489,7 @@ export class PreviewPanel {
       // Build a self-contained HTML document for the iframe.
       // Each srcdoc assignment creates a fresh document context —
       // no Custom Elements Registry leak, no orphaned rAF loops.
-      const tagName = 'game-' + msg.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      const tagName = 'glyph-' + msg.name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
       const iframeDoc = '<!DOCTYPE html>' +
         '<html><head><style>' +
         '*{margin:0;padding:0;box-sizing:border-box}' +
@@ -530,7 +530,7 @@ export class PreviewPanel {
     endCol: number;
   }): void {
     const editor = vscode.window.activeTextEditor;
-    if (!editor || editor.document.languageId !== "game") return;
+    if (!editor || editor.document.languageId !== "glyph") return;
     if (PreviewPanel._editInFlight) return;
 
     // Validate line/col bounds against current document

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * CLI entry point for the video-to-GAME living wallpaper pipeline.
+ * CLI entry point for the video-to-GLYPH living wallpaper pipeline.
  *
  * Takes a video file, runs Python-based motion analysis (optical flow, depth,
- * segmentation, FFT), then generates a .game source file using scene-specific
+ * segmentation, FFT), then generates a .glyph source file using scene-specific
  * templates filled with measured motion parameters.
  *
  * Usage:
@@ -45,7 +45,7 @@ interface CliArgs {
 
 function usage(): never {
   console.log(`
-GAME Living Wallpaper — Video Pipeline
+GLYPH Living Wallpaper — Video Pipeline
 ========================================
 
 Transforms a video into a region-aware living wallpaper using measured motion data.
@@ -55,7 +55,7 @@ Usage:
 
 Options:
   --no-raft             Use OpenCV Farneback flow instead of SEA-RAFT
-  --compile             Compile the generated .game file after generation
+  --compile             Compile the generated .glyph file after generation
   --format <format>     Compilation format: html | component | wallpaper | standalone
                         (default: html, only used with --compile)
 
@@ -70,8 +70,8 @@ Examples:
 Pipeline:
   1. Python analysis: optical flow, depth, segmentation, FFT frequency extraction
   2. Scene classification and template selection
-  3. .game source generation with measured motion parameters
-  4. (Optional) GAME compiler invocation
+  3. .glyph source generation with measured motion parameters
+  4. (Optional) GLYPH compiler invocation
 
 Output:
   <name>.jpg              Representative still frame
@@ -79,7 +79,7 @@ Output:
   <name>-flow.png         Measured optical flow (RG channels)
   <name>-mask_*.png       Region masks (water, sky, vegetation, etc.)
   <name>-analysis.json    Full motion descriptor
-  <name>-living.game      GAME source code
+  <name>-living.glyph      GLYPH source code
   <name>-living.js        Compiled web component (if --compile)
 `);
   process.exit(1);
@@ -220,7 +220,7 @@ async function main() {
   // Derive base name from video filename (e.g., "waterfall" from "waterfall.mp4")
   const baseName = path.basename(args.videoPath, path.extname(args.videoPath));
 
-  console.log('GAME Living Wallpaper — Video Pipeline');
+  console.log('GLYPH Living Wallpaper — Video Pipeline');
   console.log('======================================');
   console.log(`Input:  ${absoluteVideoPath}`);
   console.log(`Output: ${absoluteOutputDir}`);
@@ -235,8 +235,8 @@ async function main() {
   console.log('=== Step 1/3: Video Analysis (Python) ===');
   await runPythonAnalysis(absoluteVideoPath, absoluteOutputDir, args.noRaft);
 
-  // ── Step 2: Read analysis JSON and generate .game source ───
-  console.log('\n=== Step 2/3: Generate .game Source ===');
+  // ── Step 2: Read analysis JSON and generate .glyph source ───
+  console.log('\n=== Step 2/3: Generate .glyph Source ===');
 
   const analysisPath = path.join(absoluteOutputDir, `${baseName}-analysis.json`);
   if (!fs.existsSync(analysisPath)) {
@@ -260,19 +260,19 @@ async function main() {
   const imageName = `${baseName}.jpg`;
   const context = buildContextFromVideo(descriptor, { imageName, baseName });
 
-  // Select scene-specific template and generate .game source
+  // Select scene-specific template and generate .glyph source
   const template = selectTemplate(descriptor.scene_type);
-  const gameSource = template(context);
+  const glyphSource = template(context);
 
-  const gamePath = path.join(absoluteOutputDir, `${baseName}-living.game`);
-  fs.writeFileSync(gamePath, gameSource);
-  console.log(`[video] Saved: ${gamePath}`);
+  const glyphPath = path.join(absoluteOutputDir, `${baseName}-living.glyph`);
+  fs.writeFileSync(glyphPath, glyphSource);
+  console.log(`[video] Saved: ${glyphPath}`);
 
   // ── Step 3 (optional): Compile ─────────────────────────────
   let compiledPath: string | undefined;
   if (args.compile) {
     console.log(`\n=== Step 3/3: Compile (format: ${args.format}) ===`);
-    compiledPath = await compileGameFile(gamePath, absoluteOutputDir, args.format);
+    compiledPath = await compileGameFile(glyphPath, absoluteOutputDir, args.format);
   }
 
   // ── Summary ────────────────────────────────────────────────
@@ -294,7 +294,7 @@ async function main() {
   }
 
   console.log(`  ${baseName}-analysis.json    (motion descriptor)`);
-  console.log(`  ${baseName}-living.game      (GAME source code)`);
+  console.log(`  ${baseName}-living.glyph      (GLYPH source code)`);
 
   if (compiledPath) {
     console.log(`  ${path.basename(compiledPath)}    (compiled output)`);
@@ -306,7 +306,7 @@ async function main() {
     console.log(`\nTo compile:`);
     console.log(`  npx tsx src/cli-video.ts ${args.videoPath} ${args.outputDir} --compile --format wallpaper`);
     console.log(`  # or directly:`);
-    console.log(`  cargo run -- build ${gamePath} -o ${absoluteOutputDir} --format html`);
+    console.log(`  cargo run -- build ${glyphPath} -o ${absoluteOutputDir} --format html`);
   }
 }
 

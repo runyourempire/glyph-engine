@@ -27,7 +27,7 @@ export class GalleryPanel {
       return;
     }
     const panel = vscode.window.createWebviewPanel(
-      'gameGallery',
+      'glyphGallery',
       'GAME Component Gallery',
       column,
       {
@@ -57,7 +57,7 @@ export class GalleryPanel {
       if (fs.existsSync(filePath)) {
         const uri = vscode.Uri.file(filePath);
         vscode.window.showTextDocument(uri, { viewColumn: vscode.ViewColumn.One }).then(() => {
-          vscode.commands.executeCommand('game.openPreview');
+          vscode.commands.executeCommand('glyph.openPreview');
         });
       } else {
         vscode.window.showWarningMessage(`Component file not found: ${msg.file}`);
@@ -83,11 +83,11 @@ export class GalleryPanel {
     }
 
     const destDir = workspaceFolders[0].uri.fsPath;
-    const destFile = path.join(destDir, `${name}.game`);
+    const destFile = path.join(destDir, `${name}.glyph`);
 
     if (fs.existsSync(destFile)) {
       const overwrite = await vscode.window.showWarningMessage(
-        `${name}.game already exists. Overwrite?`, 'Yes', 'No'
+        `${name}.glyph already exists. Overwrite?`, 'Yes', 'No'
       );
       if (overwrite !== 'Yes') return;
     }
@@ -97,7 +97,7 @@ export class GalleryPanel {
 
     const uri = vscode.Uri.file(destFile);
     vscode.window.showTextDocument(uri, { viewColumn: vscode.ViewColumn.One });
-    vscode.window.showInformationMessage(`Forked ${name}.game to workspace root`);
+    vscode.window.showInformationMessage(`Forked ${name}.glyph to workspace root`);
   }
 
   private _loadGallery(): GalleryIndex | null {

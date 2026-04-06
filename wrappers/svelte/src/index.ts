@@ -1,1 +1,1 @@
-export { default as GameComponent } from './GameComponent.svelte';
+export { default as GlyphComponent } from './GlyphComponent.svelte';

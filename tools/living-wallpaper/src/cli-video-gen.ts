@@ -4,7 +4,7 @@
  *
  * Orchestrates the complete flow: single photo -> depth estimation ->
  * scene analysis -> region masks -> AI video generation (Wan 2.2) ->
- * .game source with video texture -> optional compilation.
+ * .glyph source with video texture -> optional compilation.
  *
  * Usage:
  *   npx tsx src/cli-video-gen.ts <photo.jpg> -o <output_dir> [--compile] [--quality fast|high]
@@ -50,17 +50,17 @@ interface CliArgs {
 
 function usage(): never {
   console.log(`
-GAME Living Wallpaper -- Photo-to-Video Pipeline
+GLYPH Living Wallpaper -- Photo-to-Video Pipeline
 ==================================================
 
-Full pipeline: photo -> depth -> analysis -> masks -> AI video -> .game -> compile
+Full pipeline: photo -> depth -> analysis -> masks -> AI video -> .glyph -> compile
 
 Usage:
   npx tsx src/cli-video-gen.ts <photo> -o <output_dir> [options]
 
 Options:
   -o, --output <dir>    Output directory (required)
-  --compile             Compile the generated .game file after generation
+  --compile             Compile the generated .glyph file after generation
   --quality <level>     Generation quality: fast (30 steps) or high (50 steps)
                         (default: fast)
   --format <format>     Compilation format: html | component | wallpaper | standalone
@@ -85,15 +85,15 @@ Pipeline steps:
   2. Scene analysis        (Claude Vision API or fallback recipe)
   3. Region mask generation (depth + bounds-based segmentation)
   4. AI video generation   (Wan 2.2 TI2V via ComfyUI or diffusers)
-  5. .game source generation (video texture + parallax + atmosphere)
-  6. Compilation            (optional, GAME compiler via cargo)
+  5. .glyph source generation (video texture + parallax + atmosphere)
+  6. Compilation            (optional, GLYPH compiler via cargo)
 
 Output:
   <name>-depth.png          Depth map (bright=near, dark=far)
   <name>-mask_*.png         Region masks (water, sky, vegetation, etc.)
   <name>-loop.webm          Looping video (AV1)
   <name>-loop.mp4           Looping video (H.264 fallback)
-  <name>-living.game        GAME source code
+  <name>-living.glyph        GLYPH source code
   <name>-living.js          Compiled web component (if --compile)
 `);
   process.exit(1);
@@ -351,11 +351,11 @@ async function runVideoGeneration(
 }
 
 // ================================================================
-// GAME SOURCE GENERATION
+// GLYPH SOURCE GENERATION
 // ================================================================
 
 /**
- * Generate .game source code that uses the AI-generated video texture
+ * Generate .glyph source code that uses the AI-generated video texture
  * with parallax depth and atmospheric overlays.
  */
 function generateVideoGameSource(
@@ -452,7 +452,7 @@ async function main() {
   // Derive base name from photo filename
   const baseName = path.basename(args.photoPath, path.extname(args.photoPath));
 
-  console.log('GAME Living Wallpaper -- Photo-to-Video Pipeline');
+  console.log('GLYPH Living Wallpaper -- Photo-to-Video Pipeline');
   console.log('=================================================');
   console.log(`Input:   ${absolutePhotoPath}`);
   console.log(`Output:  ${absoluteOutputDir}`);
@@ -547,20 +547,20 @@ async function main() {
   console.log(`[video-gen] Video generation time: ${videoElapsed}s`);
   step++;
 
-  // ── Step 5: Generate .game Source ──────────────────────────
-  console.log(`\n=== Step ${step}/${stepCount}: Generate .game Source ===`);
-  const gameSource = generateVideoGameSource(baseName, maskNames, hasWater, hasSky);
+  // ── Step 5: Generate .glyph Source ──────────────────────────
+  console.log(`\n=== Step ${step}/${stepCount}: Generate .glyph Source ===`);
+  const glyphSource = generateVideoGameSource(baseName, maskNames, hasWater, hasSky);
 
-  const gamePath = path.join(absoluteOutputDir, `${baseName}-living.game`);
-  fs.writeFileSync(gamePath, gameSource);
-  console.log(`[game] Saved: ${gamePath}`);
+  const glyphPath = path.join(absoluteOutputDir, `${baseName}-living.glyph`);
+  fs.writeFileSync(glyphPath, glyphSource);
+  console.log(`[game] Saved: ${glyphPath}`);
   step++;
 
   // ── Step 6 (optional): Compile ─────────────────────────────
   let compiledPath: string | undefined;
   if (args.compile) {
     console.log(`\n=== Step ${step}/${stepCount}: Compile (format: ${args.format}) ===`);
-    compiledPath = await compileGameFile(gamePath, absoluteOutputDir, args.format);
+    compiledPath = await compileGameFile(glyphPath, absoluteOutputDir, args.format);
   }
 
   // ── Summary ────────────────────────────────────────────────
@@ -590,7 +590,7 @@ async function main() {
     console.log(`  ${baseName}-loop.mp4           (H.264, ${(mp4Size / 1024).toFixed(0)} KB)`);
   }
 
-  console.log(`  ${baseName}-living.game      (GAME source code)`);
+  console.log(`  ${baseName}-living.glyph      (GLYPH source code)`);
 
   if (compiledPath) {
     console.log(`  ${path.basename(compiledPath)}    (compiled output)`);
@@ -602,7 +602,7 @@ async function main() {
     console.log(`\nTo compile:`);
     console.log(`  npx tsx src/cli-video-gen.ts ${args.photoPath} -o ${args.outputDir} --compile --format wallpaper`);
     console.log(`  # or directly:`);
-    console.log(`  cargo run -- build ${gamePath} -o ${absoluteOutputDir} --format html`);
+    console.log(`  cargo run -- build ${glyphPath} -o ${absoluteOutputDir} --format html`);
   }
 }
 

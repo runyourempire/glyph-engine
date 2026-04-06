@@ -118,7 +118,7 @@ export interface PipelineOutput {
   depthMap: Buffer;
   flowMap: Buffer;
   masks: Map<string, Buffer>;
-  gameSource: string;
+  glyphSource: string;
   recipe: ImageRecipe;
   width: number;
   height: number;
@@ -135,7 +135,7 @@ export interface VideoPipelineOutput {
   /** Dominant frequency texture (per-pixel FFT peak) */
   freqMap?: Buffer;
   masks: Map<string, Buffer>;
-  gameSource: string;
+  glyphSource: string;
   descriptor: VideoMotionDescriptor;
   width: number;
   height: number;

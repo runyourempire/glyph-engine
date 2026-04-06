@@ -1,4 +1,4 @@
-# GAME — Generative Animation Matrix Engine
+# GLYPH — Generative Animation Matrix Engine
 
 **GPU compute simulations from declarative code.** Write 15 lines, get a zero-dependency Web Component with reaction-diffusion, swarm intelligence, or flow dynamics — running at 60fps on any GPU.
 
@@ -19,7 +19,7 @@
   <img src="docs/showcase/sacred-geometry.gif" width="240" alt="Sacred Geometry — mandala">
 </p>
 
-Each animation above is a single `.game` file compiled to a self-contained Web Component. No runtime. No dependencies. No framework.
+Each animation above is a single `.glyph` file compiled to a self-contained Web Component. No runtime. No dependencies. No framework.
 
 ```game
 cinematic "deep-coral" {
@@ -54,17 +54,17 @@ cargo install --path .
 ## Quick Start
 
 ```bash
-# Create a new .game file from a template
-game new --template minimal --output my-first.game
+# Create a new .glyph file from a template
+game new --template minimal --output my-first.glyph
 
 # Live preview with hot reload
-game dev my-first.game
+game dev my-first.glyph
 
 # Build to Web Component
-game build my-first.game -o dist/
+game build my-first.glyph -o dist/
 ```
 
-Open `http://localhost:4200` — you'll see your shader with parameter sliders, audio input, and FPS counter. Edit the `.game` file, save, and watch it update live.
+Open `http://localhost:4200` — you'll see your shader with parameter sliders, audio input, and FPS counter. Edit the `.glyph` file, save, and watch it update live.
 
 ## The Language
 
@@ -436,7 +436,7 @@ import "camera://0" as webcam
 
 ### Web Component (.js)
 ```bash
-game build input.game -o dist/
+game build input.glyph -o dist/
 ```
 Produces `dist/name.js` — a self-registering custom element:
 ```html
@@ -446,7 +446,7 @@ Produces `dist/name.js` — a self-registering custom element:
 
 ### Standalone HTML
 ```bash
-game build input.game -o dist/ -f html
+game build input.glyph -o dist/ -f html
 ```
 Produces a complete HTML page with embedded shaders.
 
@@ -489,7 +489,7 @@ el.setAudioData({ bass: 0.5, mid: 0.3, treble: 0.1, energy: 0.3, beat: 0 });
 ## Architecture
 
 ```
-.game source → Lexer (logos) → Parser (recursive descent) → AST
+.glyph source → Lexer (logos) → Parser (recursive descent) → AST
   → Validate (pipeline state machine with typed stages)
   → Codegen (WGSL + GLSL + JS modules)
   → Runtime (Web Component wrapper)
@@ -507,7 +507,7 @@ el.setAudioData({ bass: 0.5, mid: 0.3, treble: 0.1, energy: 0.3, beat: 0 });
 
 ## Examples
 
-See the `examples/` directory for 79 reference `.game` files covering every feature.
+See the `examples/` directory for 79 reference `.glyph` files covering every feature.
 
 ## License
 

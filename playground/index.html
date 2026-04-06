@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GAME Playground — GPU Visuals from Code</title>
+  <title>GLYPH Playground — GPU Visuals from Code</title>
   <meta name="description" content="Write 30 lines of code, get a GPU-rendered interactive Web Component. The shader language designed for AI.">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -60,7 +60,7 @@
 
   <div id="editor-panel">
     <div id="header">
-      <h1>GAME</h1>
+      <h1>GLYPH</h1>
       <span class="badge">PLAYGROUND</span>
     </div>
     <textarea id="source" spellcheck="false">// Nebula — cosmic gas clouds with star field
@@ -113,7 +113,7 @@ cinematic "nebula" {
   </div>
 
   <script type="module">
-    import init, { compileGame, validateGame } from '../pkg/game_compiler.js';
+    import init, { compileGlyph, validateGlyph } from '../pkg/game_compiler.js';
 
     let wasmReady = false;
     let lastCompiledJs = '';
@@ -320,7 +320,7 @@ cinematic "nebula" {
 
       try {
         const t0 = performance.now();
-        const resultJson = compileGame(source, 'both');
+        const resultJson = compileGlyph(source, 'both');
         const t1 = performance.now();
         const results = JSON.parse(resultJson);
 
@@ -357,7 +357,7 @@ cinematic "nebula" {
 
     window.copyEmbed = function() {
       if (!lastComponentName) return;
-      const tag = `game-${lastComponentName}`;
+      const tag = `glyph-${lastComponentName}`;
       const code = `<script src="${tag}.js"><\/script>\n<${tag}></${tag}>`;
       navigator.clipboard.writeText(code);
       const bar = document.getElementById('embed-bar');

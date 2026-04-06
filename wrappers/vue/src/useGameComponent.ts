@@ -1,27 +1,27 @@
 import { ref, onMounted, onUnmounted, watch, Ref } from 'vue';
 
-interface GameElement extends HTMLElement {
+interface GlyphElement extends HTMLElement {
   setParam(name: string, value: number): void;
   setAudioData(data: Record<string, number>): void;
   getFrame(): ImageData | null;
   getFrameDataURL(type?: string): string | null;
 }
 
-interface UseGameComponentOptions {
+interface UseGlyphComponentOptions {
   src: string;
   params?: Ref<Record<string, number>> | Record<string, number>;
 }
 
-export function useGameComponent(options: UseGameComponentOptions) {
-  const elementRef = ref<GameElement | null>(null);
+export function useGlyphComponent(options: UseGlyphComponentOptions) {
+  const elementRef = ref<GlyphElement | null>(null);
   const isReady = ref(false);
 
   onMounted(() => {
-    const existing = document.querySelector(`script[data-game-src="${options.src}"]`);
+    const existing = document.querySelector(`script[data-glyph-src="${options.src}"]`);
     if (!existing) {
       const script = document.createElement('script');
       script.src = options.src;
-      script.dataset.gameSrc = options.src;
+      script.dataset.glyphSrc = options.src;
       document.head.appendChild(script);
       script.onload = () => { isReady.value = true; };
     } else {

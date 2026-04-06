@@ -1,0 +1,23 @@
+{
+  "name": "glyph-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for the GAME compiler — AI agents generate and serve GPU-rendered visual components",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "glyph-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

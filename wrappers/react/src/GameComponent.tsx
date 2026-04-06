@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 
-interface GameComponentProps {
-  /** The tag name of the GAME component (e.g., "game-glowing-orb") */
+interface GlyphComponentProps {
+  /** The tag name of the GAME component (e.g., "glyph-glowing-orb") */
   tag: string;
   /** Path to the compiled .js file */
   src: string;
@@ -15,7 +15,7 @@ interface GameComponentProps {
   onReady?: (element: HTMLElement) => void;
 }
 
-export interface GameComponentRef {
+export interface GlyphComponentRef {
   /** Set a uniform parameter */
   setParam(name: string, value: number): void;
   /** Capture current frame as ImageData */
@@ -26,7 +26,7 @@ export interface GameComponentRef {
   element: HTMLElement | null;
 }
 
-export const GameComponent = forwardRef<GameComponentRef, GameComponentProps>(
+export const GlyphComponent = forwardRef<GlyphComponentRef, GlyphComponentProps>(
   ({ tag, src, params, className, style, onReady }, forwardedRef) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const elementRef = useRef<any>(null);
@@ -35,14 +35,14 @@ export const GameComponent = forwardRef<GameComponentRef, GameComponentProps>(
     // Load script
     useEffect(() => {
       if (scriptLoadedRef.current) return;
-      const existing = document.querySelector(`script[data-game-src="${src}"]`);
+      const existing = document.querySelector(`script[data-glyph-src="${src}"]`);
       if (existing) {
         scriptLoadedRef.current = true;
         return;
       }
       const script = document.createElement('script');
       script.src = src;
-      script.dataset.gameSrc = src;
+      script.dataset.glyphSrc = src;
       script.onload = () => {
         scriptLoadedRef.current = true;
       };
@@ -102,4 +102,4 @@ export const GameComponent = forwardRef<GameComponentRef, GameComponentProps>(
   }
 );
 
-GameComponent.displayName = 'GameComponent';
+GlyphComponent.displayName = 'GlyphComponent';

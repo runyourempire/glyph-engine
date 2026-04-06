@@ -10,7 +10,7 @@ import { estimateDepth } from './depth.js';
 import { analyzeImage } from './analyze.js';
 import { generateFlowMap, generateRegionFlows } from './flowmap.js';
 import { generateMasks } from './masks.js';
-import { generateGameSource } from './generate-game.js';
+import { generateGlyphSource } from './generate-game.js';
 import type { PipelineOutput } from './types.js';
 
 export interface PipelineOptions {
@@ -27,7 +27,7 @@ export interface PipelineOptions {
  * Run the full living wallpaper pipeline.
  *
  * Input: path to a single image
- * Output: depth map, flow map, region masks, .game source code
+ * Output: depth map, flow map, region masks, .glyph source code
  */
 export async function runPipeline(
   imagePath: string,
@@ -108,7 +108,7 @@ export async function runPipeline(
     console.log(`[pipeline] Saved: ${flowPath}`);
   }
 
-  // Step 4b: Combined flow map (backwards compatibility for existing .game templates)
+  // Step 4b: Combined flow map (backwards compatibility for existing .glyph templates)
   console.log('\n=== Step 4b: Combined Flow Map ===');
   const flowPng = await generateFlowMap(depthValues, width, height, resolvedRecipe, masks);
 
@@ -116,14 +116,14 @@ export async function runPipeline(
   fs.writeFileSync(flowPath, flowPng);
   console.log(`[pipeline] Saved: ${flowPath}`);
 
-  // Step 5: Generate .game source
-  console.log('\n=== Step 5/5: Generating .game Source ===');
+  // Step 5: Generate .glyph source
+  console.log('\n=== Step 5/5: Generating .glyph Source ===');
   const maskNames = Array.from(masks.keys());
   const hasWater = resolvedRecipe.has_water ?? resolvedRecipe.regions.some(r => r.animation_class === 'water');
   const hasSky = resolvedRecipe.has_sky ?? resolvedRecipe.regions.some(r => r.animation_class === 'sky');
   const hasVegetation = resolvedRecipe.regions.some(r => r.animation_class === 'vegetation');
 
-  const gameSource = generateGameSource(resolvedRecipe, {
+  const glyphSource = generateGlyphSource(resolvedRecipe, {
     imageName: `${baseName}${sourceExt}`,
     outputDir,
     maskNames,
@@ -133,17 +133,17 @@ export async function runPipeline(
     hasVegetation,
   });
 
-  const gamePath = path.join(outputDir, `${baseName}-living.game`);
-  fs.writeFileSync(gamePath, gameSource);
-  console.log(`[pipeline] Saved: ${gamePath}`);
+  const glyphPath = path.join(outputDir, `${baseName}-living.glyph`);
+  fs.writeFileSync(glyphPath, glyphSource);
+  console.log(`[pipeline] Saved: ${glyphPath}`);
   console.log(`\n[pipeline] Done! Generated files in ${outputDir}/`);
-  console.log(`\nTo compile:\n  cargo run -- build ${gamePath} -o ${outputDir} --format html`);
+  console.log(`\nTo compile:\n  cargo run -- build ${glyphPath} -o ${outputDir} --format html`);
 
   return {
     depthMap: depthPng,
     flowMap: flowPng,
     masks,
-    gameSource,
+    glyphSource,
     recipe: resolvedRecipe,
     width,
     height,

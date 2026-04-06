@@ -46,7 +46,7 @@ pub fn generate_dom(cinematic: &Cinematic) -> (Option<String>, Option<String>) {
     let mut css = String::new();
 
     for el in &dom_block.elements {
-        let class_name = format!("game-dom-{}", el.name.replace(' ', "-"));
+        let class_name = format!("glyph-dom-{}", el.name.replace(' ', "-"));
         let html_tag = match el.tag.as_str() {
             "text" => "span",
             "div" => "div",
@@ -165,7 +165,7 @@ mod tests {
         let (html, css) = generate_dom(&cin);
         let html = html.unwrap();
         let css = css.unwrap();
-        assert!(html.contains("game-dom-title"));
+        assert!(html.contains("glyph-dom-title"));
         assert!(html.contains("data-bind=\"title\""));
         assert!(css.contains("left:72px"));
         assert!(css.contains("top:12px"));

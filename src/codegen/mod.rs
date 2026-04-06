@@ -1,6 +1,6 @@
 //! Shader codegen orchestration.
 //!
-//! Generates WGSL and/or GLSL shaders from GAME AST, then hands off to
+//! Generates WGSL and/or GLSL shaders from GLYPH AST, then hands off to
 //! the runtime module to wrap them in Web Components or standalone HTML.
 
 pub mod arc;

@@ -112,7 +112,7 @@ pub fn generate_html(shader: &ShaderOutput) -> String {
     s.push_str("  resize();\n\n");
 
     s.push_str("  let renderer = null;\n");
-    s.push_str("  const gpu = new GameRenderer(canvas, WGSL_V, WGSL_F, UNIFORMS");
+    s.push_str("  const gpu = new GlyphRenderer(canvas, WGSL_V, WGSL_F, UNIFORMS");
     if pass_count > 0 {
         s.push_str(", PASS_SHADERS");
     }
@@ -122,7 +122,7 @@ pub fn generate_html(shader: &ShaderOutput) -> String {
     s.push_str(");\n");
     s.push_str("  if (await gpu.init()) { renderer = gpu; }\n");
     s.push_str("  else {\n");
-    s.push_str("    const gl = new GameRendererGL(canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
+    s.push_str("    const gl = new GlyphRendererGL(canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
     s.push_str("    if (gl.init()) { renderer = gl; }\n");
     s.push_str("  }\n");
     s.push_str("  if (!renderer) { document.body.textContent = 'No WebGPU or WebGL2 support.'; return; }\n\n");
@@ -176,7 +176,7 @@ pub fn generate_artblocks_html(shader: &ShaderOutput, seed: Option<u64>) -> Stri
     s.push_str("<meta charset=\"utf-8\">\n");
     s.push_str("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n");
     s.push_str(&format!(
-        "<title>{} — GAME (Art Blocks)</title>\n",
+        "<title>{} — GLYPH (Art Blocks)</title>\n",
         shader.name
     ));
     s.push_str("<style>*{margin:0;padding:0}html,body{width:100%;height:100%;overflow:hidden;background:#000}canvas{width:100%;height:100%;display:block}</style>\n");
@@ -246,13 +246,13 @@ pub fn generate_artblocks_html(shader: &ShaderOutput, seed: Option<u64>) -> Stri
     s.push_str("  }\n");
     s.push_str("  window.addEventListener('resize', resize);\n");
     s.push_str("  resize();\n\n");
-    s.push_str("  const gpu = new GameRenderer(canvas, WGSL_V, WGSL_F, UNIFORMS");
+    s.push_str("  const gpu = new GlyphRenderer(canvas, WGSL_V, WGSL_F, UNIFORMS");
     if pass_count_ab > 0 {
         s.push_str(", PASS_SHADERS");
     }
     s.push_str(");\n");
     s.push_str("  if (await gpu.init()) { gpu.start(); return; }\n");
-    s.push_str("  const gl = new GameRendererGL(canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
+    s.push_str("  const gl = new GlyphRendererGL(canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
     s.push_str("  if (gl.init()) { gl.start(); return; }\n");
     s.push_str("  document.body.textContent = 'No WebGPU or WebGL2 support.';\n");
     s.push_str("})();\n");
@@ -293,7 +293,7 @@ pub fn generate_wallpaper_html(shader: &ShaderOutput) -> String {
     s.push_str("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
     s.push_str("<meta charset=\"utf-8\">\n");
     s.push_str("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n");
-    s.push_str(&format!("<title>{} — GAME Wallpaper</title>\n", shader.name));
+    s.push_str(&format!("<title>{} — GLYPH Wallpaper</title>\n", shader.name));
     s.push_str("<style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;background:#000}canvas{width:100%;height:100%;display:block;image-rendering:auto}</style>\n");
     s.push_str("</head>\n<body>\n<canvas id=\"c\"></canvas>\n<script>\n");
 
@@ -407,7 +407,7 @@ pub fn generate_wallpaper_html(shader: &ShaderOutput) -> String {
     s.push_str("  window.addEventListener('resize', resize);\n");
     s.push_str("  resize();\n\n");
 
-    s.push_str("  const gpu = new GameRenderer(canvas, WGSL_V, WGSL_F, UNIFORMS");
+    s.push_str("  const gpu = new GlyphRenderer(canvas, WGSL_V, WGSL_F, UNIFORMS");
     if pass_count > 0 {
         s.push_str(", PASS_SHADERS");
     }
@@ -417,7 +417,7 @@ pub fn generate_wallpaper_html(shader: &ShaderOutput) -> String {
     s.push_str(");\n");
     s.push_str("  if (await gpu.init()) { _renderer = gpu; }\n");
     s.push_str("  else {\n");
-    s.push_str("    const gl = new GameRendererGL(canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
+    s.push_str("    const gl = new GlyphRendererGL(canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
     s.push_str("    if (gl.init()) { _renderer = gl; }\n");
     s.push_str("  }\n");
     s.push_str("  if (!_renderer) { document.body.textContent = 'No GPU support.'; return; }\n\n");
@@ -496,8 +496,8 @@ mod tests {
         let html = generate_html(&shader);
         assert!(html.contains("<!DOCTYPE html>"));
         assert!(html.contains("<title>demo"));
-        assert!(html.contains("class GameRenderer"));
-        assert!(html.contains("class GameRendererGL"));
+        assert!(html.contains("class GlyphRenderer"));
+        assert!(html.contains("class GlyphRendererGL"));
         assert!(html.contains("</html>"));
     }
 
@@ -540,7 +540,7 @@ mod tests {
         let html = generate_wallpaper_html(&shader);
         // Basic structure
         assert!(html.contains("<!DOCTYPE html>"));
-        assert!(html.contains("GAME Wallpaper"));
+        assert!(html.contains("GLYPH Wallpaper"));
         assert!(html.contains("</html>"));
         // Wallpaper Engine API bridge
         assert!(html.contains("wallpaperPropertyListener"), "should have WE API bridge");
@@ -555,7 +555,7 @@ mod tests {
         assert!(html.contains("resScale"), "should have resolution scaling");
         assert!(html.contains("COMPLEXITY.tier"), "should use complexity for auto-scaling");
         // Renderers
-        assert!(html.contains("class GameRenderer"));
-        assert!(html.contains("class GameRendererGL"));
+        assert!(html.contains("class GlyphRenderer"));
+        assert!(html.contains("class GlyphRendererGL"));
     }
 }

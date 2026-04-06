@@ -17,7 +17,7 @@ import { runPipeline, type PipelineOptions } from './pipeline.js';
 
 function usage(): never {
   console.log(`
-GAME Living Wallpaper Pipeline
+GLYPH Living Wallpaper Pipeline
 ===============================
 
 Transforms a single image into a region-aware living wallpaper.
@@ -44,7 +44,7 @@ Output:
   <name>-flow.png       Flow direction map (RG channels)
   <name>-mask_water.png Water region mask
   <name>-mask_sky.png   Sky region mask
-  <name>-living.game    GAME source code (ready to compile)
+  <name>-living.glyph    GLYPH source code (ready to compile)
 `);
   process.exit(1);
 }
@@ -81,7 +81,7 @@ async function main() {
     }
   }
 
-  console.log('GAME Living Wallpaper Pipeline');
+  console.log('GLYPH Living Wallpaper Pipeline');
   console.log('=============================');
 
   const start = Date.now();

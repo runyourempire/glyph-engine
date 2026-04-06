@@ -2,7 +2,7 @@
   "components": [
     {
       "name": "Nebula",
-      "file": "backgrounds/nebula.game",
+      "file": "backgrounds/nebula.glyph",
       "category": "backgrounds",
       "description": "Deep space nebula with swirling gas clouds",
       "tags": [
@@ -13,7 +13,7 @@
     },
     {
       "name": "Aurora",
-      "file": "backgrounds/aurora.game",
+      "file": "backgrounds/aurora.glyph",
       "category": "backgrounds",
       "description": "Northern lights shimmering across the sky",
       "tags": [
@@ -24,7 +24,7 @@
     },
     {
       "name": "EmberField",
-      "file": "backgrounds/ember-field.game",
+      "file": "backgrounds/ember-field.glyph",
       "category": "backgrounds",
       "description": "Glowing embers drifting through darkness",
       "tags": [
@@ -35,7 +35,7 @@
     },
     {
       "name": "QuantumMesh",
-      "file": "backgrounds/quantum-mesh.game",
+      "file": "backgrounds/quantum-mesh.glyph",
       "category": "backgrounds",
       "description": "Interconnected quantum field distortions",
       "tags": [
@@ -46,7 +46,7 @@
     },
     {
       "name": "OceanDepth",
-      "file": "backgrounds/ocean-depth.game",
+      "file": "backgrounds/ocean-depth.glyph",
       "category": "backgrounds",
       "description": "Deep ocean currents with bioluminescent hints",
       "tags": [
@@ -57,7 +57,7 @@
     },
     {
       "name": "StormFront",
-      "file": "backgrounds/storm-front.game",
+      "file": "backgrounds/storm-front.glyph",
       "category": "backgrounds",
       "description": "Turbulent storm clouds with rolling intensity",
       "tags": [
@@ -68,7 +68,7 @@
     },
     {
       "name": "VoidDrift",
-      "file": "backgrounds/void-drift.game",
+      "file": "backgrounds/void-drift.glyph",
       "category": "backgrounds",
       "description": "Minimal void space with subtle drift motion",
       "tags": [
@@ -79,7 +79,7 @@
     },
     {
       "name": "CrystalLattice",
-      "file": "backgrounds/crystal-lattice.game",
+      "file": "backgrounds/crystal-lattice.glyph",
       "category": "backgrounds",
       "description": "Geometric crystal structures refracting light",
       "tags": [
@@ -90,7 +90,7 @@
     },
     {
       "name": "Heartbeat",
-      "file": "indicators/heartbeat.game",
+      "file": "indicators/heartbeat.glyph",
       "category": "indicators",
       "description": "Pulsing ring that mimics a heartbeat rhythm",
       "tags": [
@@ -101,7 +101,7 @@
     },
     {
       "name": "ProgressRing",
-      "file": "indicators/progress-ring.game",
+      "file": "indicators/progress-ring.glyph",
       "category": "indicators",
       "description": "Circular progress indicator with smooth arc fill",
       "tags": [
@@ -112,7 +112,7 @@
     },
     {
       "name": "StatusPulse",
-      "file": "indicators/status-pulse.game",
+      "file": "indicators/status-pulse.glyph",
       "category": "indicators",
       "description": "Ambient status dot with resonating pulse",
       "tags": [
@@ -123,7 +123,7 @@
     },
     {
       "name": "SignalMeter",
-      "file": "indicators/signal-meter.game",
+      "file": "indicators/signal-meter.glyph",
       "category": "indicators",
       "description": "Signal strength bars with animated fill",
       "tags": [
@@ -134,7 +134,7 @@
     },
     {
       "name": "BootSequence",
-      "file": "indicators/boot-sequence.game",
+      "file": "indicators/boot-sequence.glyph",
       "category": "indicators",
       "description": "System boot animation with scan lines",
       "tags": [
@@ -145,7 +145,7 @@
     },
     {
       "name": "AchievementArc",
-      "file": "indicators/achievement-arc.game",
+      "file": "indicators/achievement-arc.glyph",
       "category": "indicators",
       "description": "Golden achievement ring that fills on completion",
       "tags": [
@@ -156,7 +156,7 @@
     },
     {
       "name": "RainCurtain",
-      "file": "effects/rain-curtain.game",
+      "file": "effects/rain-curtain.glyph",
       "category": "effects",
       "description": "Vertical rain streaks with depth layering",
       "tags": [
@@ -167,7 +167,7 @@
     },
     {
       "name": "ParticleSwarm",
-      "file": "effects/particle-swarm.game",
+      "file": "effects/particle-swarm.glyph",
       "category": "effects",
       "description": "Emergent particle swarm with flocking behavior",
       "tags": [
@@ -178,7 +178,7 @@
     },
     {
       "name": "LightningArc",
-      "file": "effects/lightning-arc.game",
+      "file": "effects/lightning-arc.glyph",
       "category": "effects",
       "description": "Branching electrical arcs with bright discharge",
       "tags": [
@@ -189,7 +189,7 @@
     },
     {
       "name": "PortalVortex",
-      "file": "effects/portal-vortex.game",
+      "file": "effects/portal-vortex.glyph",
       "category": "effects",
       "description": "Spiraling portal with dimensional distortion",
       "tags": [
@@ -200,7 +200,7 @@
     },
     {
       "name": "FireBloom",
-      "file": "effects/fire-bloom.game",
+      "file": "effects/fire-bloom.glyph",
       "category": "effects",
       "description": "Blooming fire effect with radiant heat haze",
       "tags": [
@@ -211,7 +211,7 @@
     },
     {
       "name": "ShimmerWave",
-      "file": "effects/shimmer-wave.game",
+      "file": "effects/shimmer-wave.glyph",
       "category": "effects",
       "description": "Iridescent shimmer wave washing across surface",
       "tags": [
@@ -222,7 +222,7 @@
     },
     {
       "name": "Sparkline",
-      "file": "data-viz/sparkline.game",
+      "file": "data-viz/sparkline.glyph",
       "category": "data-viz",
       "description": "Minimal inline chart with animated data points",
       "tags": [
@@ -233,7 +233,7 @@
     },
     {
       "name": "HeatGrid",
-      "file": "data-viz/heat-grid.game",
+      "file": "data-viz/heat-grid.glyph",
       "category": "data-viz",
       "description": "Color-mapped heat grid showing intensity patterns",
       "tags": [
@@ -244,7 +244,7 @@
     },
     {
       "name": "FlowDiagram",
-      "file": "data-viz/flow-diagram.game",
+      "file": "data-viz/flow-diagram.glyph",
       "category": "data-viz",
       "description": "Directional flow field visualization",
       "tags": [
@@ -255,7 +255,7 @@
     },
     {
       "name": "RadarSweep",
-      "file": "data-viz/radar-sweep.game",
+      "file": "data-viz/radar-sweep.glyph",
       "category": "data-viz",
       "description": "Rotating radar sweep with echo blips",
       "tags": [
@@ -266,7 +266,7 @@
     },
     {
       "name": "WaveSpectrum",
-      "file": "data-viz/wave-spectrum.game",
+      "file": "data-viz/wave-spectrum.glyph",
       "category": "data-viz",
       "description": "Audio spectrum bars with frequency response",
       "tags": [
@@ -277,7 +277,7 @@
     },
     {
       "name": "HoverGlow",
-      "file": "micro-interactions/hover-glow.game",
+      "file": "micro-interactions/hover-glow.glyph",
       "category": "micro-interactions",
       "description": "Soft glow that follows cursor proximity",
       "tags": [
@@ -288,7 +288,7 @@
     },
     {
       "name": "CardEntrance",
-      "file": "micro-interactions/card-entrance.game",
+      "file": "micro-interactions/card-entrance.glyph",
       "category": "micro-interactions",
       "description": "Card reveal animation with fade and scale",
       "tags": [
@@ -299,7 +299,7 @@
     },
     {
       "name": "DismissFade",
-      "file": "micro-interactions/dismiss-fade.game",
+      "file": "micro-interactions/dismiss-fade.glyph",
       "category": "micro-interactions",
       "description": "Smooth dismissal animation with dissolve effect",
       "tags": [
@@ -310,7 +310,7 @@
     },
     {
       "name": "LoadingOrbit",
-      "file": "micro-interactions/loading-orbit.game",
+      "file": "micro-interactions/loading-orbit.glyph",
       "category": "micro-interactions",
       "description": "Orbiting dots loading indicator",
       "tags": [
@@ -321,7 +321,7 @@
     },
     {
       "name": "AmbientIntelligence",
-      "file": "4da-production/ambient-intelligence.game",
+      "file": "4da-production/ambient-intelligence.glyph",
       "category": "4da-production",
       "description": "Ambient background for intelligence dashboard",
       "tags": [
@@ -332,7 +332,7 @@
     },
     {
       "name": "SignalWaveform",
-      "file": "4da-production/signal-waveform.game",
+      "file": "4da-production/signal-waveform.glyph",
       "category": "4da-production",
       "description": "Waveform visualization for signal tier branding",
       "tags": [
@@ -343,7 +343,7 @@
     },
     {
       "name": "VoidHeartbeat",
-      "file": "4da-production/void-heartbeat.game",
+      "file": "4da-production/void-heartbeat.glyph",
       "category": "4da-production",
       "description": "The void engine heartbeat state indicator",
       "tags": [

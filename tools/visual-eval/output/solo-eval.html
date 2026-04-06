@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<style>*{margin:0;padding:0}body{background:#000;width:100vw;height:100vh;overflow:hidden}
+#target{width:100%;height:100%;display:block}</style>
+</head><body>
+<div id="target"></div>
+<script type="module">
+const tag = new URLSearchParams(location.search).get('tag') || 'game-event-horizon';
+const src = tag.replace('game-', '') + '.js';
+await import('./' + src);
+const el = document.createElement(tag);
+el.style.cssText = 'width:100%;height:100%;display:block';
+document.getElementById('target').appendChild(el);
+</script>
+</body></html>

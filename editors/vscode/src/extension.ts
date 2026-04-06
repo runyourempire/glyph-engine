@@ -18,7 +18,7 @@ let client: LanguageClient | undefined;
 export function activate(context: ExtensionContext): void {
   // Live Preview command
   const previewCommand = vscode.commands.registerCommand(
-    "game.openPreview",
+    "glyph.openPreview",
     () => {
       PreviewPanel.createOrShow(context.extensionUri);
     }
@@ -27,7 +27,7 @@ export function activate(context: ExtensionContext): void {
 
   // Component Gallery command
   const galleryCommand = vscode.commands.registerCommand(
-    "game.openGallery",
+    "glyph.openGallery",
     () => {
       GalleryPanel.createOrShow(context.extensionUri);
     }
@@ -35,7 +35,7 @@ export function activate(context: ExtensionContext): void {
   context.subscriptions.push(galleryCommand);
 
   // AI Generation command
-  const aiCommand = vscode.commands.registerCommand("game.openAi", () => {
+  const aiCommand = vscode.commands.registerCommand("glyph.openAi", () => {
     AiPanel.createOrShow(context.extensionUri, context.secrets);
   });
   context.subscriptions.push(aiCommand);
@@ -45,7 +45,7 @@ export function activate(context: ExtensionContext): void {
   // to prevent the feedback loop (drag → edit → cursor moves → tuner resets)
   const cursorListener = vscode.window.onDidChangeTextEditorSelection((e) => {
     if (PreviewPanel.isTunerActive()) return;
-    if (e.textEditor.document.languageId !== "game") return;
+    if (e.textEditor.document.languageId !== "glyph") return;
     const pos = e.selections[0]?.active;
     if (!pos) return;
     const token = detectTunableToken(e.textEditor.document, pos);
@@ -59,7 +59,7 @@ export function activate(context: ExtensionContext): void {
 
   // Watch for editor text changes — only compile the active document
   const changeListener = vscode.workspace.onDidChangeTextDocument((e) => {
-    if (e.document.languageId === "game" &&
+    if (e.document.languageId === "glyph" &&
         e.document === vscode.window.activeTextEditor?.document) {
       PreviewPanel.updateCode(e.document.getText());
     }
@@ -69,7 +69,7 @@ export function activate(context: ExtensionContext): void {
   // Watch for active editor switches
   const editorListener = vscode.window.onDidChangeActiveTextEditor(
     (editor) => {
-      if (editor?.document.languageId === "game") {
+      if (editor?.document.languageId === "glyph") {
         PreviewPanel.updateCode(editor.document.getText());
       }
     }
@@ -77,8 +77,8 @@ export function activate(context: ExtensionContext): void {
   context.subscriptions.push(editorListener);
 
   // LSP setup
-  const config = workspace.getConfiguration("game");
-  const serverPath = config.get<string>("serverPath", "game");
+  const config = workspace.getConfiguration("glyph");
+  const serverPath = config.get<string>("serverPath", "glyph");
 
   const serverOptions: ServerOptions = {
     run: {
@@ -94,16 +94,16 @@ export function activate(context: ExtensionContext): void {
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: "file", language: "game" }],
+    documentSelector: [{ scheme: "file", language: "glyph" }],
     synchronize: {
-      fileEvents: workspace.createFileSystemWatcher("**/*.game"),
+      fileEvents: workspace.createFileSystemWatcher("**/*.glyph"),
     },
     outputChannelName: "GAME Language Server",
     traceOutputChannel: window.createOutputChannel("GAME Language Server Trace"),
   };
 
   client = new LanguageClient(
-    "game-language-server",
+    "glyph-language-server",
     "GAME Language Server",
     serverOptions,
     clientOptions
@@ -115,7 +115,7 @@ export function activate(context: ExtensionContext): void {
     window.showWarningMessage(
       `GAME language server failed to start: ${message}. ` +
         `Syntax highlighting will still work. ` +
-        `Set "game.serverPath" in settings if the binary is not on PATH.`
+        `Set "glyph.serverPath" in settings if the binary is not on PATH.`
     );
   });
 

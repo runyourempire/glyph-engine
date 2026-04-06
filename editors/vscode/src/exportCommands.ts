@@ -12,18 +12,18 @@ interface CompileResult {
 
 async function compileCurrentFile(): Promise<CompileResult | null> {
   const editor = vscode.window.activeTextEditor;
-  if (!editor || editor.document.languageId !== 'game') {
-    vscode.window.showWarningMessage('Open a .game file first');
+  if (!editor || editor.document.languageId !== 'glyph') {
+    vscode.window.showWarningMessage('Open a .glyph file first');
     return null;
   }
 
-  const config = vscode.workspace.getConfiguration('game');
-  const serverPath = config.get<string>('serverPath', 'game');
+  const config = vscode.workspace.getConfiguration('glyph');
+  const serverPath = config.get<string>('serverPath', 'glyph');
   const code = editor.document.getText();
 
   const tmp = os.tmpdir();
-  const inputPath = path.join(tmp, `game-export-${process.pid}.game`);
-  const outputDir = path.join(tmp, `game-export-out-${process.pid}`);
+  const inputPath = path.join(tmp, `glyph-export-${process.pid}.glyph`);
+  const outputDir = path.join(tmp, `glyph-export-out-${process.pid}`);
 
   fs.writeFileSync(inputPath, code);
   fs.mkdirSync(outputDir, { recursive: true });
@@ -37,7 +37,7 @@ async function compileCurrentFile(): Promise<CompileResult | null> {
       if (err) {
         let msg = stderr || err.message;
         if (msg.includes('ENOENT') || msg.includes('not found') || msg.includes('not recognized')) {
-          msg = 'GAME compiler not found. Set game.serverPath in VS Code settings.';
+          msg = 'GAME compiler not found. Set glyph.serverPath in VS Code settings.';
         }
         vscode.window.showErrorMessage(`Compile failed: ${msg}`);
         resolve(null);
@@ -52,7 +52,7 @@ async function compileCurrentFile(): Promise<CompileResult | null> {
       const jsFile = files[0];
       const js = fs.readFileSync(path.join(outputDir, jsFile), 'utf-8');
       const name = jsFile.replace('.js', '');
-      const tag = 'game-' + name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const tag = 'glyph-' + name.toLowerCase().replace(/[^a-z0-9]/g, '-');
       resolve({ js, name, tag });
     });
   });
@@ -62,7 +62,7 @@ export function registerExportCommands(context: vscode.ExtensionContext): void {
 
   // Copy JS to clipboard
   context.subscriptions.push(
-    vscode.commands.registerCommand('game.exportCopyJs', async () => {
+    vscode.commands.registerCommand('glyph.exportCopyJs', async () => {
       const result = await compileCurrentFile();
       if (!result) return;
       await vscode.env.clipboard.writeText(result.js);
@@ -72,7 +72,7 @@ export function registerExportCommands(context: vscode.ExtensionContext): void {
 
   // Copy HTML embed snippet
   context.subscriptions.push(
-    vscode.commands.registerCommand('game.exportCopyHtml', async () => {
+    vscode.commands.registerCommand('glyph.exportCopyHtml', async () => {
       const result = await compileCurrentFile();
       if (!result) return;
       const html = `<script>\n${result.js}\n</script>\n<${result.tag}></${result.tag}>`;
@@ -83,7 +83,7 @@ export function registerExportCommands(context: vscode.ExtensionContext): void {
 
   // Copy React usage
   context.subscriptions.push(
-    vscode.commands.registerCommand('game.exportCopyReact', async () => {
+    vscode.commands.registerCommand('glyph.exportCopyReact', async () => {
       const result = await compileCurrentFile();
       if (!result) return;
       const pascal = result.name.split(/[-_]/).map(w => w[0].toUpperCase() + w.slice(1)).join('');
@@ -95,7 +95,7 @@ export function registerExportCommands(context: vscode.ExtensionContext): void {
 
   // Save JS file
   context.subscriptions.push(
-    vscode.commands.registerCommand('game.exportSaveJs', async () => {
+    vscode.commands.registerCommand('glyph.exportSaveJs', async () => {
       const result = await compileCurrentFile();
       if (!result) return;
       const uri = await vscode.window.showSaveDialog({
@@ -111,7 +111,7 @@ export function registerExportCommands(context: vscode.ExtensionContext): void {
 
   // Save standalone HTML
   context.subscriptions.push(
-    vscode.commands.registerCommand('game.exportSaveHtml', async () => {
+    vscode.commands.registerCommand('glyph.exportSaveHtml', async () => {
       const result = await compileCurrentFile();
       if (!result) return;
       const html = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>${result.name}</title>\n<style>html,body{margin:0;height:100%;background:#0a0a0a}${result.tag}{display:block;width:100%;height:100%}</style>\n</head>\n<body>\n<script>\n${result.js}\n</script>\n<${result.tag}></${result.tag}>\n</body>\n</html>`;
@@ -128,13 +128,13 @@ export function registerExportCommands(context: vscode.ExtensionContext): void {
 
   // Export menu (quick pick)
   context.subscriptions.push(
-    vscode.commands.registerCommand('game.export', async () => {
+    vscode.commands.registerCommand('glyph.export', async () => {
       const choice = await vscode.window.showQuickPick([
-        { label: '$(clippy) Copy JS', description: 'Web Component JavaScript to clipboard', command: 'game.exportCopyJs' },
-        { label: '$(code) Copy HTML', description: 'Script tag + element to clipboard', command: 'game.exportCopyHtml' },
-        { label: '$(symbol-event) Copy React', description: 'React component usage to clipboard', command: 'game.exportCopyReact' },
-        { label: '$(save) Save JS File', description: 'Save compiled .js to disk', command: 'game.exportSaveJs' },
-        { label: '$(file-code) Save HTML Page', description: 'Save standalone HTML page', command: 'game.exportSaveHtml' },
+        { label: '$(clippy) Copy JS', description: 'Web Component JavaScript to clipboard', command: 'glyph.exportCopyJs' },
+        { label: '$(code) Copy HTML', description: 'Script tag + element to clipboard', command: 'glyph.exportCopyHtml' },
+        { label: '$(symbol-event) Copy React', description: 'React component usage to clipboard', command: 'glyph.exportCopyReact' },
+        { label: '$(save) Save JS File', description: 'Save compiled .js to disk', command: 'glyph.exportSaveJs' },
+        { label: '$(file-code) Save HTML Page', description: 'Save standalone HTML page', command: 'glyph.exportSaveHtml' },
       ], { placeHolder: 'Export GAME component as...' });
       if (choice) {
         vscode.commands.executeCommand(choice.command);

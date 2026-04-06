@@ -1,7 +1,7 @@
 //! Web Component output format.
 //!
 //! Generates a self-contained `.js` file that defines a custom element
-//! (`<game-xyz>`) with WebGPU primary and WebGL2 fallback.
+//! (`<glyph-xyz>`) with WebGPU primary and WebGL2 fallback.
 
 use crate::ast::TextureType;
 use crate::codegen::ShaderOutput;
@@ -14,8 +14,8 @@ pub fn generate_component(shader: &ShaderOutput, target: ShaderTarget) -> String
 
 /// Generate a lightweight Web Component JS file for `--split` mode.
 ///
-/// Assumes `GameRenderer` and `GameRendererGL` are available as globals
-/// (loaded from `game-runtime.js`).
+/// Assumes `GlyphRenderer` and `GlyphRendererGL` are available as globals
+/// (loaded from `glyph-runtime.js`).
 pub fn generate_component_split(shader: &ShaderOutput) -> String {
     generate_component_impl(shader, true, ShaderTarget::Both)
 }
@@ -44,7 +44,7 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
     let mut s = String::with_capacity(16384);
 
     s.push_str(&format!(
-        "// GAME Component: {tag} — auto-generated, do not edit.\n"
+        "// GLYPH Component: {tag} — auto-generated, do not edit.\n"
     ));
     s.push_str("(function(){\n");
     let emit_webgpu = matches!(target, ShaderTarget::WebGpu | ShaderTarget::Both);
@@ -160,7 +160,7 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
         None
     };
 
-    // In split mode, renderer classes come from game-runtime.js (globals).
+    // In split mode, renderer classes come from glyph-runtime.js (globals).
     // In normal mode, embed them inline based on target.
     if !split {
         if emit_webgpu {
@@ -214,7 +214,7 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
     // Build CSS: base + optional DOM overlay styles
     let mut css = String::from(":host{display:block;width:100%;height:100%;position:relative}canvas{width:100%;height:100%;display:block}");
     if has_dom {
-        css.push_str(".game-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden}.game-overlay>*{pointer-events:auto}");
+        css.push_str(".glyph-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden}.glyph-overlay>*{pointer-events:auto}");
         if let Some(ref dom_css) = shader.dom_css {
             css.push_str(dom_css);
         }
@@ -234,7 +234,7 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
     // DOM overlay
     if has_dom {
         s.push_str("    const overlay = document.createElement('div');\n");
-        s.push_str("    overlay.className = 'game-overlay';\n");
+        s.push_str("    overlay.className = 'glyph-overlay';\n");
         if let Some(ref aria_role) = shader.aria_role {
             s.push_str(&format!(
                 "    overlay.setAttribute('role', '{}');\n",
@@ -335,7 +335,7 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
 
     if emit_webgpu && emit_webgl2 {
         // Both: try WebGPU first, fall back to WebGL2
-        s.push_str("    const gpu = new GameRenderer(this._canvas, WGSL_V, WGSL_F, UNIFORMS");
+        s.push_str("    const gpu = new GlyphRenderer(this._canvas, WGSL_V, WGSL_F, UNIFORMS");
         if has_passes { s.push_str(", PASS_SHADERS"); }
         if let Some(ct) = compute_type {
             let ct_str = match ct {
@@ -352,17 +352,17 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
         s.push_str("    if (await gpu.init()) {\n");
         s.push_str("      this._renderer = gpu;\n");
         s.push_str("    } else {\n");
-        s.push_str("      const gl = new GameRendererGL(this._canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
+        s.push_str("      const gl = new GlyphRendererGL(this._canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
         s.push_str("      if (gl.init()) {\n");
         s.push_str("        this._renderer = gl;\n");
         s.push_str("      } else {\n");
-        s.push_str(&format!("        console.warn('game-{tag}: no WebGPU or WebGL2 support');\n"));
+        s.push_str(&format!("        console.warn('glyph-{tag}: no WebGPU or WebGL2 support');\n"));
         s.push_str("        return;\n");
         s.push_str("      }\n");
         s.push_str("    }\n");
     } else if emit_webgpu {
         // WebGPU only
-        s.push_str("    const gpu = new GameRenderer(this._canvas, WGSL_V, WGSL_F, UNIFORMS");
+        s.push_str("    const gpu = new GlyphRenderer(this._canvas, WGSL_V, WGSL_F, UNIFORMS");
         if has_passes { s.push_str(", PASS_SHADERS"); }
         if let Some(ct) = compute_type {
             let ct_str = match ct {
@@ -377,15 +377,15 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
         }
         s.push_str(");\n");
         s.push_str("    if (!(await gpu.init())) {\n");
-        s.push_str(&format!("      console.warn('game-{tag}: WebGPU not supported');\n"));
+        s.push_str(&format!("      console.warn('glyph-{tag}: WebGPU not supported');\n"));
         s.push_str("      return;\n");
         s.push_str("    }\n");
         s.push_str("    this._renderer = gpu;\n");
     } else {
         // WebGL2 only
-        s.push_str("    const gl = new GameRendererGL(this._canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
+        s.push_str("    const gl = new GlyphRendererGL(this._canvas, GLSL_V, GLSL_F, UNIFORMS);\n");
         s.push_str("    if (!gl.init()) {\n");
-        s.push_str(&format!("      console.warn('game-{tag}: WebGL2 not supported');\n"));
+        s.push_str(&format!("      console.warn('glyph-{tag}: WebGL2 not supported');\n"));
         s.push_str("      return;\n");
         s.push_str("    }\n");
         s.push_str("    this._renderer = gl;\n");
@@ -811,7 +811,7 @@ fn generate_component_impl(shader: &ShaderOutput, split: bool, target: ShaderTar
     }
     s.push_str("}\n\n");
 
-    s.push_str(&format!("customElements.define('game-{tag}', {class});\n"));
+    s.push_str(&format!("customElements.define('glyph-{tag}', {class});\n"));
     s.push_str("})();\n");
 
     s
@@ -900,7 +900,7 @@ mod tests {
     fn component_has_custom_element_define() {
         let shader = make_shader("test-viz");
         let js = generate_component(&shader, ShaderTarget::Both);
-        assert!(js.contains("customElements.define('game-test-viz'"));
+        assert!(js.contains("customElements.define('glyph-test-viz'"));
         assert!(js.contains("class TestViz extends HTMLElement"));
     }
 
@@ -912,8 +912,8 @@ mod tests {
             default: 1.0,
         }];
         let js = generate_component(&shader, ShaderTarget::Both);
-        assert!(js.contains("class GameRenderer"));
-        assert!(js.contains("class GameRendererGL"));
+        assert!(js.contains("class GlyphRenderer"));
+        assert!(js.contains("class GlyphRendererGL"));
         assert!(js.contains("{name:'speed',default:1}"));
     }
 
@@ -922,7 +922,7 @@ mod tests {
         let mut shader = make_shader("trails");
         shader.uses_memory = true;
         let js = generate_component(&shader, ShaderTarget::Both);
-        // Memory methods should be inside GameRenderer class
+        // Memory methods should be inside GlyphRenderer class
         assert!(js.contains("_initMemory()"));
         assert!(js.contains("_swapMemory(encoder"));
         assert!(js.contains("_resizeMemory()"));
@@ -1150,18 +1150,18 @@ mod tests {
         let js = generate_component_split(&shader);
         // Should NOT contain renderer class definitions
         assert!(
-            !js.contains("class GameRenderer"),
-            "split component should not embed GameRenderer"
+            !js.contains("class GlyphRenderer"),
+            "split component should not embed GlyphRenderer"
         );
         assert!(
-            !js.contains("class GameRendererGL"),
-            "split component should not embed GameRendererGL"
+            !js.contains("class GlyphRendererGL"),
+            "split component should not embed GlyphRendererGL"
         );
         // Should still reference them (instantiation)
-        assert!(js.contains("new GameRenderer("));
-        assert!(js.contains("new GameRendererGL("));
+        assert!(js.contains("new GlyphRenderer("));
+        assert!(js.contains("new GlyphRendererGL("));
         // Should still define the custom element
-        assert!(js.contains("customElements.define('game-split-demo'"));
+        assert!(js.contains("customElements.define('glyph-split-demo'"));
     }
 
     #[test]
@@ -1182,8 +1182,8 @@ mod tests {
         // Ensure refactoring didn't break the default path
         let shader = make_shader("normal-check");
         let js = generate_component(&shader, ShaderTarget::Both);
-        assert!(js.contains("class GameRenderer"));
-        assert!(js.contains("class GameRendererGL"));
+        assert!(js.contains("class GlyphRenderer"));
+        assert!(js.contains("class GlyphRendererGL"));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-// GAME Compiler — Recursive Descent Parser
+// GLYPH Compiler — Recursive Descent Parser
 //
 // Transforms a token stream into an AST. Hand-written for precise error
 // messages and straightforward recovery.
@@ -515,13 +515,13 @@ impl Parser {
     }
 
     // ======================================================================
-    // use "path.game"
+    // use "path.glyph"
     // ======================================================================
 
     fn parse_use_import(&mut self) -> Result<Import, CompileError> {
         self.expect(&Token::Use)?;
         let path = self.expect_string()?;
-        // Derive alias from filename: "shapes.game" -> "shapes"
+        // Derive alias from filename: "shapes.glyph" -> "shapes"
         let alias = path
             .rsplit('/')
             .next()
@@ -529,7 +529,7 @@ impl Parser {
             .rsplit('\\')
             .next()
             .unwrap_or(&path)
-            .trim_end_matches(".game")
+            .trim_end_matches(".glyph")
             .to_string();
         Ok(Import { path, alias })
     }

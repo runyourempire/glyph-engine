@@ -1,13 +1,13 @@
 import path from "path";
 
 const isWindows = process.platform === "win32";
-const gameBinary = path.join(
+const glyphBinary = path.join(
   __dirname,
   "..",
   "..",
   "target",
   "release",
-  isWindows ? "game.exe" : "game"
+  isWindows ? "glyph.exe" : "glyph"
 );
 
 export const config: WebdriverIO.Config = {
@@ -24,8 +24,8 @@ export const config: WebdriverIO.Config = {
       "wdio:vscodeOptions": {
         extensionPath: __dirname,
         userSettings: {
-          "game.serverPath": gameBinary,
-          "game.trace.server": "off",
+          "glyph.serverPath": glyphBinary,
+          "glyph.trace.server": "off",
           "editor.quickSuggestionsDelay": 0,
         },
         workspacePath: path.join(__dirname, "test", "fixtures"),

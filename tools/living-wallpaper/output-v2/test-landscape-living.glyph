@@ -1,0 +1,82 @@
+// Living World — AI-generated atmospheric compositing
+// Scene: generic landscape
+// The photo is the world. Life comes from procedural atmosphere.
+
+cinematic "living-test-landscape" {
+  texture "photo" from "test-landscape.jpg"
+  texture "depth" from "test-landscape-depth.png"
+  texture "flow" from "test-landscape-flow.png"
+  texture "mask_water" from "test-landscape-mask_water.png"
+  texture "mask_sky" from "test-landscape-mask_sky.png"
+
+  layer config {
+    drift_x: 0.00800
+    drift_y: 0.00000
+  }
+
+  // The world — solid, barely moves
+  layer world {
+    parallax("photo", depth: "depth", strength: 0.0030, orbit_speed: 0.08)
+  }
+
+  // Water caustics — voronoi shimmer composited as light
+  layer caustics opacity: 0.018 blend: screen {
+    translate(time * 0.0140, time * 0.0070)
+    | warp(scale: 6.0, octaves: 2, strength: 0.12)
+    | voronoi(12.0)
+    | glow(1.5)
+    | tint(0.5, 0.7, 1.0)
+    | mask("mask_water")
+  }
+
+  // Water sparkle — golden light catching the surface
+  layer sparkle opacity: 0.009 blend: add {
+    translate(time * 0.02, time * 0.01)
+    | distort(scale: 15.0, speed: 0.8, strength: 0.3)
+    | voronoi(25.0)
+    | glow(4.0)
+    | tint(1.0, 0.88, 0.55)
+    | mask("mask_water")
+  }
+
+  // Atmospheric mist — drifting fog
+  layer mist opacity: 0.015 blend: screen {
+    translate(time * drift_x, sin(time * 0.04) * 0.003)
+    | warp(scale: 1.2, octaves: 4, persistence: 0.65, strength: 0.1)
+    | fbm(scale: 1.8, octaves: 4, persistence: 0.55)
+    | glow(0.5)
+    | tint(0.9, 0.85, 0.8)
+    | mask("depth", invert: 1)
+  }
+
+  // Light variation — cloud shadow modulation
+  layer light_pulse opacity: 0.018 blend: screen {
+    translate(time * 0.004, time * 0.001)
+    | warp(scale: 0.6, octaves: 2, persistence: 0.5, strength: 0.06)
+    | fbm(scale: 0.5, octaves: 3, persistence: 0.5)
+    | glow(0.6)
+    | tint(1.0, 0.88, 0.65)
+  }
+
+  // God rays — light shafts from brightest point
+  layer godrays opacity: 0.012 blend: add {
+    translate(0.00, 0.35)
+    | polar()
+    | distort(scale: 0.4, speed: 0.025, strength: 0.012)
+    | radial_fade(inner: 0.0, outer: 0.65)
+    | glow(3.0)
+    | tint(1.0, 0.88, 0.55)
+  }
+
+  // Sky — very subtle drift
+  layer sky opacity: 0.7 {
+    distort(scale: 0.6, speed: 0.03, strength: 0.005)
+    | sample("photo")
+    | mask("mask_sky")
+  }
+
+  // Cinematic post-processing
+  pass soften { blur(1.0) }
+  pass frame { vignette(0.15) }
+  pass film { film_grain(0.012) }
+}

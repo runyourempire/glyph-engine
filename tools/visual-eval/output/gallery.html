@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GAME — Generative Animation Matrix Engine</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #030303; color: #fff; font-family: 'Inter', -apple-system, system-ui, sans-serif; }
+  header { text-align: center; padding: 48px 24px 32px; }
+  h1 { font-size: 14px; font-weight: 400; letter-spacing: 6px; text-transform: uppercase; color: #d4af37; margin-bottom: 6px; }
+  .tagline { font-size: 11px; color: #444; letter-spacing: 1px; max-width: 600px; margin: 0 auto; line-height: 1.6; }
+  .section { padding: 0 24px; }
+  .section-head { font-size: 9px; color: #555; letter-spacing: 3px; text-transform: uppercase; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #111; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 12px; }
+  .card { background: #070707; border: 1px solid #141414; border-radius: 4px; overflow: hidden; cursor: pointer; transition: border-color 0.3s; }
+  .card:hover { border-color: #2a2a2a; }
+  .canvas { width: 100%; height: 300px; display: block; background: #000; }
+  .meta { padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+  .name { font-size: 12px; font-weight: 500; color: #999; letter-spacing: 0.5px; }
+  .detail { font-size: 9px; color: #333; font-family: 'JetBrains Mono', monospace; }
+  .tag { font-size: 8px; padding: 2px 6px; border-radius: 2px; letter-spacing: 1px; text-transform: uppercase; }
+  .t-react { background: #120a06; color: #cc8844; }
+  .t-swarm { background: #0a0612; color: #8866cc; }
+  .t-texture { background: #120606; color: #cc6644; }
+  footer { text-align: center; padding: 48px 24px; color: #222; font-size: 9px; letter-spacing: 1px; }
+</style>
+<script type="module" src="./deep-coral.js"></script>
+<script type="module" src="./event-horizon.js"></script>
+<script type="module" src="./labyrinth.js"></script>
+<script type="module" src="./morphogenesis.js"></script>
+<script type="module" src="./mitosis.js"></script>
+<script type="module" src="./dendrite.js"></script>
+<script type="module" src="./root-system.js"></script>
+<script type="module" src="./discharge.js"></script>
+<script type="module" src="./sacred-geometry.js"></script>
+<script type="module" src="./reaction-field.js"></script>
+<script type="module" src="./worm-trails.js"></script>
+<script type="module" src="./physarum-network.js"></script>
+</head>
+<body>
+<header>
+  <h1>GAME</h1>
+  <div class="tagline">Generative Animation Matrix Engine — GPU compute simulations compiled from declarative code to zero-dependency Web Components. Each piece is 10-30 lines.</div>
+</header>
+
+<div class="section">
+  <div class="section-head">Reaction-Diffusion — Gray-Scott Turing patterns with 12-second boomerang loop</div>
+  <div class="grid">
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-deep-coral')">
+      <div class="canvas"><game-deep-coral></game-deep-coral></div>
+      <div class="meta"><div><div class="name">Deep Coral</div><div class="detail">feed:0.037 kill:0.06 / ocean blue</div></div><span class="tag t-react">react</span></div>
+    </div>
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-labyrinth')">
+      <div class="canvas"><game-labyrinth></game-labyrinth></div>
+      <div class="meta"><div><div class="name">Labyrinth</div><div class="detail">feed:0.029 kill:0.057 / silver</div></div><span class="tag t-react">react</span></div>
+    </div>
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-morphogenesis')">
+      <div class="canvas"><game-morphogenesis></game-morphogenesis></div>
+      <div class="meta"><div><div class="name">Morphogenesis</div><div class="detail">feed:0.034 kill:0.059 / teal</div></div><span class="tag t-react">react</span></div>
+    </div>
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-mitosis')">
+      <div class="canvas"><game-mitosis></game-mitosis></div>
+      <div class="meta"><div><div class="name">Mitosis</div><div class="detail">feed:0.028 kill:0.062 / blood red</div></div><span class="tag t-react">react</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head">Physarum Stigmergy — 60K-120K autonomous agents self-organizing into transport networks</div>
+  <div class="grid">
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-event-horizon')">
+      <div class="canvas"><game-event-horizon></game-event-horizon></div>
+      <div class="meta"><div><div class="name">Event Horizon</div><div class="detail">100K agents / plasma + void / cyan</div></div><span class="tag t-swarm">swarm</span></div>
+    </div>
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-dendrite')">
+      <div class="canvas"><game-dendrite></game-dendrite></div>
+      <div class="meta"><div><div class="name">Dendrite</div><div class="detail">120K / sensor:15° turn:30° / violet</div></div><span class="tag t-swarm">swarm</span></div>
+    </div>
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-root-system')">
+      <div class="canvas"><game-root-system></game-root-system></div>
+      <div class="meta"><div><div class="name">Root System</div><div class="detail">80K / sensor:10° turn:10° / green</div></div><span class="tag t-swarm">swarm</span></div>
+    </div>
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-discharge')">
+      <div class="canvas"><game-discharge></game-discharge></div>
+      <div class="meta"><div><div class="name">Discharge</div><div class="detail">60K / sensor:55° turn:55° / electric</div></div><span class="tag t-swarm">swarm</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head">Texture — Palette-driven procedural mandala</div>
+  <div class="grid">
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-sacred-geometry')">
+      <div class="canvas"><game-sacred-geometry></game-sacred-geometry></div>
+      <div class="meta"><div><div class="name">Sacred Geometry</div><div class="detail">12-fold radial / warp+fbm / crimson</div></div><span class="tag t-texture">texture</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-head">Reference — Original compute demonstrations</div>
+  <div class="grid">
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-reaction-field')">
+      <div class="canvas"><game-reaction-field></game-reaction-field></div>
+      <div class="meta"><div><div class="name">Reaction Field</div><div class="detail">feed:0.037 kill:0.06 / original</div></div><span class="tag t-react">react</span></div>
+    </div>
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-worm-trails')">
+      <div class="canvas"><game-worm-trails></game-worm-trails></div>
+      <div class="meta"><div><div class="name">Worm Trails</div><div class="detail">feed:0.046 kill:0.063 / scattered</div></div><span class="tag t-react">react</span></div>
+    </div>
+    <div class="card" onclick="window.open('solo-eval.html?tag=game-physarum-network')">
+      <div class="canvas"><game-physarum-network></game-physarum-network></div>
+      <div class="meta"><div><div class="name">Physarum Network</div><div class="detail">100K agents / original</div></div><span class="tag t-swarm">swarm</span></div>
+    </div>
+  </div>
+</div>
+
+<footer>GAME v1.0 — Each component compiles from 10-30 lines of .game DSL to a zero-dependency Web Component with GPU compute</footer>
+</body>
+</html>

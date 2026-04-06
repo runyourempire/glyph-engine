@@ -10,16 +10,16 @@ pub enum ComputeType {
 
 /// Generate a standalone runtime JS file containing both renderer classes.
 ///
-/// This is used in `--split` mode: emitted once as `game-runtime.js`, while
-/// each component gets a lightweight JS file that references `GameRenderer`
-/// and `GameRendererGL` as globals.
+/// This is used in `--split` mode: emitted once as `glyph-runtime.js`, while
+/// each component gets a lightweight JS file that references `GlyphRenderer`
+/// and `GlyphRendererGL` as globals.
 ///
 /// The runtime is a superset — all features enabled (memory, 8 passes, compute).
 /// Components simply don't use the features they don't need.
 pub fn generate_standalone_runtime() -> String {
     let mut s = String::with_capacity(16384);
 
-    s.push_str("// GAME Runtime — shared renderer classes. Include once per page.\n");
+    s.push_str("// GLYPH Runtime — shared renderer classes. Include once per page.\n");
     s.push_str("// Auto-generated, do not edit.\n");
     s.push_str("(function(){\n");
 
@@ -32,8 +32,8 @@ pub fn generate_standalone_runtime() -> String {
     s.push_str("\n\n");
 
     // Expose as globals
-    s.push_str("window.GameRenderer = GameRenderer;\n");
-    s.push_str("window.GameRendererGL = GameRendererGL;\n");
+    s.push_str("window.GlyphRenderer = GlyphRenderer;\n");
+    s.push_str("window.GlyphRendererGL = GlyphRendererGL;\n");
     s.push_str("})();\n");
 
     s
@@ -55,7 +55,7 @@ pub fn webgpu_renderer(
     let mut s = String::with_capacity(8192);
 
     // ── Class declaration ────────────────────────────────────────────
-    s.push_str("class GameRenderer {\n");
+    s.push_str("class GlyphRenderer {\n");
 
     // ── Constructor ──────────────────────────────────────────────────
     s.push_str("  constructor(canvas, wgslVertex, wgslFragment, uniformDefs");
@@ -610,7 +610,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool, texture_names: &[String]) -> Stri
     let has_textures = !texture_names.is_empty();
     let mut s = String::with_capacity(4096);
 
-    s.push_str("class GameRendererGL {\n");
+    s.push_str("class GlyphRendererGL {\n");
 
     // ── Constructor ──────────────────────────────────────────────────
     s.push_str("  constructor(canvas, glslVertex, glslFragment, uniformDefs) {\n");
@@ -680,7 +680,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool, texture_names: &[String]) -> Stri
     s.push_str("    gl.attachShader(this.program, fs);\n");
     s.push_str("    gl.linkProgram(this.program);\n");
     s.push_str("    if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {\n");
-    s.push_str("      console.error('GAME link error:', gl.getProgramInfoLog(this.program));\n");
+    s.push_str("      console.error('GLYPH link error:', gl.getProgramInfoLog(this.program));\n");
     s.push_str("      return false;\n");
     s.push_str("    }\n");
     s.push_str("    gl.useProgram(this.program);\n\n");
@@ -730,7 +730,7 @@ pub fn webgl2_renderer(needs_prev_frame: bool, texture_names: &[String]) -> Stri
     s.push_str("    gl.shaderSource(s, src);\n");
     s.push_str("    gl.compileShader(s);\n");
     s.push_str("    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {\n");
-    s.push_str("      console.error('GAME shader error:', gl.getShaderInfoLog(s));\n");
+    s.push_str("      console.error('GLYPH shader error:', gl.getShaderInfoLog(s));\n");
     s.push_str("      return null;\n");
     s.push_str("    }\n");
     s.push_str("    return s;\n");

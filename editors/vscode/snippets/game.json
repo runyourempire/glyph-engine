@@ -174,7 +174,7 @@
     "description": "Circle that grows when mouse is pressed/touch is active"
   },
   "Full Component": {
-    "prefix": "game-full",
+    "prefix": "glyph-full",
     "body": [
       "// ${1:Component description}",
       "",
@@ -245,7 +245,7 @@
       "\tpass frame { vignette(0.35) }",
       "}"
     ],
-    "description": "Desktop wallpaper — multi-layer ambient with memory, arc, resonate, and post-processing. Compile with: game build --format wallpaper"
+    "description": "Desktop wallpaper — multi-layer ambient with memory, arc, resonate, and post-processing. Compile with: glyph build --format wallpaper"
   },
   "Post-Processing Pass": {
     "prefix": "pass",

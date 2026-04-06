@@ -20,7 +20,7 @@ export class AiPanel {
       return;
     }
     const panel = vscode.window.createWebviewPanel(
-      "gameAi",
+      "glyphAi",
       "GAME AI",
       column,
       { enableScripts: true, retainContextWhenHidden: false }
@@ -100,12 +100,12 @@ export class AiPanel {
         // Open in editor
         const doc = await vscode.workspace.openTextDocument({
           content: result.code,
-          language: "game",
+          language: "glyph",
         });
         await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
 
         // Trigger preview
-        vscode.commands.executeCommand("game.openPreview");
+        vscode.commands.executeCommand("glyph.openPreview");
 
         this._post({
           type: "done",
@@ -126,11 +126,11 @@ export class AiPanel {
   }
 
   private _tryCompile(code: string): Promise<string | null> {
-    const config = vscode.workspace.getConfiguration("game");
-    const serverPath = config.get<string>("serverPath", "game");
+    const config = vscode.workspace.getConfiguration("glyph");
+    const serverPath = config.get<string>("serverPath", "glyph");
     const tmp = os.tmpdir();
-    const inputPath = path.join(tmp, `game-ai-gen-${process.pid}.game`);
-    const outputDir = path.join(tmp, `game-ai-gen-out-${process.pid}`);
+    const inputPath = path.join(tmp, `glyph-ai-gen-${process.pid}.glyph`);
+    const outputDir = path.join(tmp, `glyph-ai-gen-out-${process.pid}`);
 
     fs.writeFileSync(inputPath, code);
     fs.mkdirSync(outputDir, { recursive: true });
@@ -148,7 +148,7 @@ export class AiPanel {
             const msg = stderr || err.message;
             if (msg.includes("ENOENT") || msg.includes("not found") || msg.includes("not recognized")) {
               resolve(
-                "GAME compiler not found. Install it or set game.serverPath in settings."
+                "GAME compiler not found. Install it or set glyph.serverPath in settings."
               );
             } else {
               resolve(msg);
@@ -287,7 +287,7 @@ export class AiPanel {
       if (streamEl) {
         const hasCode = streamText.includes('\`\`\`');
         if (hasCode) {
-          const parts = streamText.split(/\`\`\`(?:game)?\\n?/);
+          const parts = streamText.split(/\`\`\`(?:glyph)?\\n?/);
           let html = escHtml(parts[0] || '');
           if (parts.length > 1) {
             const codePart = parts[1].split('\`\`\`');
@@ -318,7 +318,7 @@ export class AiPanel {
       if (streamEl && streamText) {
         const hasCode = streamText.includes('\`\`\`');
         if (hasCode) {
-          const parts = streamText.split(/\`\`\`(?:game)?\\n?/);
+          const parts = streamText.split(/\`\`\`(?:glyph)?\\n?/);
           let html = escHtml(parts[0] || '');
           if (parts.length > 1) {
             const codePart = parts[1].split('\`\`\`');

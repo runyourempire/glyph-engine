@@ -5,11 +5,11 @@ use std::time::Instant;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 
-use game_compiler::{CompileConfig, OutputFormat, ShaderTarget};
+use glyph_compiler::{CompileConfig, OutputFormat, ShaderTarget};
 
-/// GAME compiler — compiles .game DSL to WebGPU shaders + Web Components.
+/// GLYPH compiler — compiles .glyph DSL to WebGPU shaders + Web Components.
 #[derive(Parser, Debug)]
-#[command(name = "game", version, about)]
+#[command(name = "glyph", version, about)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -17,9 +17,9 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Compile .game file(s) to output.
+    /// Compile .glyph file(s) to output.
     Build {
-        /// Input .game file(s).
+        /// Input .glyph file(s).
         #[arg(required = true)]
         input: Vec<PathBuf>,
 
@@ -42,7 +42,7 @@ enum Command {
 
     /// Compile and serve a live preview with hot reload.
     Dev {
-        /// Input .game file.
+        /// Input .glyph file.
         #[arg(required = true)]
         input: PathBuf,
 
@@ -51,7 +51,7 @@ enum Command {
         port: u16,
     },
 
-    /// Scaffold a new .game file from a template.
+    /// Scaffold a new .glyph file from a template.
     New {
         /// Template name.
         #[arg(short, long, default_value = "minimal")]
@@ -62,9 +62,9 @@ enum Command {
         output: Option<PathBuf>,
     },
 
-    /// Validate a .game file without generating output.
+    /// Validate a .glyph file without generating output.
     Validate {
-        /// Input .game file.
+        /// Input .glyph file.
         #[arg(required = true)]
         input: PathBuf,
     },
@@ -269,7 +269,7 @@ struct CompiledState {
 
 // ── Preview HTML generation ─────────────────────────────────
 
-fn generate_slider_html(uniforms: &[game_compiler::codegen::UniformInfo]) -> String {
+fn generate_slider_html(uniforms: &[glyph_compiler::codegen::UniformInfo]) -> String {
     let mut html = String::new();
     for u in uniforms {
         let max = if u.default > 1.0 {
@@ -298,7 +298,7 @@ fn generate_preview_html(
     tag: &str,
     name: &str,
     compiled_js: &str,
-    uniforms: &[game_compiler::codegen::UniformInfo],
+    uniforms: &[glyph_compiler::codegen::UniformInfo],
     build_version: u64,
 ) -> String {
     let sliders_html = generate_slider_html(uniforms);
@@ -308,12 +308,12 @@ fn generate_preview_html(
 <html>
 <head>
   <meta charset="utf-8">
-  <title>GAME Preview — {name}</title>
+  <title>GLYPH Preview — {name}</title>
   <style>
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
     body {{ background: #0a0a0a; color: #a0a0a0; font-family: 'Inter', system-ui, sans-serif; overflow: hidden; }}
     #viewport {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; }}
-    game-{tag} {{ display: block; width: 100%; height: 100%; }}
+    glyph-{tag} {{ display: block; width: 100%; height: 100%; }}
     #panel {{ position: fixed; right: 0; top: 0; width: 280px; height: 100vh;
              background: rgba(20,20,20,0.9); backdrop-filter: blur(10px);
              padding: 16px; overflow-y: auto; z-index: 10;
@@ -333,11 +333,11 @@ fn generate_preview_html(
 </head>
 <body>
   <div id="viewport">
-    <game-{tag} id="component"></game-{tag}>
+    <glyph-{tag} id="component"></glyph-{tag}>
   </div>
 
   <div id="panel">
-    <h2>GAME // {name}</h2>
+    <h2>GLYPH // {name}</h2>
     {sliders_html}
   </div>
 
@@ -450,7 +450,7 @@ struct CompileResult {
     js: String,
     tag: String,
     name: String,
-    uniforms: Vec<game_compiler::codegen::UniformInfo>,
+    uniforms: Vec<glyph_compiler::codegen::UniformInfo>,
     cinematic_count: usize,
     uniform_count: usize,
 }
@@ -465,19 +465,19 @@ fn compile_game_file(path: &std::path::Path) -> Result<CompileResult> {
         seed: None,
     };
 
-    let program = game_compiler::compile_to_ast(&source).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let program = glyph_compiler::compile_to_ast(&source).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let cinematic_count = program.cinematics.len();
 
     // Get uniforms from the first cinematic for the preview panel
     let uniforms = if let Some(cin) = program.cinematics.first() {
-        game_compiler::codegen::extract_uniforms_public(cin)
+        glyph_compiler::codegen::extract_uniforms_public(cin)
     } else {
         vec![]
     };
     let uniform_count = uniforms.len();
 
-    let results = game_compiler::compile(&source, &config).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let results = glyph_compiler::compile(&source, &config).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let first = results
         .into_iter()
@@ -732,17 +732,17 @@ fn run_living_pipeline(
         anyhow::bail!("AI pipeline failed with exit code: {:?}", status.code());
     }
 
-    // Step 2: Find the generated .game file
+    // Step 2: Find the generated .glyph file
     let game_files: Vec<_> = std::fs::read_dir(&output_dir)?
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "game"))
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "glyph"))
         .collect();
 
     let game_file = game_files
         .first()
-        .context("No .game file found in pipeline output")?;
+        .context("No .glyph file found in pipeline output")?;
 
-    // Step 3: Compile with GAME compiler
+    // Step 3: Compile with GLYPH compiler
     println!(
         "\n[game living] Compiling: {}",
         game_file.path().display()
@@ -762,7 +762,7 @@ fn run_living_pipeline(
     };
 
     let source = std::fs::read_to_string(game_file.path())?;
-    let outputs = game_compiler::compile(&source, &config)
+    let outputs = glyph_compiler::compile(&source, &config)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     for output in &outputs {
@@ -813,7 +813,7 @@ fn find_living_tool(exe_dir: &Option<PathBuf>) -> Result<PathBuf> {
     }
 
     anyhow::bail!(
-        "Cannot find living-wallpaper tool. Run from the game-compiler directory, \
+        "Cannot find living-wallpaper tool. Run from the glyph-compiler directory, \
          or set GAME_LIVING_TOOL to the tools/living-wallpaper path."
     )
 }
@@ -856,14 +856,14 @@ fn main() -> Result<()> {
                 // Directory check
                 if path.is_dir() {
                     anyhow::bail!(
-                        "{} is a directory, not a file. Pass individual .game files.",
+                        "{} is a directory, not a file. Pass individual .glyph files.",
                         path.display()
                     );
                 }
 
                 // File extension warning
-                if path.extension().map_or(true, |ext| ext != "game") {
-                    eprintln!("warning: {} does not have a .game extension", path.display());
+                if path.extension().map_or(true, |ext| ext != "glyph") {
+                    eprintln!("warning: {} does not have a .glyph extension", path.display());
                     had_warnings = true;
                 }
 
@@ -879,13 +879,13 @@ fn main() -> Result<()> {
                 };
 
                 // Parse AST first for warnings
-                let program = game_compiler::compile_to_ast(&source)
+                let program = glyph_compiler::compile_to_ast(&source)
                     .map_err(|e| anyhow::anyhow!("{e}"))?;
 
                 // Warn on cinematics with no visual layers
                 for cin in &program.cinematics {
                     let visual_layers = cin.layers.iter().filter(|l| {
-                        !matches!(l.body, game_compiler::ast::LayerBody::Params(_))
+                        !matches!(l.body, glyph_compiler::ast::LayerBody::Params(_))
                     }).count();
                     if visual_layers == 0 {
                         eprintln!("warning: cinematic \"{}\" has no visual layers", cin.name);
@@ -900,7 +900,7 @@ fn main() -> Result<()> {
                 }
 
                 let results =
-                    game_compiler::compile(&source, &config).map_err(|e| anyhow::anyhow!("{e}"))?;
+                    glyph_compiler::compile(&source, &config).map_err(|e| anyhow::anyhow!("{e}"))?;
 
                 for output in &results {
                     let stem = &output.name;
@@ -980,7 +980,7 @@ fn main() -> Result<()> {
             };
 
             let out_path =
-                output.unwrap_or_else(|| PathBuf::from(format!("{}.game", template_name)));
+                output.unwrap_or_else(|| PathBuf::from(format!("{}.glyph", template_name)));
 
             if out_path.exists() {
                 anyhow::bail!("file already exists: {}", out_path.display());
@@ -1007,14 +1007,14 @@ fn main() -> Result<()> {
             // Directory check
             if input.is_dir() {
                 anyhow::bail!(
-                    "{} is a directory, not a file. Pass individual .game files.",
+                    "{} is a directory, not a file. Pass individual .glyph files.",
                     input.display()
                 );
             }
 
             // File extension warning
-            if input.extension().map_or(true, |ext| ext != "game") {
-                eprintln!("warning: {} does not have a .game extension", input.display());
+            if input.extension().map_or(true, |ext| ext != "glyph") {
+                eprintln!("warning: {} does not have a .glyph extension", input.display());
             }
 
             let source = std::fs::read_to_string(&input)
@@ -1027,7 +1027,7 @@ fn main() -> Result<()> {
                 source
             };
 
-            match game_compiler::compile_to_ast(&source) {
+            match glyph_compiler::compile_to_ast(&source) {
                 Ok(program) => {
                     if program.cinematics.is_empty()
                         && program.breeds.is_empty()
@@ -1040,7 +1040,7 @@ fn main() -> Result<()> {
                     }
                     // Also validate each cinematic's pipeline
                     for cinematic in &program.cinematics {
-                        game_compiler::codegen::validate(cinematic, &program.fns)?;
+                        glyph_compiler::codegen::validate(cinematic, &program.fns)?;
                     }
                     println!("ok");
                 }
@@ -1053,7 +1053,7 @@ fn main() -> Result<()> {
 
         #[cfg(feature = "lsp")]
         Command::Lsp => {
-            game_compiler::lsp::run_lsp();
+            glyph_compiler::lsp::run_lsp();
         }
 
         Command::Living {
@@ -1083,9 +1083,9 @@ fn main() -> Result<()> {
 }
 
 fn print_builtins() {
-    println!("GAME Builtins");
+    println!("GLYPH Builtins");
     println!("=============");
-    let items = game_compiler::builtins::completions();
+    let items = glyph_compiler::builtins::completions();
     let mut sdf_gen = Vec::new();
     let mut transforms = Vec::new();
     let mut bridges = Vec::new();
@@ -1177,5 +1177,5 @@ fn print_templates() {
     println!("  sdf          — SDF boolean operations showcase");
     println!("  scene        — scene sequencing with transitions");
     println!();
-    println!("  Usage: game new --template <name> [-o output.game]");
+    println!("  Usage: game new --template <name> [-o output.glyph]");
 }

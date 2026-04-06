@@ -1,4 +1,4 @@
-/* @ts-self-types="./game_compiler.d.ts" */
+/* @ts-self-types="./glyph_compiler.d.ts" */
 
 /**
  * Compile GAME source to a Web Component JS string.
@@ -112,7 +112,7 @@ function __wbg_get_imports() {
     };
     return {
         __proto__: null,
-        "./game_compiler_bg.js": import0,
+        "./glyph_compiler_bg.js": import0,
     };
 }
 
@@ -278,7 +278,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (module_or_path === undefined) {
-        module_or_path = new URL('game_compiler_bg.wasm', import.meta.url);
+        module_or_path = new URL('glyph_compiler_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

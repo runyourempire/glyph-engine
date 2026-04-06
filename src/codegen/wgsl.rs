@@ -1,4 +1,4 @@
-//! WGSL shader generation from GAME AST.
+//! WGSL shader generation from GLYPH AST.
 
 use crate::ast::*;
 use crate::codegen::memory;
@@ -667,7 +667,7 @@ fn emit_wgsl_builtins(s: &mut String, cinematic: &Cinematic) {
 
     // Floor-based mod for spatial repeat (WGSL % is trunc-based!)
     if needs_repeat || needs_radial || needs_grid {
-        s.push_str("fn game_mod(x: f32, y: f32) -> f32 {\n");
+        s.push_str("fn glyph_mod(x: f32, y: f32) -> f32 {\n");
         s.push_str("    return x - y * floor(x / y);\n");
         s.push_str("}\n\n");
     }
@@ -1360,7 +1360,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str, textures: &[Text
             let sx = get_arg_wgsl(args, "spacing_x", 0, "repeat");
             let sy = get_arg_wgsl(args, "spacing_y", 1, "repeat");
             s.push_str(&format!(
-                "{indent}p = vec2<f32>(game_mod(p.x + {sx} * 0.5, {sx}) - {sx} * 0.5, game_mod(p.y + {sy} * 0.5, {sy}) - {sy} * 0.5);\n"
+                "{indent}p = vec2<f32>(glyph_mod(p.x + {sx} * 0.5, {sx}) - {sx} * 0.5, glyph_mod(p.y + {sy} * 0.5, {sy}) - {sy} * 0.5);\n"
             ));
         }
         "mirror" => {
@@ -1371,7 +1371,7 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str, textures: &[Text
             s.push_str(&format!("{indent}{{ let r_angle = atan2(p.y, p.x);\n"));
             s.push_str(&format!("{indent}let r_sector = 6.28318 / {count};\n"));
             s.push_str(&format!(
-                "{indent}let r_a = game_mod(r_angle + r_sector * 0.5, r_sector) - r_sector * 0.5;\n"
+                "{indent}let r_a = glyph_mod(r_angle + r_sector * 0.5, r_sector) - r_sector * 0.5;\n"
             ));
             s.push_str(&format!("{indent}let r_r = length(p);\n"));
             s.push_str(&format!(
@@ -1467,8 +1467,8 @@ fn emit_wgsl_stage(s: &mut String, stage: &Stage, indent: &str, textures: &[Text
         "grid" => {
             let spacing = get_arg_wgsl(args, "spacing", 0, "grid");
             let w = get_arg_wgsl(args, "width", 1, "grid");
-            s.push_str(&format!("{indent}let gx = abs(game_mod(p.x + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
-            s.push_str(&format!("{indent}let gy = abs(game_mod(p.y + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
+            s.push_str(&format!("{indent}let gx = abs(glyph_mod(p.x + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
+            s.push_str(&format!("{indent}let gy = abs(glyph_mod(p.y + {spacing} * 0.5, {spacing}) - {spacing} * 0.5) - {w};\n"));
             s.push_str(&format!("{indent}var sdf_result = min(gx, gy);\n"));
         }
         "sample" => {
@@ -2196,7 +2196,7 @@ mod tests {
     }
 
     #[test]
-    fn wgsl_repeat_emits_game_mod() {
+    fn wgsl_repeat_emits_glyph_mod() {
         let cin = make_cinematic(vec![
             Stage {
                 name: "repeat".into(),
@@ -2221,8 +2221,8 @@ mod tests {
             },
         ]);
         let output = generate_fragment(&cin, &[]);
-        assert!(output.contains("fn game_mod("), "game_mod helper emitted");
-        assert!(output.contains("game_mod(p.x"), "repeat uses game_mod");
+        assert!(output.contains("fn glyph_mod("), "glyph_mod helper emitted");
+        assert!(output.contains("glyph_mod(p.x"), "repeat uses glyph_mod");
     }
 
     #[test]
@@ -2361,7 +2361,7 @@ mod tests {
             },
         ]);
         let output4 = generate_fragment(&cin4, &[]);
-        assert!(output4.contains("game_mod(p.x"), "grid uses game_mod");
+        assert!(output4.contains("glyph_mod(p.x"), "grid uses glyph_mod");
     }
 
     #[test]

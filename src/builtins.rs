@@ -1,4 +1,4 @@
-//! Built-in function definitions for the GAME language.
+//! Built-in function definitions for the GLYPH language.
 //!
 //! Each builtin describes its name, parameters, and what shader state
 //! it consumes/produces in the pipeline.

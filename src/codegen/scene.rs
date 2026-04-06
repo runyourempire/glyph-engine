@@ -179,7 +179,7 @@ fn to_pascal(s: &str) -> String {
 
 /// Generate a full Web Component for a scene block.
 ///
-/// The component creates child `<game-xxx>` elements for each referenced
+/// The component creates child `<glyph-xxx>` elements for each referenced
 /// cinematic and orchestrates crossfade transitions via CSS opacity.
 pub fn generate_scene_component(block: &SceneBlock) -> String {
     if block.entries.is_empty() {
@@ -193,7 +193,7 @@ pub fn generate_scene_component(block: &SceneBlock) -> String {
     let mut s = String::with_capacity(4096);
 
     s.push_str(&format!(
-        "// GAME Scene Component: {tag} — auto-generated, do not edit.\n"
+        "// GLYPH Scene Component: {tag} — auto-generated, do not edit.\n"
     ));
     s.push_str("(function(){\n\n");
 
@@ -234,7 +234,7 @@ pub fn generate_scene_component(block: &SceneBlock) -> String {
     s.push_str("    this.shadowRoot.appendChild(style);\n\n");
 
     s.push_str("    for (const tag of SCENE_CINEMATICS) {\n");
-    s.push_str("      const el = document.createElement('game-' + tag);\n");
+    s.push_str("      const el = document.createElement('glyph-' + tag);\n");
     s.push_str("      el.classList.add('scene-layer');\n");
     s.push_str("      this.shadowRoot.appendChild(el);\n");
     s.push_str("      this._children[tag] = el;\n");
@@ -284,7 +284,7 @@ pub fn generate_scene_component(block: &SceneBlock) -> String {
     s.push_str("}\n\n");
 
     s.push_str(&format!(
-        "customElements.define('game-scene-{tag}', {class});\n"
+        "customElements.define('glyph-scene-{tag}', {class});\n"
     ));
     s.push_str("})();\n");
 
@@ -430,7 +430,7 @@ mod tests {
             ],
         };
         let js = generate_scene_component(&block);
-        assert!(js.contains("customElements.define('game-scene-show'"));
+        assert!(js.contains("customElements.define('glyph-scene-show'"));
         assert!(js.contains("class GameSceneShow extends HTMLElement"));
     }
 
@@ -457,7 +457,7 @@ mod tests {
         assert!(js.contains("SCENE_CINEMATICS"));
         assert!(js.contains("'a'"));
         assert!(js.contains("'b'"));
-        assert!(js.contains("createElement('game-' + tag)"));
+        assert!(js.contains("createElement('glyph-' + tag)"));
     }
 
     #[test]

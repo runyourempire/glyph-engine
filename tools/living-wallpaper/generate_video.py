@@ -186,7 +186,7 @@ def build_workflow(
             "class_type": "UNETLoader",
             "inputs": {
                 "unet_name": "wan2.2_ti2v_5B_fp16.safetensors",
-                "weight_dtype": "fp16",
+                "weight_dtype": "default",
             },
         },
         "3": {
@@ -209,38 +209,57 @@ def build_workflow(
                 "clip": ["3", 0],
             },
         },
+        "50": {
+            "class_type": "CLIPTextEncode",
+            "inputs": {
+                "text": "",
+                "clip": ["3", 0],
+            },
+        },
         "6": {
             "class_type": "WanImageToVideo",
             "inputs": {
                 "positive": ["5", 0],
+                "negative": ["50", 0],
                 "vae": ["4", 0],
-                "model": ["2", 0],
-                "image": ["1", 0],
                 "width": width,
                 "height": height,
                 "length": num_frames,
                 "batch_size": 1,
-                "steps": 30,
-                "cfg": 5.0,
-                "seed": seed,
-                "scheduler": "normal",
-                "sampler_name": "euler",
+                "start_image": ["1", 0],
             },
         },
         "7": {
-            "class_type": "VAEDecode",
+            "class_type": "KSampler",
             "inputs": {
-                "samples": ["6", 0],
-                "vae": ["4", 0],
+                "model": ["2", 0],
+                "positive": ["6", 0],
+                "negative": ["6", 1],
+                "latent_image": ["6", 2],
+                "seed": seed,
+                "steps": 30,
+                "cfg": 5.0,
+                "sampler_name": "euler",
+                "scheduler": "normal",
+                "denoise": 1.0,
             },
         },
         "8": {
+            "class_type": "VAEDecode",
+            "inputs": {
+                "samples": ["7", 0],
+                "vae": ["4", 0],
+            },
+        },
+        "9": {
             "class_type": "SaveAnimatedWEBP",
             "inputs": {
-                "images": ["7", 0],
+                "images": ["8", 0],
                 "filename_prefix": "wan_output",
                 "fps": 24,
                 "quality": 85,
+                "method": "default",
+                "lossless": False,
             },
         },
     }

@@ -1,5 +1,5 @@
 /**
- * .game source code generator — Template-based Living World Compositing.
+ * .glyph source code generator — Template-based Living World Compositing.
  *
  * Strategy:
  * 1. Classify the scene type from analysis data
@@ -29,9 +29,9 @@ interface GenerateOptions {
 }
 
 /**
- * Generate .game source code using scene-specific templates.
+ * Generate .glyph source code using scene-specific templates.
  */
-export function generateGameSource(recipe: ImageRecipe, opts: GenerateOptions): string {
+export function generateGlyphSource(recipe: ImageRecipe, opts: GenerateOptions): string {
   const { imageName, baseName, hasWater, hasSky, hasVegetation } = opts;
 
   // Build template context from recipe

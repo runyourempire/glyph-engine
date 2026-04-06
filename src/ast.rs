@@ -1,4 +1,4 @@
-/// Root of a GAME program.
+/// Root of a GLYPH program.
 #[derive(Debug, Clone)]
 pub struct Program {
     pub imports: Vec<Import>,

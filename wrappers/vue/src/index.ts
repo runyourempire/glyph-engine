@@ -1,2 +1,2 @@
-export { default as GameComponent } from './GameComponent.vue';
-export { useGameComponent } from './useGameComponent';
+export { default as GlyphComponent } from './GlyphComponent.vue';
+export { useGlyphComponent } from './useGlyphComponent';

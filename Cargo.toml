@@ -1,5 +1,5 @@
 [package]
-name = "game-compiler"
+name = "glyph-compiler"
 version = "1.0.0"
 edition = "2021"
 rust-version = "1.75"
@@ -25,12 +25,12 @@ exclude = [
 ]
 
 [[bin]]
-name = "game"
+name = "glyph"
 path = "src/main.rs"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-name = "game_compiler"
+name = "glyph_compiler"
 path = "src/lib.rs"
 
 [dependencies]

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GAME War Room — Compute Showcase Evaluation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #030303; color: #fff; font-family: 'Inter', system-ui; padding: 24px; }
+  h1 { font-size: 18px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; color: #d4af37; margin-bottom: 4px; }
+  .sub { font-size: 11px; color: #444; margin-bottom: 32px; }
+  .section { font-size: 10px; color: #666; letter-spacing: 3px; text-transform: uppercase; margin: 28px 0 12px; border-bottom: 1px solid #1a1a1a; padding-bottom: 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; }
+  .card { background: #080808; border: 1px solid #1a1a1a; border-radius: 6px; overflow: hidden; cursor: pointer; }
+  .card:hover { border-color: #333; }
+  .card-canvas { width: 100%; height: 280px; display: block; background: #000; }
+  .card-info { padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #141414; }
+  .card-name { font-size: 12px; font-weight: 500; color: #bbb; }
+  .card-detail { font-size: 9px; color: #444; font-family: monospace; }
+  .badge { font-size: 8px; padding: 2px 6px; border-radius: 2px; letter-spacing: 1px; text-transform: uppercase; }
+  .b-react { background: #1a0f08; color: #cc8844; }
+  .b-swarm { background: #0f0a18; color: #9966cc; }
+  .b-proven { background: #0a1a0a; color: #66cc66; }
+  .b-geo { background: #1a1508; color: #d4af37; }
+  .note { font-size: 10px; color: #555; margin: 4px 0 8px; font-style: italic; }
+</style>
+<!-- NEW COMPUTE SHOWCASE -->
+<script type="module" src="./morphogenesis.js"></script>
+<script type="module" src="./labyrinth.js"></script>
+<script type="module" src="./deep-coral.js"></script>
+<script type="module" src="./mitosis.js"></script>
+<script type="module" src="./dendrite.js"></script>
+<script type="module" src="./root-system.js"></script>
+<script type="module" src="./discharge.js"></script>
+<!-- PROVEN WINNERS -->
+<script type="module" src="./reaction-field.js"></script>
+<script type="module" src="./worm-trails.js"></script>
+<script type="module" src="./physarum-network.js"></script>
+<!-- GEOMETRIC -->
+<script type="module" src="./event-horizon.js"></script>
+<script type="module" src="./sacred-geometry.js"></script>
+</head>
+<body>
+<h1>GAME Showcase — Compute Edition</h1>
+<div class="sub">Click any card to view fullscreen: solo-eval.html?tag=game-NAME &mdash; Wait 10-15 seconds for simulations to develop patterns</div>
+
+<div class="section">New — Reaction-Diffusion (Gray-Scott + Color Matrix)</div>
+<div class="note">Same engine, different parameters + color grading = completely different visual identity. Each ~20 lines of code.</div>
+<div class="grid">
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-morphogenesis')">
+    <div class="card-canvas"><game-morphogenesis></game-morphogenesis></div>
+    <div class="card-info"><div><div class="card-name">Morphogenesis</div><div class="card-detail">feed:0.014 kill:0.054 / spiral waves / teal</div></div><span class="badge b-react">react</span></div>
+  </div>
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-labyrinth')">
+    <div class="card-canvas"><game-labyrinth></game-labyrinth></div>
+    <div class="card-info"><div><div class="card-name">Labyrinth</div><div class="card-detail">feed:0.029 kill:0.057 / maze corridors / silver</div></div><span class="badge b-react">react</span></div>
+  </div>
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-deep-coral')">
+    <div class="card-canvas"><game-deep-coral></game-deep-coral></div>
+    <div class="card-info"><div><div class="card-name">Deep Coral</div><div class="card-detail">feed:0.037 kill:0.06 / coral spots / ocean blue</div></div><span class="badge b-react">react</span></div>
+  </div>
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-mitosis')">
+    <div class="card-canvas"><game-mitosis></game-mitosis></div>
+    <div class="card-info"><div><div class="card-name">Mitosis</div><div class="card-detail">feed:0.028 kill:0.062 / cell division / blood red</div></div><span class="badge b-react">react</span></div>
+  </div>
+</div>
+
+<div class="section">New — Physarum Swarm (Agent Simulation + Color Matrix)</div>
+<div class="note">100K-120K agents self-organize into transport networks. Different sensor/turn angles = different network topology.</div>
+<div class="grid">
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-dendrite')">
+    <div class="card-canvas"><game-dendrite></game-dendrite></div>
+    <div class="card-info"><div><div class="card-name">Dendrite</div><div class="card-detail">sensor:15° turn:30° / axon branching / violet</div></div><span class="badge b-swarm">swarm</span></div>
+  </div>
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-root-system')">
+    <div class="card-canvas"><game-root-system></game-root-system></div>
+    <div class="card-info"><div><div class="card-name">Root System</div><div class="card-detail">sensor:10° turn:10° / deep roots / forest green</div></div><span class="badge b-swarm">swarm</span></div>
+  </div>
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-discharge')">
+    <div class="card-canvas"><game-discharge></game-discharge></div>
+    <div class="card-info"><div><div class="card-name">Discharge</div><div class="card-detail">sensor:55° turn:55° / lightning / electric white</div></div><span class="badge b-swarm">swarm</span></div>
+  </div>
+</div>
+
+<div class="section">Proven Winners — Reference Quality</div>
+<div class="grid">
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-reaction-field')">
+    <div class="card-canvas"><game-reaction-field></game-reaction-field></div>
+    <div class="card-info"><div><div class="card-name">Reaction Field</div><div class="card-detail">the original / Turing spots / orange</div></div><span class="badge b-proven">proven</span></div>
+  </div>
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-worm-trails')">
+    <div class="card-canvas"><game-worm-trails></game-worm-trails></div>
+    <div class="card-info"><div><div class="card-name">Worm Trails</div><div class="card-detail">scattered seeds / worm-like / orange</div></div><span class="badge b-proven">proven</span></div>
+  </div>
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-physarum-network')">
+    <div class="card-canvas"><game-physarum-network></game-physarum-network></div>
+    <div class="card-info"><div><div class="card-name">Physarum Network</div><div class="card-detail">100K agents / transport veins / orange</div></div><span class="badge b-proven">proven</span></div>
+  </div>
+</div>
+
+<div class="section">Geometric — Pure SDF Precision</div>
+<div class="grid">
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-event-horizon')">
+    <div class="card-canvas"><game-event-horizon></game-event-horizon></div>
+    <div class="card-info"><div><div class="card-name">Event Horizon</div><div class="card-detail">shade() rings / black hole / gold</div></div><span class="badge b-geo">geometric</span></div>
+  </div>
+  <div class="card" onclick="window.open('solo-eval.html?tag=game-sacred-geometry')">
+    <div class="card-canvas"><game-sacred-geometry></game-sacred-geometry></div>
+    <div class="card-info"><div><div class="card-name">Sacred Geometry</div><div class="card-detail">boolean CSG / mandala / gold</div></div><span class="badge b-geo">geometric</span></div>
+  </div>
+</div>
+
+</body>
+</html>

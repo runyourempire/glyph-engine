@@ -1,13 +1,13 @@
 {
-  "name": "game-language",
+  "name": "glyph-language",
   "displayName": "GAME Language",
-  "description": "Syntax highlighting and language server for GAME DSL (.game files) — Generative Animation Matrix Engine",
+  "description": "Syntax highlighting and language server for GAME DSL (.glyph files) — Generative Animation Matrix Engine",
   "version": "0.5.0",
   "publisher": "4da-systems",
   "license": "FSL-1.1-Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/runyourempire/game-engine"
+    "url": "https://github.com/runyourempire/glyph-engine"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -17,7 +17,7 @@
     "Snippets"
   ],
   "keywords": [
-    "game",
+    "glyph",
     "shader",
     "wgsl",
     "glsl",
@@ -30,107 +30,107 @@
   "contributes": {
     "languages": [
       {
-        "id": "game",
+        "id": "glyph",
         "aliases": [
           "GAME",
-          "game"
+          "glyph"
         ],
         "extensions": [
-          ".game"
+          ".glyph"
         ],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "game",
-        "scopeName": "source.game",
-        "path": "./syntaxes/game.tmLanguage.json"
+        "language": "glyph",
+        "scopeName": "source.glyph",
+        "path": "./syntaxes/glyph.tmLanguage.json"
       }
     ],
     "snippets": [
       {
-        "language": "game",
-        "path": "./snippets/game.json"
+        "language": "glyph",
+        "path": "./snippets/glyph.json"
       }
     ],
     "commands": [
       {
-        "command": "game.openPreview",
+        "command": "glyph.openPreview",
         "title": "GAME: Open Preview",
         "icon": "$(open-preview)"
       },
       {
-        "command": "game.export",
+        "command": "glyph.export",
         "title": "GAME: Export Component",
         "icon": "$(export)"
       },
       {
-        "command": "game.exportCopyJs",
+        "command": "glyph.exportCopyJs",
         "title": "GAME: Copy JS to Clipboard"
       },
       {
-        "command": "game.exportCopyHtml",
+        "command": "glyph.exportCopyHtml",
         "title": "GAME: Copy HTML Embed"
       },
       {
-        "command": "game.exportCopyReact",
+        "command": "glyph.exportCopyReact",
         "title": "GAME: Copy React Usage"
       },
       {
-        "command": "game.exportSaveJs",
+        "command": "glyph.exportSaveJs",
         "title": "GAME: Save JS File"
       },
       {
-        "command": "game.exportSaveHtml",
+        "command": "glyph.exportSaveHtml",
         "title": "GAME: Save Standalone HTML"
       },
       {
-        "command": "game.openGallery",
+        "command": "glyph.openGallery",
         "title": "GAME: Open Component Gallery",
         "icon": "$(library)"
       },
       {
-        "command": "game.openAi",
+        "command": "glyph.openAi",
         "title": "GAME: Generate with AI",
         "icon": "$(sparkle)"
       }
     ],
     "keybindings": [
       {
-        "command": "game.openPreview",
+        "command": "glyph.openPreview",
         "key": "ctrl+shift+g",
         "mac": "cmd+shift+g",
-        "when": "editorLangId == game"
+        "when": "editorLangId == glyph"
       },
       {
-        "command": "game.openGallery",
+        "command": "glyph.openGallery",
         "key": "ctrl+shift+l",
         "mac": "cmd+shift+l",
-        "when": "editorLangId == game"
+        "when": "editorLangId == glyph"
       },
       {
-        "command": "game.openAi",
+        "command": "glyph.openAi",
         "key": "ctrl+shift+a",
         "mac": "cmd+shift+a",
-        "when": "editorLangId == game"
+        "when": "editorLangId == glyph"
       }
     ],
     "menus": {
       "editor/title": [
         {
-          "command": "game.openPreview",
-          "when": "editorLangId == game",
+          "command": "glyph.openPreview",
+          "when": "editorLangId == glyph",
           "group": "navigation"
         },
         {
-          "command": "game.export",
-          "when": "editorLangId == game",
+          "command": "glyph.export",
+          "when": "editorLangId == glyph",
           "group": "navigation"
         },
         {
-          "command": "game.openAi",
-          "when": "editorLangId == game",
+          "command": "glyph.openAi",
+          "when": "editorLangId == glyph",
           "group": "navigation"
         }
       ]
@@ -138,12 +138,12 @@
     "configuration": {
       "title": "GAME Language",
       "properties": {
-        "game.serverPath": {
+        "glyph.serverPath": {
           "type": "string",
-          "default": "game",
-          "description": "Path to the game compiler binary. If not absolute, searches PATH."
+          "default": "glyph",
+          "description": "Path to the glyph compiler binary. If not absolute, searches PATH."
         },
-        "game.trace.server": {
+        "glyph.trace.server": {
           "type": "string",
           "default": "off",
           "enum": [
@@ -153,12 +153,12 @@
           ],
           "description": "Traces the communication between VS Code and the GAME language server."
         },
-        "game.ai.apiKey": {
+        "glyph.ai.apiKey": {
           "type": "string",
           "default": "",
           "description": "Anthropic API key for AI component generation."
         },
-        "game.ai.model": {
+        "glyph.ai.model": {
           "type": "string",
           "default": "claude-sonnet-4-20250514",
           "description": "Claude model to use for AI generation."

@@ -1,4 +1,4 @@
-//! GLSL ES 3.0 shader generation from GAME AST.
+//! GLSL ES 3.0 shader generation from GLYPH AST.
 //!
 //! CRITICAL: This module produces correct GLSL, NOT WGSL syntax.
 //! Key differences from WGSL:

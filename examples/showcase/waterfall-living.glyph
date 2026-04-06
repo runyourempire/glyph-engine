@@ -1,0 +1,94 @@
+// SKOGAFOSS — Hand-crafted living wallpaper
+// Thundering cascade between dark Icelandic cliffs,
+// mist billowing upward from the impact, the ground trembling
+// with the weight of falling water. You feel the spray on your face.
+
+cinematic "living-waterfall" {
+  texture "photo" from "waterfall.jpg"
+  texture "depth" from "waterfall-depth.png"
+  texture "flow_water" from "waterfall-flow_water.png"
+  texture "flow_sky" from "waterfall-flow_sky.png"
+  texture "mask_water" from "waterfall-mask_water.png"
+  texture "mask_sky" from "waterfall-mask_sky.png"
+
+  // ══════ TIER 0: GLOBAL ATMOSPHERE — mist-soaked air ══════
+  layer atmosphere opacity: 0.90 {
+    distort(scale: 0.12, speed: 0.06, strength: 0.004)
+    | sample("photo")
+  }
+
+  // ══════ TIER 1: WORLD ══════
+  layer world {
+    parallax("photo", depth: "depth", strength: 0.018, orbit_speed: 0.05)
+  }
+
+  // ══════ TIER 2: WET CLIFF SHIMMER — rocks glisten ══════
+  layer cliff_shimmer opacity: 0.78 {
+    distort(scale: 0.30, speed: 0.10, strength: 0.005)
+    | sample("photo")
+    | mask("depth", invert: 1)
+  }
+
+  // ══════ TIER 3: CASCADE — the water FALLS ══════
+  layer cascade opacity: 0.92 {
+    flowmap("photo", "flow_water", speed: 0.35, scale: 0.080)
+    | mask("mask_water")
+  }
+
+  // ══════ SKY — overcast drift ══════
+  layer sky opacity: 0.88 {
+    flowmap("photo", "flow_sky", speed: 0.04, scale: 0.008)
+    | mask("mask_sky")
+  }
+
+  // ══════ TIER 4: MIST CLOUD — rising from impact zone ══════
+  layer mist_rise opacity: 0.12 blend: screen {
+    translate(sin(time * 0.08) * 0.006, time * -0.018)
+    | warp(scale: 0.7, octaves: 5, persistence: 0.62, strength: 0.22)
+    | fbm(scale: 1.0, octaves: 5, persistence: 0.52)
+    | glow(0.8)
+    | tint(0.82, 0.86, 0.95)
+  }
+
+  // ══════ SPRAY — fine water particles in the air ══════
+  layer spray opacity: 0.06 blend: screen {
+    translate(time * 0.008, sin(time * 0.12) * 0.006)
+    | distort(scale: 18.0, speed: 3.0, strength: 0.10)
+    | voronoi(20.0)
+    | glow(5.0)
+    | tint(0.85, 0.90, 1.0)
+    | mask("depth")
+  }
+
+  // ══════ TURBULENCE — chaos at the base ══════
+  layer turbulence opacity: 0.10 blend: screen {
+    translate(time * 0.015, time * 0.025)
+    | warp(scale: 2.0, octaves: 4, persistence: 0.55, strength: 0.28)
+    | voronoi(8.0)
+    | glow(2.5)
+    | tint(0.80, 0.85, 0.95)
+    | mask("mask_water")
+  }
+
+  // ══════ TIER 5: ATMOSPHERIC HAZE — whole scene ══════
+  layer haze opacity: 0.08 blend: screen {
+    translate(time * 0.006, sin(time * 0.04) * 0.003)
+    | warp(scale: 0.5, octaves: 4, persistence: 0.55, strength: 0.14)
+    | fbm(scale: 0.7, octaves: 4, persistence: 0.50)
+    | glow(1.0)
+    | tint(0.78, 0.82, 0.92)
+  }
+
+  // ══════ LIGHT VARIATION — cloud shadow modulation ══════
+  layer light_shift opacity: 0.05 blend: screen {
+    translate(time * 0.004, time * 0.001)
+    | warp(scale: 0.20, octaves: 2, persistence: 0.5, strength: 0.05)
+    | fbm(scale: 0.15, octaves: 2, persistence: 0.5)
+    | glow(1.5)
+    | tint(0.80, 0.82, 0.90)
+  }
+
+  pass soften { blur(0.5) }
+  pass frame { vignette(0.30) }
+  pass film { film_grain(0.028) }
+}
