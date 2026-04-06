@@ -593,28 +593,41 @@ async function runGenerate() {
 }
 
 async function callClaude(apiKey, description) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: description }]
-    })
-  });
+  let res;
+  try {
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2048,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: description }]
+      })
+    });
+  } catch (fetchErr) {
+    throw new Error('Network error: ' + fetchErr.message + '. Check your API key and try again.');
+  }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API error ${res.status}`);
+    let errMsg = `API error ${res.status}`;
+    try {
+      const err = await res.json();
+      errMsg = err.error?.message || errMsg;
+    } catch {}
+    if (res.status === 401) errMsg = 'Invalid API key. Get one at console.anthropic.com';
+    if (res.status === 403) errMsg = 'API key does not have permission. Ensure it is a valid Anthropic API key (starts with sk-ant-)';
+    if (res.status === 429) errMsg = 'Rate limited. Wait a moment and try again.';
+    throw new Error(errMsg);
   }
 
   const data = await res.json();
+  if (!data.content || !data.content[0]) throw new Error('Empty response from API');
   return data.content[0].text;
 }
 
@@ -729,7 +742,6 @@ const galleryItems = [
   { name: 'Galactic Spiral',        file: 'galactic-spiral',        tag: 'glyph-galactic-spiral',        cat: 'Cosmic' },
   { name: 'Supernova',              file: 'supernova',              tag: 'glyph-supernova',              cat: 'Cosmic' },
   { name: 'Solar Flare',            file: 'solar-flare',            tag: 'glyph-solar-flare',            cat: 'Cosmic' },
-  { name: 'Nebula',                 file: 'nebula',                 tag: 'glyph-nebula',                 cat: 'Cosmic' },
   { name: 'Singularity',            file: 'singularity',            tag: 'glyph-singularity',            cat: 'Cosmic' },
   { name: 'Void Engine',            file: 'void-engine',            tag: 'glyph-void-engine',            cat: 'Cosmic' },
   // Organic
