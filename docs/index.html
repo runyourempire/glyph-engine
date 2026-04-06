@@ -57,7 +57,10 @@ a{color:#D4AF37;text-decoration:none}
 .divider{border:none;border-top:1px solid #111;margin:60px 0 48px}
 .section-title{text-align:center;font-size:1.5rem;font-weight:300;letter-spacing:.3em;margin-right:-.3em;color:#888;margin-bottom:40px}
 
-.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;max-width:1200px;margin:0 auto;padding:0 24px 80px}
+.gallery{max-width:1200px;margin:0 auto;padding:0 24px 80px}
+.gallery-category{margin-bottom:48px}
+.cat-header{color:#555;font-size:.75rem;font-weight:600;letter-spacing:.25em;text-transform:uppercase;margin-bottom:16px;border-left:2px solid #D4AF37;padding-left:12px}
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
 .card{background:#0a0a0a;border:1px solid #141414;border-radius:8px;overflow:hidden;transition:border-color .3s}
 .card:hover{border-color:#222}
 .card-preview{aspect-ratio:16/10;overflow:hidden;background:#060606;position:relative}
@@ -75,7 +78,8 @@ a{color:#D4AF37;text-decoration:none}
   .hero{padding:40px 16px 24px}
   .logo{font-size:2rem;letter-spacing:.8em;margin-right:-.8em}
   .input-row{flex-direction:column}
-  .gallery{grid-template-columns:1fr;padding:0 16px 60px}
+  .gallery{padding:0 16px 60px}
+  .cat-grid{grid-template-columns:1fr}
   .api-input{width:100%}
   .api-row{flex-direction:column;text-align:center}
 }
@@ -719,18 +723,57 @@ function showToast(msg) {
 
 // --- Gallery ---
 const galleryItems = [
-  { name: 'Event Horizon',          file: 'event-horizon',          tag: 'glyph-event-horizon' },
-  { name: 'Aurora Borealis',        file: 'aurora-borealis',        tag: 'glyph-aurora-borealis' },
-  { name: 'Bioluminescent Abyss',   file: 'bioluminescent-abyss',   tag: 'glyph-bioluminescent-abyss' },
-  { name: 'Digital Consciousness',  file: 'digital-consciousness',  tag: 'glyph-digital-consciousness' },
-  { name: 'Galactic Spiral',        file: 'galactic-spiral',        tag: 'glyph-galactic-spiral' },
-  { name: 'Living Coral',           file: 'living-coral',           tag: 'glyph-living-coral' },
-  { name: 'Neural Web',             file: 'neural-web',             tag: 'glyph-neural-web' },
-  { name: 'Plasma Storm',           file: 'plasma-storm',           tag: 'glyph-plasma-storm' },
-  { name: 'Quantum Flux',           file: 'quantum-flux',           tag: 'glyph-quantum-flux' },
-  { name: 'Sacred Geometry',        file: 'sacred-geometry',        tag: 'glyph-sacred-geometry' },
-  { name: 'Solar Flare',            file: 'solar-flare',            tag: 'glyph-solar-flare' },
-  { name: 'Supernova',              file: 'supernova',              tag: 'glyph-supernova' },
+  // Cosmic
+  { name: 'Event Horizon',          file: 'event-horizon',          tag: 'glyph-event-horizon',          cat: 'Cosmic' },
+  { name: 'Stellar Nursery',        file: 'stellar-nursery',        tag: 'glyph-stellar-nursery',        cat: 'Cosmic' },
+  { name: 'Galactic Spiral',        file: 'galactic-spiral',        tag: 'glyph-galactic-spiral',        cat: 'Cosmic' },
+  { name: 'Supernova',              file: 'supernova',              tag: 'glyph-supernova',              cat: 'Cosmic' },
+  { name: 'Solar Flare',            file: 'solar-flare',            tag: 'glyph-solar-flare',            cat: 'Cosmic' },
+  { name: 'Nebula',                 file: 'nebula',                 tag: 'glyph-nebula',                 cat: 'Cosmic' },
+  { name: 'Singularity',            file: 'singularity',            tag: 'glyph-singularity',            cat: 'Cosmic' },
+  { name: 'Void Engine',            file: 'void-engine',            tag: 'glyph-void-engine',            cat: 'Cosmic' },
+  // Organic
+  { name: 'Bioluminescent Abyss',   file: 'bioluminescent-abyss',   tag: 'glyph-bioluminescent-abyss',   cat: 'Organic' },
+  { name: 'Living Coral',           file: 'living-coral',           tag: 'glyph-living-coral',           cat: 'Organic' },
+  { name: 'Deep Coral',             file: 'deep-coral',             tag: 'glyph-deep-coral',             cat: 'Organic' },
+  { name: 'Mycelium Network',       file: 'mycelium-network',       tag: 'glyph-mycelium-network',       cat: 'Organic' },
+  { name: 'Mycelium Swarm',         file: 'mycelium-swarm',         tag: 'glyph-mycelium-swarm',         cat: 'Organic' },
+  { name: 'Root System',            file: 'root-system',            tag: 'glyph-root-system',            cat: 'Organic' },
+  { name: 'Dendrite',               file: 'dendrite',               tag: 'glyph-dendrite',               cat: 'Organic' },
+  { name: 'Mitosis',                file: 'mitosis',                tag: 'glyph-mitosis',                cat: 'Organic' },
+  { name: 'Morphogenesis',          file: 'morphogenesis',          tag: 'glyph-morphogenesis',          cat: 'Organic' },
+  { name: 'Primordial',             file: 'primordial',             tag: 'glyph-primordial',             cat: 'Organic' },
+  // Elemental
+  { name: 'Plasma Storm',           file: 'plasma-storm',           tag: 'glyph-plasma-storm',           cat: 'Elemental' },
+  { name: 'Volcanic Core',          file: 'volcanic-core',          tag: 'glyph-volcanic-core',          cat: 'Elemental' },
+  { name: 'Volcanic Flow',          file: 'volcanic-flow',          tag: 'glyph-volcanic-flow',          cat: 'Elemental' },
+  { name: 'Molten Earth',           file: 'molten-earth',           tag: 'glyph-molten-earth',           cat: 'Elemental' },
+  { name: 'Ember Flow',             file: 'ember-flow',             tag: 'glyph-ember-flow',             cat: 'Elemental' },
+  { name: 'Frozen Aether',          file: 'frozen-aether',          tag: 'glyph-frozen-aether',          cat: 'Elemental' },
+  { name: 'Tidal Forces',           file: 'tidal-forces',           tag: 'glyph-tidal-forces',           cat: 'Elemental' },
+  { name: 'Deep Current',           file: 'deep-current',           tag: 'glyph-deep-current',           cat: 'Elemental' },
+  { name: 'Midnight Ocean',         file: 'midnight-ocean',         tag: 'glyph-midnight-ocean',         cat: 'Elemental' },
+  { name: 'Ocean Alive',            file: 'ocean-alive',            tag: 'glyph-ocean-alive',            cat: 'Elemental' },
+  // Digital
+  { name: 'Neural Web',             file: 'neural-web',             tag: 'glyph-neural-web',             cat: 'Digital' },
+  { name: 'Digital Consciousness',  file: 'digital-consciousness',  tag: 'glyph-digital-consciousness',  cat: 'Digital' },
+  { name: 'Cyberpunk Rain',         file: 'cyberpunk-rain',         tag: 'glyph-cyberpunk-rain',         cat: 'Digital' },
+  { name: 'Quantum Flux',           file: 'quantum-flux',           tag: 'glyph-quantum-flux',           cat: 'Digital' },
+  { name: 'Clockwork',              file: 'clockwork',              tag: 'glyph-clockwork',              cat: 'Digital' },
+  { name: 'Signal',                 file: 'signal',                 tag: 'glyph-signal',                 cat: 'Digital' },
+  { name: 'Nexus',                  file: 'nexus',                  tag: 'glyph-nexus',                  cat: 'Digital' },
+  { name: 'Ripple',                 file: 'ripple',                 tag: 'glyph-ripple',                 cat: 'Digital' },
+  // Atmospheric
+  { name: 'Aurora Borealis',        file: 'aurora-borealis',        tag: 'glyph-aurora-borealis',        cat: 'Atmospheric' },
+  { name: 'Aurora Drift',           file: 'aurora-drift',           tag: 'glyph-aurora-drift',           cat: 'Atmospheric' },
+  { name: 'Prismatic Cascade',      file: 'prismatic-cascade',      tag: 'glyph-prismatic-cascade',      cat: 'Atmospheric' },
+  { name: 'Silk Void',              file: 'silk-void',              tag: 'glyph-silk-void',              cat: 'Atmospheric' },
+  { name: 'Void Silk',              file: 'void-silk',              tag: 'glyph-void-silk',              cat: 'Atmospheric' },
+  { name: 'Amethyst Flow',          file: 'amethyst-flow',          tag: 'glyph-amethyst-flow',          cat: 'Atmospheric' },
+  { name: 'Pentachoron Field',      file: 'pentachoron-field',      tag: 'glyph-pentachoron-field',      cat: 'Atmospheric' },
+  { name: 'Sacred Geometry',        file: 'sacred-geometry',        tag: 'glyph-sacred-geometry',        cat: 'Atmospheric' },
+  { name: 'Labyrinth',              file: 'labyrinth',              tag: 'glyph-labyrinth',              cat: 'Atmospheric' },
+  { name: 'Discharge',              file: 'discharge',              tag: 'glyph-discharge',              cat: 'Atmospheric' },
 ];
 
 // Lazy-load gallery cards using IntersectionObserver
@@ -758,19 +801,46 @@ const observer = new IntersectionObserver((entries) => {
   });
 }, { rootMargin: '200px' });
 
+// Group by category and render with headers
+const categories = ['Cosmic', 'Organic', 'Elemental', 'Digital', 'Atmospheric'];
+const grouped = {};
 galleryItems.forEach(item => {
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.dataset.file = item.file;
-  card.dataset.tag = item.tag;
-  card.innerHTML = `
-    <div class="card-preview"></div>
-    <div class="card-footer">
-      <span class="card-name">${item.name}</span>
-      <button class="btn btn-sm" onclick="copyGalleryEmbed('${item.file}','${item.tag}')">Embed</button>
-    </div>`;
-  galleryEl.appendChild(card);
-  observer.observe(card);
+  if (!grouped[item.cat]) grouped[item.cat] = [];
+  grouped[item.cat].push(item);
+});
+
+categories.forEach(cat => {
+  const items = grouped[cat];
+  if (!items || items.length === 0) return;
+
+  const section = document.createElement('div');
+  section.className = 'gallery-category';
+
+  const header = document.createElement('h3');
+  header.className = 'cat-header';
+  header.textContent = cat;
+  section.appendChild(header);
+
+  const grid = document.createElement('div');
+  grid.className = 'cat-grid';
+
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.file = item.file;
+    card.dataset.tag = item.tag;
+    card.innerHTML = `
+      <div class="card-preview"></div>
+      <div class="card-footer">
+        <span class="card-name">${item.name}</span>
+        <button class="btn btn-sm" onclick="copyGalleryEmbed('${item.file}','${item.tag}')">Embed</button>
+      </div>`;
+    grid.appendChild(card);
+    observer.observe(card);
+  });
+
+  section.appendChild(grid);
+  galleryEl.appendChild(section);
 });
 
 // Global function for gallery embed buttons

@@ -1,4 +1,4 @@
-// GLYPH Component: neural-web — auto-generated, do not edit.
+// GLYPH Component: midnight-ocean — auto-generated, do not edit.
 (function(){
 const WGSL_V = `struct VertexOutput {
     @builtin(position) pos: vec4<f32>,
@@ -29,8 +29,9 @@ const WGSL_F = `struct Uniforms {
     mouse: vec2<f32>,
     mouse_down: f32,
     aspect_ratio: f32,
-    p_signal: f32,
-    p_plasticity: f32,
+    p_flow_speed: f32,
+    p_flow_strength: f32,
+    p_bio_intensity: f32,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -82,30 +83,12 @@ fn fbm2(p: vec2<f32>, octaves: i32, persistence: f32, lacunarity: f32) -> f32 {
     return value / max_val;
 }
 
-fn hash2v(p: vec2<f32>) -> vec2<f32> {
-    let p3 = fract(vec3<f32>(p.x, p.y, p.x) * vec3<f32>(0.1031, 0.1030, 0.0973));
-    let pp = p3 + vec3<f32>(dot(p3, p3.yzx + 33.33));
-    return fract(vec2<f32>((pp.x + pp.y) * pp.z, (pp.x + pp.z) * pp.y));
-}
-
-fn voronoi2(p: vec2<f32>) -> f32 {
-    let n = floor(p);
-    let f = fract(p);
-    var md: f32 = 8.0;
-    for (var j: i32 = -1; j <= 1; j = j + 1) {
-        for (var i: i32 = -1; i <= 1; i = i + 1) {
-            let g = vec2<f32>(f32(i), f32(j));
-            let o = hash2v(n + g);
-            let r = g + o - f;
-            let d = dot(r, r);
-            md = min(md, d);
-        }
-    }
-    return sqrt(md);
-}
-
 fn cosine_palette(t: f32, a: vec3<f32>, b: vec3<f32>, c: vec3<f32>, d: vec3<f32>) -> vec3<f32> {
     return a + b * cos(6.28318 * (c * t + d));
+}
+
+fn glyph_mod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
 }
 
 fn aces_tonemap(x: vec3<f32>) -> vec3<f32> {
@@ -118,15 +101,6 @@ fn dither_noise(uv: vec2<f32>) -> f32 {
     return fract(52.9829189 * fract(dot(uv, vec2<f32>(0.06711056, 0.00583715))));
 }
 
-fn apply_color_matrix(color: vec3f) -> vec3f {
-    let m = mat3x3f(
-        vec3f(0.85, 0, 0.1),
-        vec3f(0, 0.9, 0.1),
-        vec3f(0.15, 0.1, 1.2)
-    );
-    return clamp(m * color, vec3f(0.0), vec3f(1.0));
-}
-
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let uv = input.uv * 2.0 - 1.0;
@@ -136,52 +110,22 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let mouse_y = u.mouse.y;
     let mouse_down = u.mouse_down;
 
-    let signal = u.p_signal;
-    let plasticity = u.p_plasticity;
+    let flow_speed = u.p_flow_speed;
+    let flow_strength = u.p_flow_strength;
+    let bio_intensity = u.p_bio_intensity;
 
     var final_color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
 
-    // ── Layer 1: mesh ──
+    // ── Layer 1: water ──
     {
         var p = vec2<f32>(uv.x * aspect, uv.y);
-        { let warp_x = fbm2(p * 3.000000 + vec2<f32>(0.0, 1.3), i32(5.000000), 0.500000, 0.200000);
-        let warp_y = fbm2(p * 3.000000 + vec2<f32>(1.7, 0.0), i32(5.000000), 0.500000, 0.200000);
-        p = p + vec2<f32>(warp_x, warp_y) * 0.200000; }
-        var sdf_result = voronoi2(p * 10.000000 + vec2<f32>(time * 0.05, time * 0.03));
-        let pal_rgb = cosine_palette(sdf_result, vec3<f32>(0.020000, 0.000000, 0.040000), vec3<f32>(0.100000, 0.050000, 0.200000), vec3<f32>(0.500000, 0.300000, 0.800000), vec3<f32>(0.000000, 0.200000, 0.500000));
+        { let warp_x = fbm2(p * 1.200000 + vec2<f32>(0.0, 1.3), i32(6.000000), 0.550000, (0.320000 + (u.mouse_down * 0.080000)));
+        let warp_y = fbm2(p * 1.200000 + vec2<f32>(1.7, 0.0), i32(6.000000), 0.550000, (0.320000 + (u.mouse_down * 0.080000)));
+        p = p + vec2<f32>(warp_x, warp_y) * (0.320000 + (u.mouse_down * 0.080000)); }
+        p = p + vec2<f32>(sin(p.y * 2.000000 + time * flow_speed), cos(p.x * 2.000000 + time * flow_speed)) * (flow_strength * 0.400000);
+        var sdf_result = fbm2((p * 2.500000 + vec2<f32>(time * 0.1, time * 0.07)), i32(5.000000), 0.500000, 2.000000);
+        let pal_rgb = cosine_palette(sdf_result, vec3<f32>(0.150000, 0.200000, 0.350000), vec3<f32>(0.150000, 0.200000, 0.300000), vec3<f32>(1.000000, 0.800000, 0.600000), vec3<f32>(0.550000, 0.600000, 0.700000));
         var color_result = vec4<f32>(pal_rgb, clamp(dot(pal_rgb, vec3<f32>(0.299, 0.587, 0.114)) * 2.0, 0.0, 1.0));
-        let prev_color = textureSample(prev_frame, prev_sampler, input.uv);
-        color_result = mix(color_result, prev_color, 0.930000);
-        let la = color_result.a;
-        let lc = color_result.rgb;
-        final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 2: dendrites ──
-    {
-        var p = vec2<f32>(uv.x * aspect, uv.y);
-        { let warp_x = fbm2(p * 5.000000 + vec2<f32>(0.0, 1.3), i32(6.000000), 0.600000, 2.300000);
-        let warp_y = fbm2(p * 5.000000 + vec2<f32>(1.7, 0.0), i32(6.000000), 0.600000, 2.300000);
-        p = p + vec2<f32>(warp_x, warp_y) * 0.300000; }
-        var sdf_result = fbm2((p * 8.000000 + vec2<f32>(time * 0.1, time * 0.07)), i32(6.000000), 0.550000, 2.000000);
-        let pal_rgb = cosine_palette(sdf_result, vec3<f32>(0.0, 0.5, 0.3), vec3<f32>(0.1, 0.5, 0.4), vec3<f32>(1.0, 1.0, 0.5), vec3<f32>(0.0, 0.2, 0.5));
-        var color_result = vec4<f32>(pal_rgb, clamp(dot(pal_rgb, vec3<f32>(0.299, 0.587, 0.114)) * 2.0, 0.0, 1.0));
-        let prev_color = textureSample(prev_frame, prev_sampler, input.uv);
-        color_result = mix(color_result, prev_color, 0.910000);
-        let la = color_result.a;
-        let lc = color_result.rgb;
-        final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 3: neuron_a ──
-    {
-        var p = vec2<f32>(uv.x * aspect, uv.y);
-        p = p + vec2<f32>(sin(p.y * 2.000000 + time * 0.400000), cos(p.x * 2.000000 + time * 0.400000)) * (0.020000 + (signal * 0.010000));
-        var sdf_result = sdf_circle(p, (0.080000 + (signal * 0.030000)));
-        let glow_pulse = (4.000000 + (signal * 2.000000)) * (0.9 + 0.1 * sin(time * 2.0));
-        let glow_result = apply_glow(sdf_result, glow_pulse);
-        var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);
-        color_result = vec4<f32>(color_result.rgb * vec3<f32>(0.300000, 0.600000, 1.000000), color_result.a);
         let prev_color = textureSample(prev_frame, prev_sampler, input.uv);
         color_result = mix(color_result, prev_color, 0.900000);
         let la = color_result.a;
@@ -189,66 +133,36 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
         final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
     }
 
-    // ── Layer 4: axons ──
+    // ── Layer 2: current ──
     {
         var p = vec2<f32>(uv.x * aspect, uv.y);
-        p = p + vec2<f32>(sin(p.y * 2.500000 + time * 0.500000), cos(p.x * 2.500000 + time * 0.500000)) * 0.030000;
-        var sdf_result = sdf_circle(p, (0.200000 + (signal * 0.050000)));
-        for (var onion_i: i32 = 0; onion_i < i32(4.000000); onion_i = onion_i + 1) { sdf_result = abs(sdf_result) - 0.012000; }
-        let glow_pulse = (1.800000 + (plasticity * 0.800000)) * (0.9 + 0.1 * sin(time * 2.0));
-        let glow_result = apply_glow(sdf_result, glow_pulse);
-        var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);
-        color_result = vec4<f32>(color_result.rgb * vec3<f32>(0.200000, 0.400000, 0.900000), color_result.a);
-        let prev_color = textureSample(prev_frame, prev_sampler, input.uv);
-        color_result = mix(color_result, prev_color, 0.870000);
-        let la = color_result.a;
-        let lc = color_result.rgb;
-        final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 5: neuron_b ──
-    {
-        var p = vec2<f32>(uv.x * aspect, uv.y);
-        p = p - vec2<f32>(0.200000, (-0.150000));
-        p = p + vec2<f32>(sin(p.y * 2.000000 + time * 0.600000), cos(p.x * 2.000000 + time * 0.600000)) * 0.020000;
-        var sdf_result = sdf_circle(p, (0.050000 + (plasticity * 0.020000)));
-        let glow_pulse = (3.000000 + (plasticity * 1.500000)) * (0.9 + 0.1 * sin(time * 2.0));
-        let glow_result = apply_glow(sdf_result, glow_pulse);
-        var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);
-        color_result = vec4<f32>(color_result.rgb * vec3<f32>(0.500000, 0.300000, 0.900000), color_result.a);
-        let prev_color = textureSample(prev_frame, prev_sampler, input.uv);
-        color_result = mix(color_result, prev_color, 0.880000);
-        let la = color_result.a;
-        let lc = color_result.rgb;
-        final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 6: neuron_c ──
-    {
-        var p = vec2<f32>(uv.x * aspect, uv.y);
-        p = p - vec2<f32>((-0.180000), 0.120000);
-        p = p + vec2<f32>(sin(p.y * 2.000000 + time * 0.350000), cos(p.x * 2.000000 + time * 0.350000)) * 0.020000;
-        var sdf_result = sdf_circle(p, (0.040000 + (signal * 0.015000)));
-        let glow_pulse = (2.500000 + (signal * 1.000000)) * (0.9 + 0.1 * sin(time * 2.0));
-        let glow_result = apply_glow(sdf_result, glow_pulse);
-        var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);
-        color_result = vec4<f32>(color_result.rgb * vec3<f32>(0.400000, 0.700000, 0.800000), color_result.a);
-        let prev_color = textureSample(prev_frame, prev_sampler, input.uv);
-        color_result = mix(color_result, prev_color, 0.860000);
-        let la = color_result.a;
-        let lc = color_result.rgb;
-        final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 7: flash ──
-    {
-        var p = vec2<f32>(uv.x * aspect, uv.y);
-        { let warp_x = fbm2(p * 6.000000 + vec2<f32>(0.0, 1.3), i32(3.000000), 0.250000, 2.000000);
-        let warp_y = fbm2(p * 6.000000 + vec2<f32>(1.7, 0.0), i32(3.000000), 0.250000, 2.000000);
-        p = p + vec2<f32>(warp_x, warp_y) * 0.250000; }
-        var sdf_result = noise2(p * 12.000000 + vec2<f32>(time * 0.1, time * 0.07));
-        let pal_rgb = cosine_palette(sdf_result, vec3<f32>(0.1, 0.4, 0.8), vec3<f32>(0.3, 0.4, 0.2), vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(0.0, 0.1, 0.3));
+        { let warp_x = fbm2(p * (2.500000 + (u.mouse.x * 0.400000)) + vec2<f32>(0.0, 1.3), i32(5.000000), 0.500000, (0.250000 + (u.mouse_down * 0.060000)));
+        let warp_y = fbm2(p * (2.500000 + (u.mouse.x * 0.400000)) + vec2<f32>(1.7, 0.0), i32(5.000000), 0.500000, (0.250000 + (u.mouse_down * 0.060000)));
+        p = p + vec2<f32>(warp_x, warp_y) * (0.250000 + (u.mouse_down * 0.060000)); }
+        p = p + vec2<f32>(sin(p.y * 3.000000 + time * (flow_speed * 1.400000)), cos(p.x * 3.000000 + time * (flow_speed * 1.400000))) * (flow_strength * 0.500000);
+        var sdf_result = fbm2((p * 5.000000 + vec2<f32>(time * 0.1, time * 0.07)), i32(4.000000), 0.450000, 2.000000);
+        let pal_rgb = cosine_palette(sdf_result, vec3<f32>(0.100000, 0.180000, 0.300000), vec3<f32>(0.120000, 0.180000, 0.250000), vec3<f32>(1.200000, 0.800000, 0.500000), vec3<f32>(0.600000, 0.650000, 0.750000));
         var color_result = vec4<f32>(pal_rgb, clamp(dot(pal_rgb, vec3<f32>(0.299, 0.587, 0.114)) * 2.0, 0.0, 1.0));
+        let prev_color = textureSample(prev_frame, prev_sampler, input.uv);
+        color_result = mix(color_result, prev_color, 0.850000);
+        let la = color_result.a * 0.500000;
+        let lc = color_result.rgb * 0.500000;
+        final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
+    }
+
+    // ── Layer 3: organisms ──
+    {
+        var p = vec2<f32>(uv.x * aspect, uv.y);
+        p = p + vec2<f32>(sin(p.y * 4.000000 + time * (flow_speed * 0.700000)), cos(p.x * 4.000000 + time * (flow_speed * 0.700000))) * 0.180000;
+        { let warp_x = fbm2(p * 2.000000 + vec2<f32>(0.0, 1.3), i32(3.000000), 0.200000, 2.000000);
+        let warp_y = fbm2(p * 2.000000 + vec2<f32>(1.7, 0.0), i32(3.000000), 0.200000, 2.000000);
+        p = p + vec2<f32>(warp_x, warp_y) * 0.200000; }
+        p = vec2<f32>(glyph_mod(p.x + 0.120000 * 0.5, 0.120000) - 0.120000 * 0.5, glyph_mod(p.y + 0.120000 * 0.5, 0.120000) - 0.120000 * 0.5);
+        var sdf_result = sdf_circle(p, 0.020000);
+        let glow_pulse = (2.500000 + (bio_intensity * 1.000000)) * (0.9 + 0.1 * sin(time * 2.0));
+        let glow_result = apply_glow(sdf_result, glow_pulse);
+        var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);
+        color_result = vec4<f32>(color_result.rgb * vec3<f32>(0.200000, 0.600000, 0.900000), color_result.a);
         let prev_color = textureSample(prev_frame, prev_sampler, input.uv);
         color_result = mix(color_result, prev_color, 0.820000);
         let la = color_result.a;
@@ -256,7 +170,39 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
         final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
     }
 
-    final_color = vec4<f32>(apply_color_matrix(final_color.rgb), final_color.a);
+    // ── Layer 4: trails ──
+    {
+        var p = vec2<f32>(uv.x * aspect, uv.y);
+        p = p + vec2<f32>(sin(p.y * 3.000000 + time * (flow_speed * 0.500000)), cos(p.x * 3.000000 + time * (flow_speed * 0.500000))) * 0.120000;
+        { let warp_x = fbm2(p * 2.000000 + vec2<f32>(0.0, 1.3), i32(4.000000), 0.500000, 0.220000);
+        let warp_y = fbm2(p * 2.000000 + vec2<f32>(1.7, 0.0), i32(4.000000), 0.500000, 0.220000);
+        p = p + vec2<f32>(warp_x, warp_y) * 0.220000; }
+        var sdf_result = noise2(p * 6.000000 + vec2<f32>(time * 0.1, time * 0.07));
+        let glow_pulse = (1.200000 + (bio_intensity * 0.500000)) * (0.9 + 0.1 * sin(time * 2.0));
+        let glow_result = apply_glow(sdf_result, glow_pulse);
+        var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);
+        color_result = vec4<f32>(color_result.rgb * vec3<f32>(0.150000, 0.400000, 0.700000), color_result.a);
+        let prev_color = textureSample(prev_frame, prev_sampler, input.uv);
+        color_result = mix(color_result, prev_color, 0.940000);
+        let la = color_result.a;
+        let lc = color_result.rgb;
+        final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
+    }
+
+    // ── Layer 5: cursor ──
+    {
+        var p = vec2<f32>(uv.x * aspect, uv.y);
+        p = p - vec2<f32>(((u.mouse.x * 2.000000) - 1.000000), ((u.mouse.y * 2.000000) - 1.000000));
+        var sdf_result = sdf_circle(p, (0.030000 + (u.mouse_down * 0.030000)));
+        let glow_pulse = (0.500000 + (u.mouse_down * 0.500000)) * (0.9 + 0.1 * sin(time * 2.0));
+        let glow_result = apply_glow(sdf_result, glow_pulse);
+        var color_result = vec4<f32>(vec3<f32>(glow_result), glow_result);
+        color_result = vec4<f32>(color_result.rgb * vec3<f32>(0.200000, 0.500000, 0.800000), color_result.a);
+        let la = color_result.a;
+        let lc = color_result.rgb;
+        final_color = vec4<f32>(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
+    }
+
     final_color = vec4<f32>(aces_tonemap(final_color.rgb), final_color.a);
     final_color = final_color + (dither_noise(input.uv * u.resolution) - 0.5) / 255.0;
     return final_color;
@@ -288,8 +234,9 @@ uniform vec2 u_resolution;
 uniform vec2 u_mouse;
 uniform float u_mouse_down;
 uniform float u_aspect_ratio;
-uniform float u_p_signal;
-uniform float u_p_plasticity;
+uniform float u_p_flow_speed;
+uniform float u_p_flow_strength;
+uniform float u_p_bio_intensity;
 uniform sampler2D u_prev_frame;
 
 
@@ -335,28 +282,6 @@ float fbm2(vec2 p, int octaves, float persistence, float lacunarity){
     return value / max_val;
 }
 
-vec2 hash2v(vec2 p){
-    vec3 p3 = fract(vec3(p.x, p.y, p.x) * vec3(0.1031, 0.1030, 0.0973));
-    vec3 pp = p3 + vec3(dot(p3, p3.yzx + 33.33));
-    return fract(vec2((pp.x + pp.y) * pp.z, (pp.x + pp.z) * pp.y));
-}
-
-float voronoi2(vec2 p){
-    vec2 n = floor(p);
-    vec2 f = fract(p);
-    float md = 8.0;
-    for (int j = -1; j <= 1; j++) {
-        for (int i = -1; i <= 1; i++) {
-            vec2 g = vec2(float(i), float(j));
-            vec2 o = hash2v(n + g);
-            vec2 r = g + o - f;
-            float d = dot(r, r);
-            md = min(md, d);
-        }
-    }
-    return sqrt(md);
-}
-
 vec3 cosine_palette(float t, vec3 a, vec3 b, vec3 c, vec3 d){
     return a + b * cos(6.28318 * (c * t + d));
 }
@@ -371,15 +296,6 @@ float dither_noise(vec2 uv) {
     return fract(52.9829189 * fract(dot(uv, vec2(0.06711056, 0.00583715))));
 }
 
-vec3 apply_color_matrix(vec3 color) {
-    mat3 m = mat3(
-        vec3(0.85, 0, 0.1),
-        vec3(0, 0.9, 0.1),
-        vec3(0.15, 0.1, 1.2)
-    );
-    return clamp(m * color, vec3(0.0), vec3(1.0));
-}
-
 void main(){
     vec2 uv = v_uv * 2.0 - 1.0;
     float aspect = u_aspect_ratio;
@@ -388,53 +304,22 @@ void main(){
     float mouse_y = u_mouse.y;
     float mouse_down = u_mouse_down;
 
-    float signal = u_p_signal;
-    float plasticity = u_p_plasticity;
+    float flow_speed = u_p_flow_speed;
+    float flow_strength = u_p_flow_strength;
+    float bio_intensity = u_p_bio_intensity;
 
     vec4 final_color = vec4(0.0, 0.0, 0.0, 0.0);
 
-    // ── Layer 1: mesh ──
+    // ── Layer 1: water ──
     {
         vec2 p = vec2(uv.x * aspect, uv.y);
-        { float warp_x = fbm2(p * 3.000000 + vec2(0.0, 1.3), int(5.000000), 0.500000, 0.200000);
-        float warp_y = fbm2(p * 3.000000 + vec2(1.7, 0.0), int(5.000000), 0.500000, 0.200000);
-        p = p + vec2(warp_x, warp_y) * 0.200000; }
-        float sdf_result = voronoi2(p * 10.000000 + vec2(time * 0.05, time * 0.03));
-        vec3 pal_rgb = cosine_palette(sdf_result, vec3(0.020000, 0.000000, 0.040000), vec3(0.100000, 0.050000, 0.200000), vec3(0.500000, 0.300000, 0.800000), vec3(0.000000, 0.200000, 0.500000));
+        { float warp_x = fbm2(p * 1.200000 + vec2(0.0, 1.3), int(6.000000), 0.550000, (0.320000 + (u_mouse_down * 0.080000)));
+        float warp_y = fbm2(p * 1.200000 + vec2(1.7, 0.0), int(6.000000), 0.550000, (0.320000 + (u_mouse_down * 0.080000)));
+        p = p + vec2(warp_x, warp_y) * (0.320000 + (u_mouse_down * 0.080000)); }
+        p = p + vec2(sin(p.y * 2.000000 + time * flow_speed), cos(p.x * 2.000000 + time * flow_speed)) * (flow_strength * 0.400000);
+        float sdf_result = fbm2((p * 2.500000 + vec2(time * 0.1, time * 0.07)), int(5.000000), 0.500000, 2.000000);
+        vec3 pal_rgb = cosine_palette(sdf_result, vec3(0.150000, 0.200000, 0.350000), vec3(0.150000, 0.200000, 0.300000), vec3(1.000000, 0.800000, 0.600000), vec3(0.550000, 0.600000, 0.700000));
         vec4 color_result = vec4(pal_rgb, clamp(dot(pal_rgb, vec3(0.299, 0.587, 0.114)) * 2.0, 0.0, 1.0));
-        vec4 prev_color = texture(u_prev_frame, v_uv);
-        color_result = mix(color_result, prev_color, 0.930000);
-        float la = color_result.a;
-        vec3 lc = color_result.rgb;
-        final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 2: dendrites ──
-    {
-        vec2 p = vec2(uv.x * aspect, uv.y);
-        { float warp_x = fbm2(p * 5.000000 + vec2(0.0, 1.3), int(6.000000), 0.600000, 2.300000);
-        float warp_y = fbm2(p * 5.000000 + vec2(1.7, 0.0), int(6.000000), 0.600000, 2.300000);
-        p = p + vec2(warp_x, warp_y) * 0.300000; }
-        float sdf_result = fbm2((p * 8.000000 + vec2(time * 0.1, time * 0.07)), int(6.000000), 0.550000, 2.000000);
-        vec3 pal_rgb = cosine_palette(sdf_result, vec3(0.0, 0.5, 0.3), vec3(0.1, 0.5, 0.4), vec3(1.0, 1.0, 0.5), vec3(0.0, 0.2, 0.5));
-        vec4 color_result = vec4(pal_rgb, clamp(dot(pal_rgb, vec3(0.299, 0.587, 0.114)) * 2.0, 0.0, 1.0));
-        vec4 prev_color = texture(u_prev_frame, v_uv);
-        color_result = mix(color_result, prev_color, 0.910000);
-        float la = color_result.a;
-        vec3 lc = color_result.rgb;
-        final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 3: neuron_a ──
-    {
-        vec2 p = vec2(uv.x * aspect, uv.y);
-        p = p + vec2(sin(p.y * 2.000000 + time * 0.400000), cos(p.x * 2.000000 + time * 0.400000)) * (0.020000 + (signal * 0.010000));
-        float sdf_result = sdf_circle(p, (0.080000 + (signal * 0.030000)));
-        float glow_pulse = (4.000000 + (signal * 2.000000)) * (0.9 + 0.1 * sin(time * 2.0));
-        float glow_result = apply_glow(sdf_result, glow_pulse);
-
-        vec4 color_result = vec4(vec3(glow_result), glow_result);
-        color_result = vec4(color_result.rgb * vec3(0.300000, 0.600000, 1.000000), color_result.a);
         vec4 prev_color = texture(u_prev_frame, v_uv);
         color_result = mix(color_result, prev_color, 0.900000);
         float la = color_result.a;
@@ -442,69 +327,37 @@ void main(){
         final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
     }
 
-    // ── Layer 4: axons ──
+    // ── Layer 2: current ──
     {
         vec2 p = vec2(uv.x * aspect, uv.y);
-        p = p + vec2(sin(p.y * 2.500000 + time * 0.500000), cos(p.x * 2.500000 + time * 0.500000)) * 0.030000;
-        float sdf_result = sdf_circle(p, (0.200000 + (signal * 0.050000)));
-        for (int onion_i = 0; onion_i < int(4.000000); onion_i++) { sdf_result = abs(sdf_result) - 0.012000; }
-        float glow_pulse = (1.800000 + (plasticity * 0.800000)) * (0.9 + 0.1 * sin(time * 2.0));
-        float glow_result = apply_glow(sdf_result, glow_pulse);
-
-        vec4 color_result = vec4(vec3(glow_result), glow_result);
-        color_result = vec4(color_result.rgb * vec3(0.200000, 0.400000, 0.900000), color_result.a);
-        vec4 prev_color = texture(u_prev_frame, v_uv);
-        color_result = mix(color_result, prev_color, 0.870000);
-        float la = color_result.a;
-        vec3 lc = color_result.rgb;
-        final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 5: neuron_b ──
-    {
-        vec2 p = vec2(uv.x * aspect, uv.y);
-        p = p - vec2(0.200000, (-0.150000));
-        p = p + vec2(sin(p.y * 2.000000 + time * 0.600000), cos(p.x * 2.000000 + time * 0.600000)) * 0.020000;
-        float sdf_result = sdf_circle(p, (0.050000 + (plasticity * 0.020000)));
-        float glow_pulse = (3.000000 + (plasticity * 1.500000)) * (0.9 + 0.1 * sin(time * 2.0));
-        float glow_result = apply_glow(sdf_result, glow_pulse);
-
-        vec4 color_result = vec4(vec3(glow_result), glow_result);
-        color_result = vec4(color_result.rgb * vec3(0.500000, 0.300000, 0.900000), color_result.a);
-        vec4 prev_color = texture(u_prev_frame, v_uv);
-        color_result = mix(color_result, prev_color, 0.880000);
-        float la = color_result.a;
-        vec3 lc = color_result.rgb;
-        final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 6: neuron_c ──
-    {
-        vec2 p = vec2(uv.x * aspect, uv.y);
-        p = p - vec2((-0.180000), 0.120000);
-        p = p + vec2(sin(p.y * 2.000000 + time * 0.350000), cos(p.x * 2.000000 + time * 0.350000)) * 0.020000;
-        float sdf_result = sdf_circle(p, (0.040000 + (signal * 0.015000)));
-        float glow_pulse = (2.500000 + (signal * 1.000000)) * (0.9 + 0.1 * sin(time * 2.0));
-        float glow_result = apply_glow(sdf_result, glow_pulse);
-
-        vec4 color_result = vec4(vec3(glow_result), glow_result);
-        color_result = vec4(color_result.rgb * vec3(0.400000, 0.700000, 0.800000), color_result.a);
-        vec4 prev_color = texture(u_prev_frame, v_uv);
-        color_result = mix(color_result, prev_color, 0.860000);
-        float la = color_result.a;
-        vec3 lc = color_result.rgb;
-        final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
-    }
-
-    // ── Layer 7: flash ──
-    {
-        vec2 p = vec2(uv.x * aspect, uv.y);
-        { float warp_x = fbm2(p * 6.000000 + vec2(0.0, 1.3), int(3.000000), 0.250000, 2.000000);
-        float warp_y = fbm2(p * 6.000000 + vec2(1.7, 0.0), int(3.000000), 0.250000, 2.000000);
-        p = p + vec2(warp_x, warp_y) * 0.250000; }
-        float sdf_result = noise2(p * 12.000000 + vec2(time * 0.1, time * 0.07));
-        vec3 pal_rgb = cosine_palette(sdf_result, vec3(0.1, 0.4, 0.8), vec3(0.3, 0.4, 0.2), vec3(1.0, 1.0, 1.0), vec3(0.0, 0.1, 0.3));
+        { float warp_x = fbm2(p * (2.500000 + (u_mouse.x * 0.400000)) + vec2(0.0, 1.3), int(5.000000), 0.500000, (0.250000 + (u_mouse_down * 0.060000)));
+        float warp_y = fbm2(p * (2.500000 + (u_mouse.x * 0.400000)) + vec2(1.7, 0.0), int(5.000000), 0.500000, (0.250000 + (u_mouse_down * 0.060000)));
+        p = p + vec2(warp_x, warp_y) * (0.250000 + (u_mouse_down * 0.060000)); }
+        p = p + vec2(sin(p.y * 3.000000 + time * (flow_speed * 1.400000)), cos(p.x * 3.000000 + time * (flow_speed * 1.400000))) * (flow_strength * 0.500000);
+        float sdf_result = fbm2((p * 5.000000 + vec2(time * 0.1, time * 0.07)), int(4.000000), 0.450000, 2.000000);
+        vec3 pal_rgb = cosine_palette(sdf_result, vec3(0.100000, 0.180000, 0.300000), vec3(0.120000, 0.180000, 0.250000), vec3(1.200000, 0.800000, 0.500000), vec3(0.600000, 0.650000, 0.750000));
         vec4 color_result = vec4(pal_rgb, clamp(dot(pal_rgb, vec3(0.299, 0.587, 0.114)) * 2.0, 0.0, 1.0));
+        vec4 prev_color = texture(u_prev_frame, v_uv);
+        color_result = mix(color_result, prev_color, 0.850000);
+        float la = color_result.a * 0.500000;
+        vec3 lc = color_result.rgb * 0.500000;
+        final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
+    }
+
+    // ── Layer 3: organisms ──
+    {
+        vec2 p = vec2(uv.x * aspect, uv.y);
+        p = p + vec2(sin(p.y * 4.000000 + time * (flow_speed * 0.700000)), cos(p.x * 4.000000 + time * (flow_speed * 0.700000))) * 0.180000;
+        { float warp_x = fbm2(p * 2.000000 + vec2(0.0, 1.3), int(3.000000), 0.200000, 2.000000);
+        float warp_y = fbm2(p * 2.000000 + vec2(1.7, 0.0), int(3.000000), 0.200000, 2.000000);
+        p = p + vec2(warp_x, warp_y) * 0.200000; }
+        p = vec2(mod(p.x + 0.120000 * 0.5, 0.120000) - 0.120000 * 0.5, mod(p.y + 0.120000 * 0.5, 0.120000) - 0.120000 * 0.5);
+        float sdf_result = sdf_circle(p, 0.020000);
+        float glow_pulse = (2.500000 + (bio_intensity * 1.000000)) * (0.9 + 0.1 * sin(time * 2.0));
+        float glow_result = apply_glow(sdf_result, glow_pulse);
+
+        vec4 color_result = vec4(vec3(glow_result), glow_result);
+        color_result = vec4(color_result.rgb * vec3(0.200000, 0.600000, 0.900000), color_result.a);
         vec4 prev_color = texture(u_prev_frame, v_uv);
         color_result = mix(color_result, prev_color, 0.820000);
         float la = color_result.a;
@@ -512,14 +365,48 @@ void main(){
         final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
     }
 
-    final_color = vec4(apply_color_matrix(final_color.rgb), final_color.a);
+    // ── Layer 4: trails ──
+    {
+        vec2 p = vec2(uv.x * aspect, uv.y);
+        p = p + vec2(sin(p.y * 3.000000 + time * (flow_speed * 0.500000)), cos(p.x * 3.000000 + time * (flow_speed * 0.500000))) * 0.120000;
+        { float warp_x = fbm2(p * 2.000000 + vec2(0.0, 1.3), int(4.000000), 0.500000, 0.220000);
+        float warp_y = fbm2(p * 2.000000 + vec2(1.7, 0.0), int(4.000000), 0.500000, 0.220000);
+        p = p + vec2(warp_x, warp_y) * 0.220000; }
+        float sdf_result = noise2(p * 6.000000 + vec2(time * 0.1, time * 0.07));
+        float glow_pulse = (1.200000 + (bio_intensity * 0.500000)) * (0.9 + 0.1 * sin(time * 2.0));
+        float glow_result = apply_glow(sdf_result, glow_pulse);
+
+        vec4 color_result = vec4(vec3(glow_result), glow_result);
+        color_result = vec4(color_result.rgb * vec3(0.150000, 0.400000, 0.700000), color_result.a);
+        vec4 prev_color = texture(u_prev_frame, v_uv);
+        color_result = mix(color_result, prev_color, 0.940000);
+        float la = color_result.a;
+        vec3 lc = color_result.rgb;
+        final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
+    }
+
+    // ── Layer 5: cursor ──
+    {
+        vec2 p = vec2(uv.x * aspect, uv.y);
+        p = p - vec2(((u_mouse.x * 2.000000) - 1.000000), ((u_mouse.y * 2.000000) - 1.000000));
+        float sdf_result = sdf_circle(p, (0.030000 + (u_mouse_down * 0.030000)));
+        float glow_pulse = (0.500000 + (u_mouse_down * 0.500000)) * (0.9 + 0.1 * sin(time * 2.0));
+        float glow_result = apply_glow(sdf_result, glow_pulse);
+
+        vec4 color_result = vec4(vec3(glow_result), glow_result);
+        color_result = vec4(color_result.rgb * vec3(0.200000, 0.500000, 0.800000), color_result.a);
+        float la = color_result.a;
+        vec3 lc = color_result.rgb;
+        final_color = vec4(final_color.rgb * (1.0 - la) + lc, final_color.a * (1.0 - la) + la);
+    }
+
     final_color = vec4(aces_tonemap(final_color.rgb), final_color.a);
     final_color += (dither_noise(v_uv * u_resolution) - 0.5) / 255.0;
     fragColor = final_color;
 }
 `;
-const UNIFORMS = [{name:'signal',default:0},{name:'plasticity',default:0.3}];
-const COMPLEXITY = {layers:7,fbmOctaves:20,passes:3,memory:true,compute:false,is3d:false,tier:'extreme'};
+const UNIFORMS = [{name:'flow_speed',default:0.3},{name:'flow_strength',default:0.28},{name:'bio_intensity',default:0}];
+const COMPLEXITY = {layers:5,fbmOctaves:27,passes:2,memory:true,compute:false,is3d:false,tier:'extreme'};
 const PASS_WGSL_0 = `// Post-processing pass: glow
 
 struct Uniforms {
@@ -551,7 +438,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     // blur pass
     var blurred = vec4<f32>(0.0);
     let texel = 1.0 / u.resolution;
-    let r = i32(2.000000);
+    let r = i32(1.500000);
     var count = 0.0;
     for (var dy = -r; dy <= r; dy++) {
         for (var dx = -r; dx <= r; dx++) {
@@ -564,7 +451,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     return color_result;
 }
 `;
-const PASS_WGSL_1 = `// Post-processing pass: split
+const PASS_WGSL_1 = `// Post-processing pass: frame
 
 struct Uniforms {
     time: f32,
@@ -592,49 +479,12 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let pixel = textureSample(pass_tex, pass_sampler, uv);
     var color_result = pixel;
 
-    // chromatic aberration
-    let ca_dir = normalize(uv - 0.5) * 0.004000;
-    let ca_r = textureSample(pass_tex, pass_sampler, uv + ca_dir).r;
-    let ca_g = color_result.g;
-    let ca_b = textureSample(pass_tex, pass_sampler, uv - ca_dir).b;
-    color_result = vec4<f32>(ca_r, ca_g, ca_b, color_result.a);
-    return color_result;
-}
-`;
-const PASS_WGSL_2 = `// Post-processing pass: frame
-
-struct Uniforms {
-    time: f32,
-    audio_bass: f32,
-    audio_mid: f32,
-    audio_treble: f32,
-    audio_energy: f32,
-    audio_beat: f32,
-    resolution: vec2<f32>,
-    mouse: vec2<f32>,
-};
-
-struct VertexOutput {
-    @builtin(position) pos: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-};
-
-@group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(3) var pass_tex: texture_2d<f32>;
-@group(0) @binding(4) var pass_sampler: sampler;
-
-@fragment
-fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    let uv = vec2<f32>(input.uv.x, 1.0 - input.uv.y);
-    let pixel = textureSample(pass_tex, pass_sampler, uv);
-    var color_result = pixel;
-
-    let vign = 1.0 - 0.450000 * length(uv - 0.5);
+    let vign = 1.0 - 0.250000 * length(uv - 0.5);
     color_result = vec4<f32>(color_result.rgb * vign, color_result.a * vign);
     return color_result;
 }
 `;
-const PASS_SHADERS = [PASS_WGSL_0,PASS_WGSL_1,PASS_WGSL_2];
+const PASS_SHADERS = [PASS_WGSL_0,PASS_WGSL_1];
 
 class GlyphRenderer {
   constructor(canvas, wgslVertex, wgslFragment, uniformDefs, passShaders) {
@@ -841,9 +691,9 @@ class GlyphRenderer {
     // Capture frame for memory/feedback
     this._swapMemory(encoder, this._passFBOs[0]);
 
-    // Post-processing chain (3 passes)
-    for (let p = 0; p < 3; p++) {
-      const isLast = (p === 3 - 1);
+    // Post-processing chain (2 passes)
+    for (let p = 0; p < 2; p++) {
+      const isLast = (p === 2 - 1);
       const readIdx = p % 2;
       const targetView = isLast
         ? this.ctx.getCurrentTexture().createView()
@@ -1204,10 +1054,8 @@ class GlyphRendererGL {
 class GameResonanceNetwork {
   constructor() {
     this._couplings = [
-      { source: 'signal', target: 'neuron_a', field: 'brightness', weight: 0.5 },
-      { source: 'signal', target: 'axons', field: 'brightness', weight: 0.4 },
-      { source: 'plasticity', target: 'neuron_b', field: 'brightness', weight: 0.3 },
-      { source: 'plasticity', target: 'dendrites', field: 'intensity', weight: 0.2 },
+      { source: 'bio_intensity', target: 'organisms', field: 'brightness', weight: 0.3 },
+      { source: 'bio_intensity', target: 'trails', field: 'intensity', weight: 0.2 },
     ];
     this._damping = 0.95;
     this._maxDepth = 4;
@@ -1277,7 +1125,6 @@ class GameResonanceNetwork {
 
 const _gameEasings = {
   linear: t => t,
-  ease_out: t => t * (2 - t),
   ease_in_out: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
 };
 
@@ -1285,8 +1132,7 @@ class GameArcTimeline {
   constructor() {
     this._startTime = null;
     this._entries = [
-      { target: 'signal', from: 0, to: 1, duration: 6, easing: 'ease_out' },
-      { target: 'plasticity', from: 0.3, to: 0.9, duration: 10, easing: 'ease_in_out' },
+      { target: 'bio_intensity', from: 0, to: 0.8, duration: 12, easing: 'ease_in_out' },
     ];
   }
 
@@ -1323,7 +1169,7 @@ class GameArcTimeline {
 
 
 
-class NeuralWeb extends HTMLElement {
+class MidnightOcean extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
@@ -1359,7 +1205,7 @@ class NeuralWeb extends HTMLElement {
       if (gl.init()) {
         this._renderer = gl;
       } else {
-        console.warn('glyph-neural-web: no WebGPU or WebGL2 support');
+        console.warn('glyph-midnight-ocean: no WebGPU or WebGL2 support');
         return;
       }
     }
@@ -1421,10 +1267,12 @@ class NeuralWeb extends HTMLElement {
   }
 
   // Property accessors for each uniform
-  get signal() { return this._renderer?.userParams['signal'] ?? this._pendingParams['signal'] ?? 0; }
-  set signal(v) { this.setParam('signal', v); }
-  get plasticity() { return this._renderer?.userParams['plasticity'] ?? this._pendingParams['plasticity'] ?? 0.3; }
-  set plasticity(v) { this.setParam('plasticity', v); }
+  get flow_speed() { return this._renderer?.userParams['flow_speed'] ?? this._pendingParams['flow_speed'] ?? 0.3; }
+  set flow_speed(v) { this.setParam('flow_speed', v); }
+  get flow_strength() { return this._renderer?.userParams['flow_strength'] ?? this._pendingParams['flow_strength'] ?? 0.28; }
+  set flow_strength(v) { this.setParam('flow_strength', v); }
+  get bio_intensity() { return this._renderer?.userParams['bio_intensity'] ?? this._pendingParams['bio_intensity'] ?? 0; }
+  set bio_intensity(v) { this.setParam('bio_intensity', v); }
 
   static get observedAttributes() { return UNIFORMS.map(u => u.name); }
   attributeChangedCallback(name, _, val) {
@@ -1432,5 +1280,5 @@ class NeuralWeb extends HTMLElement {
   }
 }
 
-customElements.define('glyph-neural-web', NeuralWeb);
+customElements.define('glyph-midnight-ocean', MidnightOcean);
 })();

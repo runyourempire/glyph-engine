@@ -1,7 +1,12 @@
 {
   "name": "glyph-mcp-server",
   "version": "1.0.0",
-  "description": "MCP server for the GAME compiler — AI agents generate and serve GPU-rendered visual components",
+  "description": "GLYPH MCP Server — AI agents generate GPU-rendered interactive Web Components from natural language descriptions",
+  "keywords": ["glyph", "mcp", "shader", "webgpu", "web-component", "gpu", "visual", "ai-agent", "model-context-protocol"],
+  "author": "4DA Systems Pty Ltd",
+  "license": "FSL-1.1-Apache-2.0",
+  "homepage": "https://runyourempire.github.io/glyph-engine/",
+  "repository": { "type": "git", "url": "https://github.com/runyourempire/glyph-engine" },
   "type": "module",
   "main": "dist/index.js",
   "bin": {

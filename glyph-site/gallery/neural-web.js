@@ -1277,8 +1277,8 @@ class GameResonanceNetwork {
 
 const _gameEasings = {
   linear: t => t,
-  ease_in_out: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
   ease_out: t => t * (2 - t),
+  ease_in_out: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
 };
 
 class GameArcTimeline {
